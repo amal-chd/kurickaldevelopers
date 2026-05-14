@@ -97,8 +97,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-tight tracking-wide">Kurickal</p>
-              <p className="text-white/40 text-xs">Task Management</p>
+              <p className="text-white font-bold text-sm leading-tight tracking-wide">Task Master Pro</p>
+              <p className="text-white/40 text-xs">Construction TMS</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors">

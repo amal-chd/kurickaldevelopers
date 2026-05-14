@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Building2, Clock, MapPin, Loader2 } from 'lucide-react';
+import { Save, Building2, Clock, MapPin, Loader2, ChevronDown } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -44,14 +44,6 @@ const OrgSettingsPage: React.FC = () => {
     });
   }, []);
 
-  if (!can('settings_manage')) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <EmptyState icon={<Shield className="w-8 h-8" />} title="Access Denied" description="You need 'settings_manage' permission." />
-      </div>
-    );
-  }
-
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -71,6 +63,14 @@ const OrgSettingsPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!can('settings_manage')) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <EmptyState icon={<Shield className="w-8 h-8" />} title="Access Denied" description="You need 'settings_manage' permission." />
       </div>
     );
   }
@@ -96,15 +96,18 @@ const OrgSettingsPage: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Timezone</label>
-            <select
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              value={settings.timezone}
-              onChange={(e) => set('timezone', e.target.value)}
-            >
-              {['Asia/Kolkata', 'UTC', 'Asia/Dubai', 'Europe/London', 'America/New_York'].map((tz) => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={settings.timezone}
+                onChange={(e) => set('timezone', e.target.value)}
+              >
+                {['Asia/Kolkata', 'UTC', 'Asia/Dubai', 'Europe/London', 'America/New_York'].map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
       </Section>

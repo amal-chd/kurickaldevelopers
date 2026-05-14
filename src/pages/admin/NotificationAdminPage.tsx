@@ -7,7 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Avatar from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
-import { createNotification, getAllUsers, getAuditLogs } from '../../lib/firestore';
+import { createNotification, getAllUsers } from '../../lib/firestore';
 import { AppUser, AppNotification } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';

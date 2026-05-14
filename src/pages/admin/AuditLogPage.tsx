@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, Search, RefreshCw, ClipboardList } from 'lucide-react';
+import { Shield, Search, RefreshCw, ClipboardList, User, CheckSquare, Folder, Key, FileText, Clock, Settings, Bell, ChevronDown } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
@@ -23,12 +23,19 @@ const getActionColor = (action: string) => {
   return key ? ACTION_COLORS[key] : 'bg-gray-100 text-gray-600';
 };
 
-const getTargetIcon = (targetType: string) => {
-  const map: Record<string, string> = {
-    user: '👤', task: '✅', project: '📁', role: '🔑',
-    document: '📄', attendance: '🕐', settings: '⚙️', notification: '🔔',
-  };
-  return map[targetType?.toLowerCase()] ?? '📋';
+const TARGET_ICON_MAP: Record<string, React.ReactNode> = {
+  user: <User className="w-4 h-4 text-gray-500" />,
+  task: <CheckSquare className="w-4 h-4 text-blue-500" />,
+  project: <Folder className="w-4 h-4 text-emerald-500" />,
+  role: <Key className="w-4 h-4 text-purple-500" />,
+  document: <FileText className="w-4 h-4 text-amber-500" />,
+  attendance: <Clock className="w-4 h-4 text-teal-500" />,
+  settings: <Settings className="w-4 h-4 text-gray-500" />,
+  notification: <Bell className="w-4 h-4 text-indigo-500" />,
+};
+
+const getTargetIcon = (targetType: string): React.ReactNode => {
+  return TARGET_ICON_MAP[targetType?.toLowerCase()] ?? <ClipboardList className="w-4 h-4 text-gray-400" />;
 };
 
 const AuditLogPage: React.FC = () => {
@@ -103,16 +110,19 @@ const AuditLogPage: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select
-          className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">All Types</option>
-          {targetTypes.map((t) => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            className="appearance-none px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="">All Types</option>
+            {targetTypes.map((t) => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
       </div>
 
       {/* Stats */}
@@ -166,7 +176,7 @@ const AuditLogPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <div className="flex items-center gap-1.5">
-                          <span>{getTargetIcon(log.targetType)}</span>
+                          <span className="flex-shrink-0">{getTargetIcon(log.targetType)}</span>
                           <div>
                             <p className="text-xs font-medium text-gray-700 capitalize">{log.targetType || '—'}</p>
                             {log.targetId && <p className="text-xs text-gray-400">{log.targetId.slice(0, 8)}…</p>}

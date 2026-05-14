@@ -375,12 +375,18 @@ const TaskDetailPage: React.FC = () => {
       </div>
 
       {/* Delete confirm */}
-      <Modal open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title="Delete Task">
+      <Modal
+        open={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        title="Delete Task"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete}>Delete</Button>
+          </div>
+        }
+      >
         <p className="text-gray-600">Are you sure you want to delete this task? This cannot be undone.</p>
-        <div className="flex gap-3 mt-4 justify-end">
-          <Button variant="outline" onClick={() => setDeleteConfirm(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete}>Delete</Button>
-        </div>
       </Modal>
     </div>
   );

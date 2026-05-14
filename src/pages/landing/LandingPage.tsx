@@ -5,6 +5,7 @@ import {
   Home, ArrowRight, Wrench, Target, Leaf, BarChart
 } from 'lucide-react';
 import { createContactInquiry } from '../../lib/firestore';
+import toast from 'react-hot-toast';
 
 // Data
 const SERVICES = [
@@ -76,7 +77,7 @@ export default function LandingPage() {
       setContactSuccess(true);
       setContactForm({ name: '', phone: '', email: '', projectType: 'Residential', message: '' });
     } catch {
-      alert('Something went wrong. Please try again or call us directly.');
+      toast.error('Something went wrong. Please try again or call us directly.');
     } finally {
       setContactSubmitting(false);
     }
@@ -332,6 +333,7 @@ export default function LandingPage() {
                 <a href="#projects" className="hover:text-white transition-colors">Projects</a>
                 <a href="#about" className="hover:text-white transition-colors">About</a>
                 <a href="#contact" className="hover:text-white transition-colors">Contact</a>
+                <a href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a>
             </div>
             <p className="text-blue-100/40 text-[11px]">© {new Date().getFullYear()} Kurickal Developers LLP. All rights reserved.</p>
         </div>

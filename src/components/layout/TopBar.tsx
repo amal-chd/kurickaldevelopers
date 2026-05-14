@@ -30,6 +30,7 @@ const BREADCRUMBS: Record<string, string[]> = {
   '/app/admin/audit-log': ['Admin', 'Audit Log'],
   '/app/admin/notifications': ['Admin', 'Notifications'],
   '/app/admin/attendance': ['Admin', 'Attendance'],
+  '/app/admin/contact': ['Admin', 'Contact Inquiries'],
   '/app/profile': ['Profile'],
 };
 
@@ -44,7 +45,18 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
     return sum + (ch.unreadCounts?.[appUser.id] ?? 0);
   }, 0);
 
-  const crumbs = BREADCRUMBS[location.pathname] ?? ['Kurickal TMS'];
+  // Resolve dynamic routes (e.g. /app/tasks/:id, /app/tasks/:taskId/edit)
+  const resolveCrumbs = (path: string): string[] => {
+    if (BREADCRUMBS[path]) return BREADCRUMBS[path];
+    if (/^\/app\/tasks\/[^/]+\/edit$/.test(path)) return ['Tasks', 'Edit Task'];
+    if (/^\/app\/tasks\/[^/]+$/.test(path))        return ['Tasks', 'Task Detail'];
+    if (/^\/app\/projects\/[^/]+\/edit$/.test(path)) return ['Projects', 'Edit Project'];
+    if (/^\/app\/projects\/[^/]+$/.test(path))     return ['Projects', 'Project Detail'];
+    if (/^\/app\/team\/[^/]+$/.test(path))         return ['People', 'Team', 'Member'];
+    if (/^\/app\/chat\/.+$/.test(path))            return ['People', 'Chat'];
+    return ['Task Master Pro'];
+  };
+  const crumbs = resolveCrumbs(location.pathname);
   const today = format(new Date(), 'EEE, dd MMM');
 
   return (

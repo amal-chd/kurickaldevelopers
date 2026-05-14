@@ -242,7 +242,7 @@ const ProjectDetailPage: React.FC = () => {
               <div
                 key={doc.id}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                onClick={() => navigate(`/app/documents/${doc.id}`)}
+                onClick={() => window.open(doc.url, '_blank')}
               >
                 <FileText className="w-5 h-5 text-primary" />
                 <div className="flex-1">

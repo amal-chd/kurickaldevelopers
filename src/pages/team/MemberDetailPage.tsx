@@ -12,7 +12,6 @@ import { AppUser, Role, Task, Attendance } from '../../types';
 import { formatDate, formatTime, getDuration } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { getDmChannelId } from '../../lib/utils';
-import { useNavigate as useNav } from 'react-router-dom';
 import { where } from 'firebase/firestore';
 
 const MemberDetailPage: React.FC = () => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Plus, BookOpen, Cloud, Users, Wrench, Edit2, Trash2, Camera,
+  Plus, BookOpen, Users, Wrench, Edit2, Trash2, Camera,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -146,14 +146,17 @@ const SiteDiaryPage: React.FC = () => {
 
       {/* Project filter */}
       <div className="flex gap-3">
-        <select
-          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm"
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-        >
-          <option value="">All Projects</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <div className="relative">
+          <select
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
       </div>
 
       {filtered.length === 0 ? (

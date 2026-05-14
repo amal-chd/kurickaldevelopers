@@ -29,7 +29,7 @@ const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const title = pageTitles[location.pathname] ?? 'Kurickal TMS';
+  const title = pageTitles[location.pathname] ?? 'Task Master Pro';
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">

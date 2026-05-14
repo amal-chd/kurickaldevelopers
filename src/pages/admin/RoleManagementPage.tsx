@@ -23,6 +23,7 @@ const ALL_PERMISSIONS: (keyof Permissions)[] = [
   'notifications_manage',
   'chat_view', 'chat_send', 'chat_create_group', 'chat_announce', 'chat_moderate',
   'attendance_view_all',
+  'contact_view', 'contact_manage',
 ];
 
 const RoleManagementPage: React.FC = () => {
@@ -92,8 +93,7 @@ const RoleManagementPage: React.FC = () => {
       }
       setModal(false);
       resetForm();
-    } catch (err) {
-      console.error('Failed to save role:', err);
+    } catch {
       toast.error('Failed to save role');
     } finally {
       setSaving(false);

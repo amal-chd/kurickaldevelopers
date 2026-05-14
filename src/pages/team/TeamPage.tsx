@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, UserPlus, Mail, Phone } from 'lucide-react';
+import { Search, Users, UserPlus, Mail, Phone, ChevronDown } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
@@ -73,14 +73,17 @@ const TeamPage: React.FC = () => {
             leftIcon={<Search className="w-4 h-4" />}
           />
         </div>
-        <select
-          className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60 h-10"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-        >
-          <option value="">All Roles</option>
-          {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
+        <div className="relative">
+          <select
+            className="appearance-none px-3.5 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60 h-10"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">All Roles</option>
+            {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
       </div>
 
       {filtered.length === 0 ? (

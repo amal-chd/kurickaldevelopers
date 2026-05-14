@@ -353,56 +353,82 @@ export const subscribeTyping = (channelId: string, cb: (typing: Record<string, s
 export const getSiteDiary = async (projectId?: string): Promise<SiteDiaryEntry[]> => {
   const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
   if (projectId) constraints.unshift(where('projectId', '==', projectId));
-  const snap = await getDocs(query(collection(db, 'siteDiary'), ...constraints));
+  const snap = await getDocs(query(collection(db, 'site_diaries'), ...constraints));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SiteDiaryEntry));
 };
 
 export const createSiteDiary = async (data: Omit<SiteDiaryEntry, 'id'>): Promise<string> => {
-  const ref2 = await addDoc(collection(db, 'siteDiary'), { ...data, createdAt: serverTimestamp() });
+  const ref2 = await addDoc(collection(db, 'site_diaries'), { ...data, createdAt: serverTimestamp() });
   return ref2.id;
 };
 
 export const updateSiteDiary = async (id: string, data: Partial<SiteDiaryEntry>): Promise<void> => {
-  await updateDoc(doc(db, 'siteDiary', id), { ...data });
+  await updateDoc(doc(db, 'site_diaries', id), { ...data });
 };
 
 export const deleteSiteDiary = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, 'siteDiary', id));
+  await deleteDoc(doc(db, 'site_diaries', id));
 };
 
 // ─── Org Settings ─────────────────────────────────────────────────────────────
 export const getOrgSettings = async (): Promise<OrgSettings | null> => {
-  const snap = await getDoc(doc(db, 'orgSettings', 'main'));
+  const snap = await getDoc(doc(db, 'settings', 'org'));
   if (!snap.exists()) return null;
   return snap.data() as OrgSettings;
 };
 
 export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<void> => {
-  await setDoc(doc(db, 'orgSettings', 'main'), data, { merge: true });
+  await setDoc(doc(db, 'settings', 'org'), data, { merge: true });
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 export const getAuditLogs = async (pageLimit = 50): Promise<AuditLog[]> => {
   const snap = await getDocs(
-    query(collection(db, 'auditLogs'), orderBy('createdAt', 'desc'), limit(pageLimit))
+    query(collection(db, 'audit_logs'), orderBy('createdAt', 'desc'), limit(pageLimit))
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
 };
 
 export const addAuditLog = async (data: Omit<AuditLog, 'id'>): Promise<void> => {
-  await addDoc(collection(db, 'auditLogs'), { ...data, createdAt: serverTimestamp() });
+  await addDoc(collection(db, 'audit_logs'), { ...data, createdAt: serverTimestamp() });
 };
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const subscribeNotifications = (userId: string, cb: (notifs: AppNotification[]) => void) => {
-  return onSnapshot(
-    query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)),
+  // Two parallel queries: broadcast (userId=='') + targeted (userId==mine)
+  // Merge and deduplicate on the client side.
+  const results: Record<'broadcast' | 'targeted', AppNotification[]> = {
+    broadcast: [],
+    targeted: [],
+  };
+  const emit = () => {
+    const merged = [...results.broadcast, ...results.targeted]
+      .sort((a, b) => {
+        const ta = (a.createdAt as any)?.toMillis?.() ?? 0;
+        const tb = (b.createdAt as any)?.toMillis?.() ?? 0;
+        return tb - ta;
+      })
+      .slice(0, 100);
+    cb(merged);
+  };
+
+  const unsubBroadcast = onSnapshot(
+    query(collection(db, 'notifications'), where('userId', '==', ''), orderBy('createdAt', 'desc'), limit(50)),
     (snap) => {
-      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification));
-      const mine = all.filter((n) => n.userId === '' || n.userId === userId);
-      cb(mine);
+      results.broadcast = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification));
+      emit();
     }
   );
+
+  const unsubTargeted = onSnapshot(
+    query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(50)),
+    (snap) => {
+      results.targeted = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification));
+      emit();
+    }
+  );
+
+  return () => { unsubBroadcast(); unsubTargeted(); };
 };
 
 export const markNotificationRead = async (notifId: string, userId: string): Promise<void> => {

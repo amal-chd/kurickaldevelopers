@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthInit } from './hooks/useAuth';
 import LandingPage from './pages/landing/LandingPage';
+import PrivacyPolicyPage from './pages/landing/PrivacyPolicyPage';
 import { useAuthStore } from './store/authStore';
 
 import AppLayout from './components/layout/AppLayout';
@@ -30,6 +31,7 @@ import OrgSettingsPage from './pages/admin/OrgSettingsPage';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import NotificationAdminPage from './pages/admin/NotificationAdminPage';
 import AttendanceDashboardPage from './pages/admin/AttendanceDashboardPage';
+import ContactInquiriesPage from './pages/admin/ContactInquiriesPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import Spinner from './components/ui/Spinner';
 
@@ -73,6 +75,7 @@ function App() {
 
           {/* Public Auth */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
           {/* Protected App */}
           <Route
@@ -90,11 +93,13 @@ function App() {
             <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/create" element={<CreateTaskPage />} />
             <Route path="tasks/:id" element={<TaskDetailPage />} />
+            <Route path="tasks/:taskId/edit" element={<CreateTaskPage />} />
 
             {/* Projects */}
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="projects/create" element={<CreateProjectPage />} />
             <Route path="projects/:id" element={<ProjectDetailPage />} />
+            <Route path="projects/:projectId/edit" element={<CreateProjectPage />} />
 
             {/* Team */}
             <Route path="team" element={<TeamPage />} />
@@ -116,6 +121,7 @@ function App() {
             <Route path="admin/audit-log" element={<AuditLogPage />} />
             <Route path="admin/notifications" element={<NotificationAdminPage />} />
             <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
+            <Route path="admin/contact" element={<ContactInquiriesPage />} />
 
             {/* Profile */}
             <Route path="profile" element={<ProfilePage />} />
