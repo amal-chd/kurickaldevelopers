@@ -11,6 +11,7 @@ import { useAuthStore } from './store/authStore';
 import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import LoginPage from './pages/auth/LoginPage';
+import SetupPage from './pages/auth/SetupPage';
 
 import TasksPage from './pages/tasks/TasksPage';
 import TaskDetailPage from './pages/tasks/TaskDetailPage';
@@ -76,6 +77,7 @@ function App() {
 
           {/* Public Auth */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/policy" element={<PrivacyPolicyPage />} />
           <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
           <Route path="/terms" element={<TermsOfUsePage />} />
