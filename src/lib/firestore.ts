@@ -225,7 +225,16 @@ export const getUserAttendanceHistory = async (userId: string, limit2 = 30): Pro
 export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) => void) => {
   return onSnapshot(
     query(collection(db, 'chats'), where('memberIds', 'array-contains', userId)),
-    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatChannel)))
+    (snap) => {
+      const channels = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as ChatChannel))
+        .sort((a, b) => {
+          const at = (a.lastMessageAt as any)?.toMillis?.() ?? 0;
+          const bt = (b.lastMessageAt as any)?.toMillis?.() ?? 0;
+          return bt - at;
+        });
+      cb(channels);
+    }
   );
 };
 
@@ -268,16 +277,27 @@ export const subscribeMessages = (
 };
 
 export const sendMessage = async (channelId: string, data: Omit<ChatMessage, 'id' | 'createdAt'>): Promise<string> => {
-  const ref2 = await addDoc(collection(db, 'chats', channelId, 'messages'), {
-    ...data,
-    createdAt: serverTimestamp(),
-  });
-  await updateDoc(doc(db, 'chats', channelId), {
-    lastMessageText: data.isDeleted ? '' : data.text,
+  const batch = writeBatch(db);
+  const msgRef = doc(collection(db, 'chats', channelId, 'messages'));
+  batch.set(msgRef, { ...data, createdAt: serverTimestamp() });
+
+  // Get channel members to increment unread for non-senders
+  const channelSnap = await getDoc(doc(db, 'chats', channelId));
+  const memberIds: string[] = channelSnap.exists() ? (channelSnap.data().memberIds ?? []) : [];
+
+  const channelUpdate: Record<string, any> = {
+    lastMessageText: data.isDeleted ? '' : (data.text.length > 80 ? data.text.slice(0, 80) + '…' : data.text),
     lastMessageAt: serverTimestamp(),
     lastMessageBy: data.senderId,
+  };
+  memberIds.forEach((uid) => {
+    if (uid !== data.senderId) {
+      channelUpdate[`unreadCounts.${uid}`] = increment(1);
+    }
   });
-  return ref2.id;
+  batch.update(doc(db, 'chats', channelId), channelUpdate);
+  await batch.commit();
+  return msgRef.id;
 };
 
 export const editMessage = async (channelId: string, messageId: string, text: string): Promise<void> => {

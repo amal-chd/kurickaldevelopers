@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Send, Plus, Search, MessageSquare, Smile, CornerUpLeft, Edit2, Trash2,
-  Copy, MoreVertical, ChevronLeft, Megaphone, Users, User, Hash, CheckCheck,
-  AtSign, X, CheckSquare,
+  Copy, ChevronLeft, Megaphone, Users, User, Hash, CheckCheck,
+  AtSign, X, CheckSquare, Lock, Shield, Info,
 } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
@@ -17,14 +17,16 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useChannels, useMessages, useTypingIndicators, useChatActions } from '../../hooks/useChat';
 import {
-  getAllUsers, getChannel, createChannelWithId, getTasks,
+  subscribeUsers, getAllUsers, getChannel, createChannelWithId, getTasks,
   createChannel,
 } from '../../lib/firestore';
-import { ChatChannel, ChatMessage, AppUser, Task } from '../../types';
+import { ChatChannel, ChatMessage, AppUser, Task, ChannelType } from '../../types';
 import { getDmChannelId, formatRelative } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '✅'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function DaySeparator({ date }: { date: Date }) {
   let label: string;
@@ -43,6 +45,18 @@ function DaySeparator({ date }: { date: Date }) {
   );
 }
 
+function channelTypeOrder(type: ChannelType): number {
+  const order: Record<ChannelType, number> = {
+    announcement: 0,
+    project: 1,
+    group: 2,
+    direct: 3,
+  };
+  return order[type] ?? 99;
+}
+
+// ─── ChannelItem ──────────────────────────────────────────────────────────────
+
 const ChannelItem: React.FC<{
   channel: ChatChannel;
   selected: boolean;
@@ -51,17 +65,23 @@ const ChannelItem: React.FC<{
   users: AppUser[];
 }> = ({ channel, selected, onClick, currentUserId, users }) => {
   const unread = channel.unreadCounts?.[currentUserId] ?? 0;
-  const otherUserId = channel.type === 'direct'
-    ? channel.memberIds.find((id) => id !== currentUserId)
-    : null;
+  const otherUserId =
+    channel.type === 'direct'
+      ? channel.memberIds.find((id) => id !== currentUserId)
+      : null;
   const otherUser = otherUserId ? users.find((u) => u.id === otherUserId) : null;
-  const displayName = channel.type === 'direct' && otherUser ? otherUser.name : channel.name;
+  const displayName =
+    channel.type === 'direct' && otherUser ? otherUser.name : channel.name;
 
-  const iconMap: Record<string, React.ReactNode> = {
-    announcement: <Megaphone className="w-4 h-4" />,
-    project: <Hash className="w-4 h-4" />,
-    group: <Users className="w-4 h-4" />,
-    direct: otherUser ? <Avatar name={otherUser.name} src={otherUser.avatarUrl} size="sm" /> : <User className="w-4 h-4" />,
+  const iconByType: Record<ChannelType, React.ReactNode> = {
+    announcement: <Megaphone className="w-4 h-4 text-amber-500" />,
+    project: <Hash className="w-4 h-4 text-blue-500" />,
+    group: <Users className="w-4 h-4 text-violet-500" />,
+    direct: otherUser ? (
+      <Avatar name={otherUser.name} src={otherUser.avatarUrl} size="sm" />
+    ) : (
+      <User className="w-4 h-4 text-gray-400" />
+    ),
   };
 
   return (
@@ -71,22 +91,34 @@ const ChannelItem: React.FC<{
         selected ? 'bg-primary/10' : 'hover:bg-gray-100'
       }`}
     >
-      <div className={`flex-shrink-0 ${channel.type !== 'direct' ? 'w-8 h-8 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600' : ''}`}>
-        {iconMap[channel.type]}
+      <div
+        className={`flex-shrink-0 ${
+          channel.type !== 'direct'
+            ? 'w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 border border-gray-100'
+            : ''
+        }`}
+      >
+        {iconByType[channel.type]}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <p className={`text-sm font-medium truncate ${selected ? 'text-primary' : 'text-gray-900'}`}>
+        <div className="flex items-center justify-between gap-1">
+          <p
+            className={`text-sm font-medium truncate ${
+              selected ? 'text-primary' : 'text-gray-900'
+            }`}
+          >
             {displayName}
           </p>
           {channel.lastMessageAt && (
-            <p className="text-xs text-gray-400 flex-shrink-0 ml-1">
+            <p className="text-xs text-gray-400 flex-shrink-0">
               {formatRelative(channel.lastMessageAt)}
             </p>
           )}
         </div>
         {channel.lastMessageText && (
-          <p className="text-xs text-gray-500 truncate mt-0.5">{channel.lastMessageText}</p>
+          <p className="text-xs text-gray-500 truncate mt-0.5">
+            {channel.lastMessageText}
+          </p>
         )}
       </div>
       {unread > 0 && (
@@ -98,30 +130,45 @@ const ChannelItem: React.FC<{
   );
 };
 
+// ─── MessageBubble ────────────────────────────────────────────────────────────
+
 const MessageBubble: React.FC<{
   message: ChatMessage;
   isOwn: boolean;
   senderName: string;
   senderAvatar?: string;
   showAvatar: boolean;
+  canModerate: boolean;
   onReply: (msg: ChatMessage) => void;
   onReact: (msgId: string, emoji: string) => void;
   onEdit: (msg: ChatMessage) => void;
   onDelete: (msgId: string) => void;
   onCopy: (text: string) => void;
   currentUserId: string;
-  users: AppUser[];
   onTaskClick?: (taskId: string) => void;
 }> = ({
-  message, isOwn, senderName, senderAvatar, showAvatar,
-  onReply, onReact, onEdit, onDelete, onCopy, currentUserId, users, onTaskClick,
+  message,
+  isOwn,
+  senderName,
+  senderAvatar,
+  showAvatar,
+  canModerate,
+  onReply,
+  onReact,
+  onEdit,
+  onDelete,
+  onCopy,
+  currentUserId,
+  onTaskClick,
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
 
   if (message.isDeleted) {
     return (
-      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} px-4 mb-1`}>
+      <div
+        className={`flex ${isOwn ? 'justify-end' : 'justify-start'} px-4 mb-1`}
+      >
         <p className="text-xs text-gray-400 italic px-3 py-1.5 bg-gray-100 rounded-xl">
           This message was deleted
         </p>
@@ -140,14 +187,23 @@ const MessageBubble: React.FC<{
   }
 
   const reactions = message.reactions ?? {};
-  const hasReactions = Object.keys(reactions).some((e) => reactions[e].length > 0);
+  const hasReactions = Object.keys(reactions).some(
+    (e) => reactions[e].length > 0
+  );
+
+  const canDelete = isOwn || canModerate;
+  const canEdit = isOwn;
 
   return (
     <div
       className={`flex gap-2 px-4 mb-0.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
       onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}
+      onMouseLeave={() => {
+        setShowActions(false);
+        setShowEmoji(false);
+      }}
     >
+      {/* Avatar column for others */}
       {!isOwn && (
         <div className="w-8 flex-shrink-0 self-end">
           {showAvatar && (
@@ -156,50 +212,83 @@ const MessageBubble: React.FC<{
         </div>
       )}
 
-      <div className={`flex flex-col max-w-xs sm:max-w-md lg:max-w-lg ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex flex-col max-w-xs sm:max-w-md lg:max-w-lg ${
+          isOwn ? 'items-end' : 'items-start'
+        }`}
+      >
+        {/* Sender name */}
         {!isOwn && showAvatar && (
-          <p className="text-xs font-semibold text-gray-600 mb-1 ml-1">{senderName}</p>
+          <p className="text-xs font-semibold text-gray-600 mb-1 ml-1">
+            {senderName}
+          </p>
         )}
 
         {/* Reply preview */}
         {message.replyToId && (
-          <div className={`text-xs rounded-lg px-2 py-1 mb-1 border-l-2 ${isOwn ? 'border-white/50 bg-white/30 text-white/80' : 'border-primary/50 bg-gray-100 text-gray-500'}`}>
+          <div
+            className={`text-xs rounded-lg px-2 py-1 mb-1 border-l-2 ${
+              isOwn
+                ? 'border-white/50 bg-white/30 text-white/80'
+                : 'border-primary/50 bg-gray-100 text-gray-500'
+            }`}
+          >
             <p className="font-medium">{message.replyToSenderName}</p>
-            <p className="truncate max-w-40">{message.replyToText}</p>
+            <p className="truncate max-w-[160px]">{message.replyToText}</p>
           </div>
         )}
 
-        {/* Task ref */}
+        {/* Task ref card */}
         {message.type === 'task_ref' && message.taskId && (
           <div
             className="bg-white border border-gray-200 rounded-xl p-3 mb-1 cursor-pointer hover:shadow-md transition-shadow w-64"
             onClick={() => onTaskClick?.(message.taskId!)}
           >
             <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold text-gray-900 truncate">{message.taskTitle}</p>
+              <CheckSquare className="w-4 h-4 text-primary flex-shrink-0" />
+              <p className="text-sm font-semibold text-gray-900 truncate">
+                {message.taskTitle}
+              </p>
             </div>
             {message.taskStatus && (
-              <span className="text-xs text-gray-500 mt-1">Status: {message.taskStatus}</span>
+              <span className="text-xs text-gray-500 mt-1 block capitalize">
+                Status: {message.taskStatus}
+              </span>
             )}
           </div>
         )}
 
         {/* Bubble */}
         <div
-          className={`relative group px-3 py-2 rounded-2xl text-sm shadow-sm ${
+          className={`relative px-3 py-2 rounded-2xl text-sm shadow-sm ${
             isOwn
               ? 'bg-primary text-white rounded-br-sm'
               : 'bg-white text-gray-900 rounded-bl-sm'
           }`}
         >
           <p className="whitespace-pre-wrap break-words">{message.text}</p>
-          <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-            <p className={`text-xs ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
-              {message.createdAt ? format(message.createdAt.toDate(), 'h:mm a') : ''}
+          <div
+            className={`flex items-center gap-1 mt-0.5 ${
+              isOwn ? 'justify-end' : 'justify-start'
+            }`}
+          >
+            <p
+              className={`text-xs ${
+                isOwn ? 'text-white/60' : 'text-gray-400'
+              }`}
+            >
+              {message.createdAt
+                ? format(message.createdAt.toDate(), 'h:mm a')
+                : ''}
             </p>
             {message.editedAt && (
-              <p className={`text-xs ${isOwn ? 'text-white/50' : 'text-gray-400'}`}>(edited)</p>
+              <p
+                className={`text-xs ${
+                  isOwn ? 'text-white/50' : 'text-gray-400'
+                }`}
+              >
+                (edited)
+              </p>
             )}
             {isOwn && <CheckCheck className="w-3 h-3 text-white/60" />}
           </div>
@@ -208,26 +297,33 @@ const MessageBubble: React.FC<{
         {/* Reactions */}
         {hasReactions && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {Object.entries(reactions).filter(([, uids]) => uids.length > 0).map(([emoji, uids]) => (
-              <button
-                key={emoji}
-                onClick={() => onReact(message.id, emoji)}
-                className={`text-xs rounded-full px-2 py-0.5 border flex items-center gap-0.5 transition-colors ${
-                  uids.includes(currentUserId)
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                {emoji} {uids.length}
-              </button>
-            ))}
+            {Object.entries(reactions)
+              .filter(([, uids]) => uids.length > 0)
+              .map(([emoji, uids]) => (
+                <button
+                  key={emoji}
+                  onClick={() => onReact(message.id, emoji)}
+                  className={`text-xs rounded-full px-2 py-0.5 border flex items-center gap-0.5 transition-colors ${
+                    uids.includes(currentUserId)
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {emoji} {uids.length}
+                </button>
+              ))}
           </div>
         )}
       </div>
 
-      {/* Actions */}
+      {/* Hover action toolbar */}
       {showActions && (
-        <div className={`self-center flex items-center gap-0.5 ${isOwn ? 'mr-1' : 'ml-1'}`}>
+        <div
+          className={`self-center flex items-center gap-0.5 ${
+            isOwn ? 'mr-1' : 'ml-1'
+          }`}
+        >
+          {/* Emoji picker trigger */}
           <div className="relative">
             <button
               className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
@@ -236,12 +332,19 @@ const MessageBubble: React.FC<{
               <Smile className="w-3.5 h-3.5" />
             </button>
             {showEmoji && (
-              <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 bg-white rounded-xl shadow-lg border border-gray-100 p-2 flex gap-1 z-20`}>
+              <div
+                className={`absolute ${
+                  isOwn ? 'right-0' : 'left-0'
+                } bottom-full mb-1 bg-white rounded-xl shadow-lg border border-gray-100 p-2 flex gap-1 z-20`}
+              >
                 {EMOJI_LIST.map((e) => (
                   <button
                     key={e}
                     className="text-lg hover:scale-125 transition-transform"
-                    onClick={() => { onReact(message.id, e); setShowEmoji(false); }}
+                    onClick={() => {
+                      onReact(message.id, e);
+                      setShowEmoji(false);
+                    }}
                   >
                     {e}
                   </button>
@@ -249,6 +352,7 @@ const MessageBubble: React.FC<{
               </div>
             )}
           </div>
+
           <button
             className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
             onClick={() => onReply(message)}
@@ -261,27 +365,29 @@ const MessageBubble: React.FC<{
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
-          {isOwn && (
-            <>
-              <button
-                className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
-                onClick={() => onEdit(message)}
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                className="p-1 rounded-lg bg-white shadow-sm text-red-400 hover:text-red-600 border border-gray-100"
-                onClick={() => onDelete(message.id)}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </>
+          {canEdit && (
+            <button
+              className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
+              onClick={() => onEdit(message)}
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              className="p-1 rounded-lg bg-white shadow-sm text-red-400 hover:text-red-600 border border-gray-100"
+              onClick={() => onDelete(message.id)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       )}
     </div>
   );
 };
+
+// ─── ChatPage ─────────────────────────────────────────────────────────────────
 
 const ChatPage: React.FC = () => {
   const { channelId } = useParams<{ channelId?: string }>();
@@ -291,8 +397,11 @@ const ChatPage: React.FC = () => {
   const { channels } = useChannels();
   const { messages, loading: msgLoading } = useMessages(channelId ?? null);
   const typing = useTypingIndicators(channelId ?? null);
-  const { send, edit, del, react, startTyping, stopTyping } = useChatActions(channelId ?? null);
+  const { send, edit, del, react, startTyping, stopTyping } = useChatActions(
+    channelId ?? null
+  );
 
+  // Users: realtime subscription
   const [users, setUsers] = useState<AppUser[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [text, setText] = useState('');
@@ -303,50 +412,118 @@ const ChatPage: React.FC = () => {
   const [showShareTask, setShowShareTask] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [newGroupModal, setNewGroupModal] = useState(false);
+  const [newDmModal, setNewDmModal] = useState(false);
+  const [dmSearch, setDmSearch] = useState('');
   const [groupName, setGroupName] = useState('');
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [channelInfoModal, setChannelInfoModal] = useState(false);
   const [search, setSearch] = useState('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeout = useRef<number | null>(null);
 
   const currentChannel = channels.find((c) => c.id === channelId);
 
+  // Permissions
+  const chatView = can('chat_view');
+  const chatSend = can('chat_send');
+  const chatAnnounce = can('chat_announce');
+  const chatCreateGroup = can('chat_create_group');
+  const chatModerate = can('chat_moderate');
+  const tasksView = can('tasks_view');
+
+  const isAnnouncement = currentChannel?.type === 'announcement';
+  const canSend = chatSend && (!isAnnouncement || chatAnnounce);
+
+  // ─── Data loading ──────────────────────────────────────────────────────────
+
   useEffect(() => {
-    const load = async () => {
-      // Use allSettled so chat works even when the user has chat_view but not
-      // tasks_view — they still see DMs/messages, just can't share tasks.
-      const [uRes, tRes] = await Promise.allSettled([getAllUsers(), getTasks()]);
-      if (uRes.status === 'fulfilled') setUsers(uRes.value);
-      if (tRes.status === 'fulfilled') setTasks(tRes.value);
-    };
-    load();
+    const unsub = subscribeUsers((u) => setUsers(u));
+    return unsub;
   }, []);
+
+  useEffect(() => {
+    if (!tasksView) return;
+    getTasks().then(setTasks).catch(console.error);
+  }, [tasksView]);
+
+  // ─── Auto-scroll on new messages ──────────────────────────────────────────
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  const getUser = (uid: string) => users.find((u) => u.id === uid);
+  // ─── Populate text when editing ──────────────────────────────────────────
 
-  const filteredChannels = channels.filter((ch) => {
-    if (!search) return true;
-    const name = ch.type === 'direct'
-      ? getUser(ch.memberIds.find((id) => id !== appUser?.id) ?? '')?.name ?? ''
-      : ch.name;
-    return name.toLowerCase().includes(search.toLowerCase());
-  });
+  useEffect(() => {
+    if (editMsg) {
+      setText(editMsg.text);
+      textareaRef.current?.focus();
+    } else {
+      setText('');
+    }
+  }, [editMsg]);
+
+  // ─── Cleanup typing on unmount ────────────────────────────────────────────
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
+      stopTyping();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId]);
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  const getUserById = useCallback(
+    (uid: string) => users.find((u) => u.id === uid),
+    [users]
+  );
+
+  const activeOtherUsers = users.filter(
+    (u) => u.isActive && u.id !== appUser?.id
+  );
+
+  // Channels filtered by search, then sorted by type order then lastMessageAt
+  const filteredChannels = channels
+    .filter((ch) => {
+      if (!search) return true;
+      const name =
+        ch.type === 'direct'
+          ? getUserById(
+              ch.memberIds.find((id) => id !== appUser?.id) ?? ''
+            )?.name ?? ''
+          : ch.name;
+      return name.toLowerCase().includes(search.toLowerCase());
+    })
+    .sort((a, b) => {
+      const typeOrder = channelTypeOrder(a.type) - channelTypeOrder(b.type);
+      if (typeOrder !== 0) return typeOrder;
+      const at = (a.lastMessageAt as any)?.toMillis?.() ?? 0;
+      const bt = (b.lastMessageAt as any)?.toMillis?.() ?? 0;
+      return bt - at;
+    });
+
+  // Group by type for section headers
+  const channelSections: { label: string; type: ChannelType }[] = [
+    { label: 'Announcements', type: 'announcement' },
+    { label: 'Project Channels', type: 'project' },
+    { label: 'Groups', type: 'group' },
+    { label: 'Direct Messages', type: 'direct' },
+  ];
+
+  // ─── Event handlers ───────────────────────────────────────────────────────
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setText(val);
 
-    // Detect @ mention
+    // Mention detection
     const lastAt = val.lastIndexOf('@');
-    if (lastAt !== -1 && lastAt === val.length - 1) {
-      setShowMention(true);
-      setMentionQuery('');
-    } else if (lastAt !== -1 && val.slice(lastAt).match(/^@\w*$/)) {
+    if (lastAt !== -1 && val.slice(lastAt).match(/^@\w*$/)) {
       setShowMention(true);
       setMentionQuery(val.slice(lastAt + 1));
     } else {
@@ -366,16 +543,18 @@ const ChatPage: React.FC = () => {
     textareaRef.current?.focus();
   };
 
+  const cancelEditReply = () => {
+    setReplyTo(null);
+    setEditMsg(null);
+    setText('');
+  };
+
   const handleSend = async () => {
     if (!text.trim() || !appUser || !channelId) return;
     const msgText = text.trim();
     setText('');
-    setReplyTo(null);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
     stopTyping();
-
-    const mentionedUserIds = users
-      .filter((u) => msgText.includes(`@${u.name}`))
-      .map((u) => u.id);
 
     if (editMsg) {
       await edit(editMsg.id, msgText);
@@ -383,20 +562,31 @@ const ChatPage: React.FC = () => {
       return;
     }
 
+    const mentionedUserIds = users
+      .filter((u) => msgText.includes(`@${u.name}`))
+      .map((u) => u.id);
+
+    setReplyTo(null);
     await send({
       senderId: appUser.id,
       text: msgText,
       type: 'text',
       replyToId: replyTo?.id,
       replyToText: replyTo?.text,
-      replyToSenderName: replyTo ? (getUser(replyTo.senderId)?.name ?? 'Unknown') : undefined,
+      replyToSenderName: replyTo
+        ? (getUserById(replyTo.senderId)?.name ?? 'Unknown')
+        : undefined,
       reactions: {},
       mentionedUserIds,
       isDeleted: false,
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      cancelEditReply();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -453,6 +643,7 @@ const ChatPage: React.FC = () => {
 
   const startDm = async (userId: string) => {
     if (!appUser) return;
+    setNewDmModal(false);
     const dmId = getDmChannelId(appUser.id, userId);
     const existing = await getChannel(dmId);
     if (!existing) {
@@ -470,15 +661,22 @@ const ChatPage: React.FC = () => {
     navigate(`/app/chat/${dmId}`);
   };
 
-  if (!can('chat_view')) {
+  // ─── Guard: chat_view ─────────────────────────────────────────────────────
+
+  if (!chatView) {
     return (
       <div className="flex items-center justify-center h-full">
-        <EmptyState icon={<MessageSquare className="w-8 h-8" />} title="Access Denied" />
+        <EmptyState
+          icon={<Lock className="w-8 h-8" />}
+          title="Access Restricted"
+          description="You don't have permission to access the chat."
+        />
       </div>
     );
   }
 
-  // Group messages by day
+  // ─── Group messages by day ────────────────────────────────────────────────
+
   const groupedMessages: (ChatMessage | { type: 'day-sep'; date: Date })[] = [];
   let lastDate: Date | null = null;
   messages.forEach((msg) => {
@@ -490,28 +688,55 @@ const ChatPage: React.FC = () => {
     groupedMessages.push(msg);
   });
 
-  const mentionUsers = users.filter((u) =>
-    u.name.toLowerCase().includes(mentionQuery.toLowerCase())
-  ).slice(0, 6);
+  const mentionUsers = users
+    .filter((u) => u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+    .slice(0, 6);
+
+  // Header info for current channel
+  const otherUid =
+    currentChannel?.type === 'direct'
+      ? currentChannel.memberIds.find((id) => id !== appUser?.id)
+      : null;
+  const otherUser = otherUid ? getUserById(otherUid) : null;
+  const channelDisplayName =
+    currentChannel?.type === 'direct'
+      ? otherUser?.name ?? 'Direct Message'
+      : currentChannel?.name ?? '';
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Channel list */}
-      <div className={`flex-shrink-0 flex flex-col border-r border-gray-100 bg-white transition-all duration-300 ${
-        sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'
-      } ${channelId ? 'hidden md:flex' : 'flex w-full md:w-72'}`}>
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
+      <div
+        className={`flex-shrink-0 flex flex-col border-r border-gray-100 bg-white transition-all duration-300 ${
+          sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'
+        } ${channelId ? 'hidden md:flex' : 'flex w-full md:w-72'}`}
+      >
+        {/* Sidebar header */}
         <div className="p-3 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-gray-900 text-sm">Messages</h2>
-            {can('chat_create_group') && (
-              <button
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
-                onClick={() => setNewGroupModal(true)}
-                title="New group"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {can('chat_send') && (
+                <button
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                  onClick={() => setNewDmModal(true)}
+                  title="New direct message"
+                >
+                  <User className="w-4 h-4" />
+                </button>
+              )}
+              {chatCreateGroup && (
+                <button
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                  onClick={() => setNewGroupModal(true)}
+                  title="New group"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           <Input
             placeholder="Search channels..."
@@ -521,90 +746,140 @@ const ChatPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
-          {/* New DM */}
-          {!search && (
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-1">Direct Messages</p>
-              {users.filter((u) => u.id !== appUser?.id).slice(0, 5).map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => startDm(u.id)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 text-left"
-                >
-                  <Avatar name={u.name} src={u.avatarUrl} size="xs" />
-                  <span className="text-sm text-gray-700 truncate">{u.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Channel list */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {channelSections.map(({ label, type }) => {
+            const sectionChannels = filteredChannels.filter(
+              (ch) => ch.type === type
+            );
+            if (sectionChannels.length === 0) return null;
 
-          <p className="text-xs font-semibold text-gray-400 uppercase px-2 mb-1">Channels</p>
-          <div className="space-y-0.5">
-            {filteredChannels.map((channel) => (
-              <ChannelItem
-                key={channel.id}
-                channel={channel}
-                selected={channel.id === channelId}
-                onClick={() => navigate(`/app/chat/${channel.id}`)}
-                currentUserId={appUser?.id ?? ''}
-                users={users}
-              />
-            ))}
-            {filteredChannels.length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-4">No channels yet</p>
-            )}
-          </div>
+            const sectionIconMap: Record<ChannelType, React.ReactNode> = {
+              announcement: <Megaphone className="w-3 h-3 text-amber-500" />,
+              project: <Hash className="w-3 h-3 text-blue-500" />,
+              group: <Users className="w-3 h-3 text-violet-500" />,
+              direct: <User className="w-3 h-3 text-gray-400" />,
+            };
+
+            return (
+              <div key={type} className="mb-2">
+                <div className="flex items-center gap-1.5 px-2 mb-1">
+                  {sectionIconMap[type]}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    {label}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  {sectionChannels.map((channel) => (
+                    <ChannelItem
+                      key={channel.id}
+                      channel={channel}
+                      selected={channel.id === channelId}
+                      onClick={() => navigate(`/app/chat/${channel.id}`)}
+                      currentUserId={appUser?.id ?? ''}
+                      users={users}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredChannels.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-6">
+              No channels yet
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Message thread */}
+      {/* ── Message thread ───────────────────────────────────────────────────── */}
       {channelId ? (
-        <div className="flex-1 flex flex-col min-w-0 bg-[#EAE6DF]">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#F0EBE3]">
           {/* Chat header */}
           <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+            {/* Back arrow — mobile only */}
             <button
               className="md:hidden p-1 rounded-lg hover:bg-gray-100 text-gray-500"
               onClick={() => navigate('/app/chat')}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
+
+            {/* Toggle sidebar — desktop */}
             <button
               className="hidden md:block p-1 rounded-lg hover:bg-gray-100 text-gray-500"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               <MessageSquare className="w-5 h-5" />
             </button>
+
+            {/* Channel icon */}
             {currentChannel && (
               <>
                 {currentChannel.type === 'direct' ? (
-                  (() => {
-                    const otherUid = currentChannel.memberIds.find((id) => id !== appUser?.id);
-                    const other = getUser(otherUid ?? '');
-                    return other ? (
-                      <Avatar name={other.name} src={other.avatarUrl} size="sm" />
-                    ) : null;
-                  })()
+                  otherUser ? (
+                    <Avatar
+                      name={otherUser.name}
+                      src={otherUser.avatarUrl}
+                      size="sm"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                      <User className="w-4 h-4 text-gray-400" />
+                    </div>
+                  )
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Hash className="w-4 h-4 text-primary" />
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    {currentChannel.type === 'announcement' ? (
+                      <Megaphone className="w-4 h-4 text-amber-500" />
+                    ) : currentChannel.type === 'project' ? (
+                      <Hash className="w-4 h-4 text-blue-500" />
+                    ) : (
+                      <Users className="w-4 h-4 text-violet-500" />
+                    )}
                   </div>
                 )}
+
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">
-                    {currentChannel.type === 'direct'
-                      ? getUser(currentChannel.memberIds.find((id) => id !== appUser?.id) ?? '')?.name
-                      : currentChannel.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {currentChannel.memberIds.length} members
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
+                      {channelDisplayName}
+                    </p>
+                    {currentChannel.type === 'announcement' && (
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">
+                        Announcement
+                      </span>
+                    )}
+                    {chatModerate && (
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1 flex-shrink-0">
+                        <Shield className="w-3 h-3" />
+                        Mod
+                      </span>
+                    )}
+                  </div>
+                  {currentChannel.type !== 'direct' && (
+                    <p className="text-xs text-gray-500">
+                      {currentChannel.memberIds.length} members
+                    </p>
+                  )}
                 </div>
+
+                {/* Info button — non-DM channels only */}
+                {currentChannel.type !== 'direct' && (
+                  <button
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                    onClick={() => setChannelInfoModal(true)}
+                    title="Channel info"
+                  >
+                    <Info className="w-5 h-5" />
+                  </button>
+                )}
               </>
             )}
           </div>
 
-          {/* Messages */}
+          {/* Messages area */}
           <div className="flex-1 overflow-y-auto py-2">
             {msgLoading ? (
               <div className="flex items-center justify-center h-full">
@@ -622,13 +897,19 @@ const ChatPage: React.FC = () => {
               <>
                 {groupedMessages.map((item, idx) => {
                   if ('type' in item && item.type === 'day-sep') {
-                    return <DaySeparator key={`sep-${idx}`} date={item.date} />;
+                    return (
+                      <DaySeparator key={`sep-${idx}`} date={item.date} />
+                    );
                   }
                   const msg = item as ChatMessage;
                   const isOwn = msg.senderId === appUser?.id;
-                  const sender = getUser(msg.senderId);
-                  const prevMsg = idx > 0 ? groupedMessages[idx - 1] : null;
-                  const prevIsSameSender = prevMsg && !('type' in prevMsg) && (prevMsg as ChatMessage).senderId === msg.senderId;
+                  const sender = getUserById(msg.senderId);
+                  const prevItem =
+                    idx > 0 ? groupedMessages[idx - 1] : null;
+                  const prevIsSameSender =
+                    prevItem &&
+                    !('type' in prevItem) &&
+                    (prevItem as ChatMessage).senderId === msg.senderId;
                   const showAvatar = !isOwn && !prevIsSameSender;
 
                   return (
@@ -639,19 +920,21 @@ const ChatPage: React.FC = () => {
                       senderName={sender?.name ?? 'Unknown'}
                       senderAvatar={sender?.avatarUrl}
                       showAvatar={!!showAvatar}
+                      canModerate={chatModerate}
                       onReply={setReplyTo}
                       onReact={handleReact}
                       onEdit={setEditMsg}
                       onDelete={(msgId) => del(msgId)}
                       onCopy={handleCopy}
                       currentUserId={appUser?.id ?? ''}
-                      users={users}
-                      onTaskClick={(taskId) => navigate(`/app/tasks/${taskId}`)}
+                      onTaskClick={(taskId) =>
+                        navigate(`/app/tasks/${taskId}`)
+                      }
                     />
                   );
                 })}
 
-                {/* Typing indicators */}
+                {/* Typing indicator */}
                 {Object.keys(typing).length > 0 && (
                   <div className="flex items-center gap-2 px-4 py-2">
                     <div className="flex gap-1">
@@ -664,7 +947,8 @@ const ChatPage: React.FC = () => {
                       ))}
                     </div>
                     <span className="text-xs text-gray-500">
-                      {Object.values(typing).join(', ')} {Object.keys(typing).length === 1 ? 'is' : 'are'} typing...
+                      {Object.values(typing).join(', ')}{' '}
+                      {Object.keys(typing).length === 1 ? 'is' : 'are'} typing…
                     </span>
                   </div>
                 )}
@@ -674,15 +958,19 @@ const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* Compose area */}
-          {can('chat_send') && (
+          {/* ── Compose area ──────────────────────────────────────────────── */}
+          {canSend ? (
             <div className="bg-white border-t border-gray-100 flex-shrink-0">
-              {/* Reply/Edit preview */}
+              {/* Reply / Edit strip */}
               {(replyTo || editMsg) && (
                 <div className="flex items-center gap-3 px-4 pt-3 pb-0">
                   <div className="flex-1 border-l-2 border-primary pl-3 text-sm">
                     <p className="font-medium text-primary text-xs">
-                      {editMsg ? 'Editing message' : `Replying to ${getUser(replyTo!.senderId)?.name}`}
+                      {editMsg
+                        ? 'Editing message'
+                        : `Replying to ${
+                            getUserById(replyTo!.senderId)?.name ?? 'Unknown'
+                          }`}
                     </p>
                     <p className="text-gray-500 text-xs truncate">
                       {editMsg?.text ?? replyTo?.text}
@@ -690,14 +978,14 @@ const ChatPage: React.FC = () => {
                   </div>
                   <button
                     className="p-1 text-gray-400 hover:text-gray-600"
-                    onClick={() => { setReplyTo(null); setEditMsg(null); setText(''); }}
+                    onClick={cancelEditReply}
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
               )}
 
-              {/* Mention picker */}
+              {/* @ Mention picker */}
               {showMention && mentionUsers.length > 0 && (
                 <div className="mx-4 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                   {mentionUsers.map((u) => (
@@ -707,27 +995,33 @@ const ChatPage: React.FC = () => {
                       onClick={() => insertMention(u)}
                     >
                       <Avatar name={u.name} src={u.avatarUrl} size="xs" />
-                      <span className="text-sm font-medium text-gray-700">{u.name}</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {u.name}
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
 
               <div className="flex items-end gap-2 p-3">
-                <button
-                  className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 flex-shrink-0"
-                  onClick={() => setShowShareTask(true)}
-                  title="Share task"
-                >
-                  <CheckSquare className="w-5 h-5" />
-                </button>
+                {/* Share task button */}
+                {tasksView && (
+                  <button
+                    className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                    onClick={() => setShowShareTask(true)}
+                    title="Share task"
+                  >
+                    <CheckSquare className="w-5 h-5" />
+                  </button>
+                )}
 
+                {/* Textarea */}
                 <div className="flex-1 relative">
                   <textarea
                     ref={textareaRef}
                     rows={1}
-                    placeholder="Type a message..."
-                    value={editMsg ? (text || editMsg.text) : text}
+                    placeholder="Type a message…"
+                    value={text}
                     onChange={handleTextChange}
                     onKeyDown={handleKeyDown}
                     className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary max-h-32"
@@ -735,19 +1029,30 @@ const ChatPage: React.FC = () => {
                   />
                 </div>
 
+                {/* Send button */}
                 <button
                   onClick={handleSend}
-                  disabled={!text.trim() && !editMsg}
-                  className="p-2.5 rounded-xl bg-primary text-white disabled:opacity-50 hover:bg-primary-600 transition-colors flex-shrink-0"
+                  disabled={!text.trim()}
+                  className="p-2.5 rounded-xl bg-primary text-white disabled:opacity-50 hover:opacity-90 transition-opacity flex-shrink-0"
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </div>
             </div>
+          ) : (
+            /* Read-only bar */
+            <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-center justify-center flex-shrink-0">
+              <p className="text-sm text-gray-400 italic">
+                {isAnnouncement
+                  ? 'Only admins can post in announcement channels'
+                  : "You don't have permission to send messages"}
+              </p>
+            </div>
           )}
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 items-center justify-center bg-[#EAE6DF]">
+        /* No channel selected */
+        <div className="hidden md:flex flex-1 items-center justify-center bg-[#F0EBE3]">
           <EmptyState
             icon={<MessageSquare className="w-10 h-10" />}
             title="Select a conversation"
@@ -756,15 +1061,30 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* New Group Modal */}
+      {/* ── New Group Modal ────────────────────────────────────────────────── */}
       <Modal
         open={newGroupModal}
-        onClose={() => setNewGroupModal(false)}
+        onClose={() => {
+          setNewGroupModal(false);
+          setGroupName('');
+          setGroupMembers([]);
+          setGroupSearch('');
+        }}
         title="Create Group"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setNewGroupModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateGroup} disabled={!groupName.trim()}>Create</Button>
+            <Button
+              variant="outline"
+              onClick={() => setNewGroupModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateGroup}
+              disabled={!groupName.trim() || groupMembers.length === 0}
+            >
+              Create
+            </Button>
           </div>
         }
       >
@@ -776,28 +1096,148 @@ const ChatPage: React.FC = () => {
             onChange={(e) => setGroupName(e.target.value)}
           />
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Add Members</p>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {users.filter((u) => u.id !== appUser?.id).map((u) => (
-                <label key={u.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={groupMembers.includes(u.id)}
-                    onChange={() => setGroupMembers((prev) =>
-                      prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
-                    )}
-                    className="rounded border-gray-300 text-primary focus:ring-primary/40"
-                  />
-                  <Avatar name={u.name} src={u.avatarUrl} size="xs" />
-                  <span className="text-sm text-gray-700">{u.name}</span>
-                </label>
-              ))}
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Add Members
+            </p>
+            <Input
+              placeholder="Search members…"
+              value={groupSearch}
+              onChange={(e) => setGroupSearch(e.target.value)}
+              leftIcon={<Search className="w-4 h-4" />}
+              className="mb-2"
+            />
+            <div className="space-y-1 max-h-52 overflow-y-auto">
+              {activeOtherUsers
+                .filter((u) =>
+                  u.name.toLowerCase().includes(groupSearch.toLowerCase())
+                )
+                .map((u) => (
+                  <label
+                    key={u.id}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={groupMembers.includes(u.id)}
+                      onChange={() =>
+                        setGroupMembers((prev) =>
+                          prev.includes(u.id)
+                            ? prev.filter((id) => id !== u.id)
+                            : [...prev, u.id]
+                        )
+                      }
+                      className="rounded border-gray-300 text-primary focus:ring-primary/40"
+                    />
+                    <Avatar name={u.name} src={u.avatarUrl} size="xs" />
+                    <span className="text-sm text-gray-700">{u.name}</span>
+                  </label>
+                ))}
             </div>
           </div>
         </div>
       </Modal>
 
-      {/* Share Task Modal */}
+      {/* ── New DM Modal ──────────────────────────────────────────────────── */}
+      <Modal
+        open={newDmModal}
+        onClose={() => {
+          setNewDmModal(false);
+          setDmSearch('');
+        }}
+        title="New Direct Message"
+      >
+        <div className="space-y-3">
+          <Input
+            placeholder="Search people…"
+            value={dmSearch}
+            onChange={(e) => setDmSearch(e.target.value)}
+            leftIcon={<Search className="w-4 h-4" />}
+          />
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {activeOtherUsers
+              .filter((u) =>
+                u.name.toLowerCase().includes(dmSearch.toLowerCase())
+              )
+              .map((u) => (
+                <button
+                  key={u.id}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-left transition-colors"
+                  onClick={() => startDm(u.id)}
+                >
+                  <Avatar name={u.name} src={u.avatarUrl} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800">
+                      {u.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                  </div>
+                </button>
+              ))}
+            {activeOtherUsers.filter((u) =>
+              u.name.toLowerCase().includes(dmSearch.toLowerCase())
+            ).length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">
+                No users found
+              </p>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Channel Info Modal ────────────────────────────────────────────── */}
+      {currentChannel && currentChannel.type !== 'direct' && (
+        <Modal
+          open={channelInfoModal}
+          onClose={() => setChannelInfoModal(false)}
+          title={`#${currentChannel.name}`}
+          size="sm"
+        >
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">
+                {currentChannel.memberIds.length} members
+              </span>
+              {currentChannel.type === 'announcement' && (
+                <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                  Announcement
+                </span>
+              )}
+            </div>
+            <div className="space-y-1 max-h-72 overflow-y-auto">
+              {currentChannel.memberIds.map((uid) => {
+                const u = getUserById(uid);
+                const isAdmin = currentChannel.adminIds?.includes(uid);
+                return (
+                  <div
+                    key={uid}
+                    className="flex items-center gap-3 px-2 py-2 rounded-lg"
+                  >
+                    {u ? (
+                      <>
+                        <Avatar name={u.name} src={u.avatarUrl} size="sm" />
+                        <span className="flex-1 text-sm text-gray-800">
+                          {u.name}
+                        </span>
+                        {isAdmin && (
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                            Admin
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-400 italic">
+                        Unknown user
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Share Task Modal ──────────────────────────────────────────────── */}
       <Modal
         open={showShareTask}
         onClose={() => setShowShareTask(false)}
@@ -805,19 +1245,29 @@ const ChatPage: React.FC = () => {
         size="lg"
       >
         <div className="space-y-2 max-h-96 overflow-y-auto">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-100"
-              onClick={() => handleShareTask(task)}
-            >
-              <CheckSquare className="w-4 h-4 text-primary flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                <p className="text-xs text-gray-500">{task.status}</p>
+          {tasks.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-6">
+              No tasks available
+            </p>
+          ) : (
+            tasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-100 transition-colors"
+                onClick={() => handleShareTask(task)}
+              >
+                <CheckSquare className="w-4 h-4 text-primary flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {task.title}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">
+                    {task.status}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Modal>
     </div>
