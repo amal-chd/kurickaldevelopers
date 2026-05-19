@@ -24,7 +24,7 @@ const NotificationsPage: React.FC = () => {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
 
   useEffect(() => {
-    if (!appUser) return;
+    if (!appUser) { setLoading(false); return; }
     const unsub = subscribeNotifications(appUser.id, (notifs) => {
       setNotifications(notifs);
       setLoading(false);

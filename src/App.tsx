@@ -45,9 +45,10 @@ const queryClient = new QueryClient({
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { firebaseUser, appUser, initialized } = useAuthStore();
+  const { firebaseUser, loading, initialized } = useAuthStore();
 
-  if (!initialized) {
+  // Show spinner until auth is both initialized AND finished loading user data
+  if (!initialized || loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">

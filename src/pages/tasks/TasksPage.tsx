@@ -47,10 +47,7 @@ const TasksPage: React.FC = () => {
   const isManager = can('tasks_approve') || can('tasks_edit');
 
   useEffect(() => {
-    if (!appUser) return;
     (async () => {
-      // Independent settle so a user with tasks_view but not projects_view
-      // (or vice-versa) still sees what they have permission to read.
       const [tRes, uRes, pRes] = await Promise.allSettled([
         getTasks(),
         getAllUsers(),
@@ -61,7 +58,8 @@ const TasksPage: React.FC = () => {
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
       setLoading(false);
     })();
-  }, [appUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
   const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done');

@@ -223,7 +223,12 @@ export function useAuthInit() {
 
       if (firebaseUser) {
         try {
-          // 1. Seed roles on very first use (silently fails if rules block it)
+          // Force a fresh ID token so Firestore auth validation is ready.
+          // This prevents "Missing or insufficient permissions" on first login.
+          await firebaseUser.getIdToken(true);
+
+          // 1. Seed roles on very first use (silently ignores permission errors —
+          //    roles may already exist from a prior run or from the Flutter app)
           await seedRolesIfNeeded();
 
           // 2. Auto-create user doc if this is their first login
@@ -232,8 +237,14 @@ export function useAuthInit() {
             firebaseUser.email ?? '',
             firebaseUser.displayName,
           );
+        } catch (err) {
+          // Non-fatal — the user doc might already exist or rules block seeding.
+          // We still proceed to read whatever is in Firestore.
+          console.warn('Auth init setup step failed (non-fatal):', err);
+        }
 
-          // 3. Load app user + role
+        // 3. Load app user + role — always attempt even if setup steps failed
+        try {
           const appUser = await getUser(firebaseUser.uid);
           setAppUser(appUser);
 
@@ -244,7 +255,7 @@ export function useAuthInit() {
             setRole(null);
           }
         } catch (err) {
-          console.error('Error loading user data:', err);
+          console.error('Failed to load user/role from Firestore:', err);
           setAppUser(null);
           setRole(null);
         }

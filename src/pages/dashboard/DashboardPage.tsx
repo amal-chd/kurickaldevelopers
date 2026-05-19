@@ -65,10 +65,9 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!appUser) return;
+    // Load all data independently — do not gate on appUser so the spinner
+    // never hangs when appUser arrives slightly after initialized.
     (async () => {
-      // Load each source independently so a user without one permission
-      // still sees the other dashboards instead of an all-or-nothing failure.
       const [pRes, tRes, uRes] = await Promise.allSettled([
         getProjects(),
         getTasks(),
@@ -77,12 +76,13 @@ const DashboardPage: React.FC = () => {
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
       if (tRes.status === 'fulfilled') {
         setAllTasks(tRes.value);
-        setMyTasks(tRes.value.filter((task) => task.assigneeIds?.includes(appUser.id)));
+        setMyTasks(tRes.value.filter((task) => task.assigneeIds?.includes(appUser?.id ?? '')));
       }
       if (uRes.status === 'fulfilled') setUsers(uRes.value);
       setLoading(false);
     })();
-  }, [appUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
