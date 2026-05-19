@@ -66,8 +66,9 @@ export interface Project {
   name: string;
   description: string;
   status: ProjectStatus;
-  startDate: Timestamp;
-  endDate: Timestamp;
+  // Optional: a project without a defined start/end date is valid (open-ended).
+  startDate?: Timestamp;
+  endDate?: Timestamp;
   memberIds: string[];
   managerId: string;
   budget: number;
@@ -95,7 +96,8 @@ export interface Task {
   createdBy: string;
   status: TaskStatus;
   priority: TaskPriority;
-  dueDate: Timestamp;
+  // Optional: tasks created without a due date are valid (e.g. ongoing work).
+  dueDate?: Timestamp;
   estimatedHours: number;
   tags: string[];
   approvalStatus: ApprovalStatus;
@@ -182,7 +184,8 @@ export interface SiteDiaryEntry {
   equipment: string;
   remarks: string;
   photoUrls: string[];
-  createdBy: string;
+  // Firestore rule for site_diaries checks resource.data.authorId.
+  authorId: string;
   createdAt?: Timestamp;
 }
 

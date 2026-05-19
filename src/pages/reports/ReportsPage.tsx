@@ -3,40 +3,53 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
-import { Download, BarChart2, AlertCircle } from 'lucide-react';
+import { Download, AlertCircle } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import { usePermissions } from '../../hooks/usePermissions';
-import { getTasks, getProjects, getAllUsers, getAttendance } from '../../lib/firestore';
-import { Task, Project, AppUser, Attendance } from '../../types';
+import { getTasks, getProjects, getAllUsers } from '../../lib/firestore';
+import { Task, Project, AppUser } from '../../types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import toast from 'react-hot-toast';
 
 const COLORS = ['#1A3A5C', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const ReportsPage: React.FC = () => {
   const { can } = usePermissions();
+  const canView = can('reports_view');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
-  const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
-    const load = async () => {
-      const [t, p, u] = await Promise.all([getTasks(), getProjects(), getAllUsers()]);
-      setTasks(t);
-      setProjects(p);
-      setUsers(u);
+    // Gate the fetch behind the permission so users without reports_view don't
+    // trigger Firestore reads that would either fail or return empty.
+    if (!canView) {
       setLoading(false);
+      return;
+    }
+    const load = async () => {
+      try {
+        const [t, p, u] = await Promise.all([getTasks(), getProjects(), getAllUsers()]);
+        setTasks(t);
+        setProjects(p);
+        setUsers(u);
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to load report data');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
-  }, []);
+  }, [canView]);
 
-  if (!can('reports_view')) {
+  if (!canView) {
     return (
       <div className="flex items-center justify-center h-64">
         <EmptyState
@@ -50,14 +63,20 @@ const ReportsPage: React.FC = () => {
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
-  // Task completion by status
+  // Apply the date-range filter to the data feeding all charts.
+  const rangeStart = startOfDay(new Date(startDate));
+  const rangeEnd = endOfDay(new Date(endDate));
+  const inRange = (d?: Date | null) => !!d && d >= rangeStart && d <= rangeEnd;
+  const filteredTasks = tasks.filter((t) => inRange(t.createdAt?.toDate()));
+
+  // Task completion by status (filtered by date range)
   const taskStatusData = [
-    { name: 'In Progress', value: tasks.filter((t) => t.status === 'in_progress').length, fill: COLORS[0] },
-    { name: 'Approved', value: tasks.filter((t) => t.status === 'approved').length, fill: COLORS[1] },
-    { name: 'Done', value: tasks.filter((t) => t.status === 'done').length, fill: COLORS[2] },
+    { name: 'In Progress', value: filteredTasks.filter((t) => t.status === 'in_progress').length, fill: COLORS[0] },
+    { name: 'Approved', value: filteredTasks.filter((t) => t.status === 'approved').length, fill: COLORS[1] },
+    { name: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length, fill: COLORS[2] },
   ];
 
-  // Project status distribution
+  // Project status distribution (not date-filtered; projects are long-lived)
   const projectStatusData = [
     { name: 'Planning', value: projects.filter((p) => p.status === 'planning').length },
     { name: 'Active', value: projects.filter((p) => p.status === 'active').length },
@@ -65,16 +84,21 @@ const ReportsPage: React.FC = () => {
     { name: 'Completed', value: projects.filter((p) => p.status === 'completed').length },
   ].filter((d) => d.value > 0);
 
-  // Tasks per member
+  // Tasks per member (filtered)
   const memberProductivity = users.map((u) => ({
     name: u.name.split(' ')[0],
-    tasks: tasks.filter((t) => t.assigneeIds?.includes(u.id)).length,
-    done: tasks.filter((t) => t.assigneeIds?.includes(u.id) && t.status === 'done').length,
+    tasks: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id)).length,
+    done: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id) && t.status === 'done').length,
   })).filter((m) => m.tasks > 0).sort((a, b) => b.tasks - a.tasks).slice(0, 10);
 
-  // Task completion trend (last 7 days by creation)
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = subDays(new Date(), 6 - i);
+  // Task activity trend across the selected date range, bucketed daily
+  // (capped at 30 buckets to keep the chart readable).
+  const rangeDays = Math.min(
+    30,
+    Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1),
+  );
+  const dailyBuckets = Array.from({ length: rangeDays }, (_, i) => {
+    const d = subDays(rangeEnd, rangeDays - 1 - i);
     return {
       date: format(d, 'MMM d'),
       created: tasks.filter((t) => {
@@ -88,24 +112,59 @@ const ReportsPage: React.FC = () => {
     };
   });
 
-  // Priority distribution
+  // Priority distribution (filtered)
   const priorityData = [
-    { name: 'Low', value: tasks.filter((t) => t.priority === 'low').length, fill: COLORS[5] },
-    { name: 'Medium', value: tasks.filter((t) => t.priority === 'medium').length, fill: COLORS[0] },
-    { name: 'High', value: tasks.filter((t) => t.priority === 'high').length, fill: COLORS[1] },
-    { name: 'Critical', value: tasks.filter((t) => t.priority === 'critical').length, fill: COLORS[3] },
+    { name: 'Low', value: filteredTasks.filter((t) => t.priority === 'low').length, fill: COLORS[5] },
+    { name: 'Medium', value: filteredTasks.filter((t) => t.priority === 'medium').length, fill: COLORS[0] },
+    { name: 'High', value: filteredTasks.filter((t) => t.priority === 'high').length, fill: COLORS[1] },
+    { name: 'Critical', value: filteredTasks.filter((t) => t.priority === 'critical').length, fill: COLORS[3] },
   ].filter((d) => d.value > 0);
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.status === 'done').length;
+  const totalTasks = filteredTasks.length;
+  const completedTasks = filteredTasks.filter((t) => t.status === 'done').length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const handleExportCsv = () => {
+    const escape = (v: unknown) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = [
+      'id', 'title', 'status', 'priority', 'projectName', 'assignees',
+      'createdAt', 'dueDate', 'updatedAt',
+    ];
+    const projectName = (pid: string) => projects.find((p) => p.id === pid)?.name ?? '';
+    const userName = (uid: string) => users.find((u) => u.id === uid)?.name ?? uid;
+    const rows = filteredTasks.map((t) => [
+      t.id,
+      t.title,
+      t.status,
+      t.priority,
+      projectName(t.projectId),
+      (t.assigneeIds ?? []).map(userName).join('; '),
+      t.createdAt?.toDate ? format(t.createdAt.toDate(), 'yyyy-MM-dd') : '',
+      t.dueDate?.toDate ? format(t.dueDate.toDate(), 'yyyy-MM-dd') : '',
+      t.updatedAt?.toDate ? format(t.updatedAt.toDate(), 'yyyy-MM-dd') : '',
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(escape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `task-report-${startDate}_to_${endDate}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported');
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold text-gray-900">Reports & Analytics</h2>
         {can('reports_export') && (
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />}>
+          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
             Export CSV
           </Button>
         )}
@@ -193,11 +252,11 @@ const ReportsPage: React.FC = () => {
           )}
         </Card>
 
-        {/* Task Trend */}
+        {/* Task Trend (across selected date range) */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Task Activity (Last 7 Days)</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Task Activity</h3>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={last7Days}>
+            <LineChart data={dailyBuckets}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />

@@ -333,7 +333,8 @@ export default function LandingPage() {
                 <a href="#projects" className="hover:text-white transition-colors">Projects</a>
                 <a href="#about" className="hover:text-white transition-colors">About</a>
                 <a href="#contact" className="hover:text-white transition-colors">Contact</a>
-                <a href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="/policy" className="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="/terms" className="hover:text-white transition-colors">Terms of Use</a>
             </div>
             <p className="text-blue-100/40 text-[11px]">© {new Date().getFullYear()} Kurickal Developers LLP. All rights reserved.</p>
         </div>

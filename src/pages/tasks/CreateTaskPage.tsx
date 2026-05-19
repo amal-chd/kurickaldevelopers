@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import { createTask, updateTask, getTask, getAllUsers, getProjects } from '../../lib/firestore';
 import { Task, AppUser, Project, TaskPriority, TaskStatus } from '../../types';
 import toast from 'react-hot-toast';
@@ -17,6 +19,10 @@ const CreateTaskPage: React.FC = () => {
   const isEdit = !!taskId;
   const navigate = useNavigate();
   const { appUser } = useAuthStore();
+  const { can } = usePermissions();
+
+  // Edit needs tasks_edit; create needs tasks_create.
+  const canAccess = isEdit ? can('tasks_edit') : can('tasks_create');
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -72,16 +78,22 @@ const CreateTaskPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser || !form.title.trim()) return;
+    if (!form.projectId) {
+      toast.error('Please select a project');
+      return;
+    }
 
     setLoading(true);
     try {
-      const data = {
+      // Omit dueDate entirely when blank rather than writing undefined/now —
+      // Firestore rejects undefined, and Timestamp.now() fabricated overdue tasks.
+      const data: Omit<Task, 'id' | 'dueDate'> & { dueDate?: Task['dueDate'] } = {
         title: form.title.trim(),
         description: form.description.trim(),
         projectId: form.projectId,
         status: form.status,
         priority: form.priority,
-        dueDate: form.dueDate ? Timestamp.fromDate(new Date(form.dueDate)) : Timestamp.now(),
+        ...(form.dueDate ? { dueDate: Timestamp.fromDate(new Date(form.dueDate)) } : {}),
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
@@ -105,6 +117,18 @@ const CreateTaskPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (!canAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <EmptyState
+          icon={<Shield className="w-8 h-8" />}
+          title="Access Denied"
+          description={`You need '${isEdit ? 'tasks_edit' : 'tasks_create'}' permission.`}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto">

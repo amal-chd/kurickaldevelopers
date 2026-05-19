@@ -15,21 +15,59 @@ import {
 import { ChatChannel, ChatMessage } from '../types';
 import { useAuthStore } from '../store/authStore';
 
+// Module-level singleton subscription so multiple components (Sidebar + TopBar +
+// ChatPage) share a single Firestore listener instead of each opening their own.
+let _channelsCache: ChatChannel[] = [];
+let _channelsLoading = true;
+let _channelsUnsub: (() => void) | null = null;
+let _channelsRefCount = 0;
+const _channelsListeners = new Set<() => void>();
+let _channelsUid: string | null = null;
+
+function _notifyChannelsListeners() {
+  for (const l of _channelsListeners) l();
+}
+
+function _startChannelsSub(uid: string) {
+  _channelsUid = uid;
+  _channelsLoading = true;
+  _channelsUnsub = subscribeChannels(uid, (chs) => {
+    _channelsCache = chs;
+    _channelsLoading = false;
+    _notifyChannelsListeners();
+  });
+}
+
+function _stopChannelsSub() {
+  _channelsUnsub?.();
+  _channelsUnsub = null;
+  _channelsCache = [];
+  _channelsLoading = true;
+  _channelsUid = null;
+}
+
 export function useChannels() {
   const { firebaseUser } = useAuthStore();
-  const [channels, setChannels] = useState<ChatChannel[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, force] = useState(0);
 
   useEffect(() => {
     if (!firebaseUser) return;
-    const unsub = subscribeChannels(firebaseUser.uid, (chs) => {
-      setChannels(chs);
-      setLoading(false);
-    });
-    return unsub;
+    // Restart if uid changed (sign-out then sign-in as another user).
+    if (_channelsUid && _channelsUid !== firebaseUser.uid) _stopChannelsSub();
+    if (!_channelsUnsub) _startChannelsSub(firebaseUser.uid);
+
+    _channelsRefCount += 1;
+    const listener = () => force((n) => n + 1);
+    _channelsListeners.add(listener);
+
+    return () => {
+      _channelsListeners.delete(listener);
+      _channelsRefCount -= 1;
+      if (_channelsRefCount <= 0) _stopChannelsSub();
+    };
   }, [firebaseUser]);
 
-  return { channels, loading };
+  return { channels: _channelsCache, loading: _channelsLoading };
 }
 
 export function useMessages(channelId: string | null) {
@@ -47,10 +85,18 @@ export function useMessages(channelId: string | null) {
     return unsub;
   }, [channelId]);
 
+  // Mark channel as read once on channel-switch and again when the tab regains focus.
+  // Previously this re-ran on every `messages.length` change, writing to Firestore
+  // for every incoming message — wasteful and noisy.
   useEffect(() => {
     if (!channelId || !firebaseUser) return;
     markChannelRead(channelId, firebaseUser.uid).catch(console.error);
-  }, [channelId, firebaseUser, messages.length]);
+    const onFocus = () => {
+      markChannelRead(channelId, firebaseUser.uid).catch(console.error);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [channelId, firebaseUser]);
 
   return { messages, loading };
 }

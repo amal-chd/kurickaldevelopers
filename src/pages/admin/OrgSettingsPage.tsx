@@ -11,7 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { Shield } from 'lucide-react';
 
 const DEFAULT: OrgSettings = {
-  companyName: 'Kurickal Developers LLP',
+  companyName: '',
   companyLogo: '',
   timezone: 'Asia/Kolkata',
   workStartTime: '08:00',

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Edit2, UserX, UserCheck, Search } from 'lucide-react';
+import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -10,14 +10,16 @@ import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
-import { getAllUsers, getAllRoles, updateUser, addAuditLog, createUser } from '../../lib/firestore';
+import { getAllUsers, getAllRoles, updateUser, addAuditLog } from '../../lib/firestore';
 import { AppUser, Role } from '../../types';
 import { useAuthStore } from '../../store/authStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import toast from 'react-hot-toast';
 import { serverTimestamp } from '../../lib/firestore';
 
 const UserManagementPage: React.FC = () => {
   const { appUser } = useAuthStore();
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -30,15 +32,35 @@ const UserManagementPage: React.FC = () => {
   const [editRole, setEditRole] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Permission gate at the top so unauthorised users get a clean message
+  // instead of a stream of permission-denied errors from Firestore.
+  const canManage = can('team_manage') || can('roles_manage');
+
   useEffect(() => {
+    if (!canManage) {
+      setLoading(false);
+      return;
+    }
     const load = async () => {
-      const [u, r] = await Promise.all([getAllUsers(), getAllRoles()]);
-      setUsers(u);
-      setRoles(r);
+      const [u, r] = await Promise.allSettled([getAllUsers(), getAllRoles()]);
+      if (u.status === 'fulfilled') setUsers(u.value);
+      if (r.status === 'fulfilled') setRoles(r.value);
       setLoading(false);
     };
     load();
-  }, []);
+  }, [canManage]);
+
+  if (!canManage) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <EmptyState
+          icon={<Shield className="w-8 h-8" />}
+          title="Access Denied"
+          description="You need 'team_manage' or 'roles_manage' permission to view this page."
+        />
+      </div>
+    );
+  }
 
   const filtered = users.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||

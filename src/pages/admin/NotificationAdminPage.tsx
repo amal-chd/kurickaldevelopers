@@ -11,7 +11,7 @@ import { createNotification, getAllUsers } from '../../lib/firestore';
 import { AppUser, AppNotification } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
 const NOTIFICATION_TYPES = [
@@ -39,8 +39,15 @@ const NotificationAdminPage: React.FC = () => {
   useEffect(() => {
     getAllUsers().then(setUsers);
 
-    // Subscribe to recent notifications
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(20));
+    // Subscribe to recent broadcast notifications only.
+    // Firestore rules require resource.data.userId == '' || == auth.uid, so an
+    // unfiltered collection query gets rejected for non-targeted docs.
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', ''),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    );
     const unsub = onSnapshot(q, (snap) => {
       setRecentNotifs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification)));
     });
@@ -267,7 +274,7 @@ const NotificationAdminPage: React.FC = () => {
           <Card className="space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
               <div className="p-2 bg-amber-50 rounded-lg text-amber-600"><Clock className="w-4 h-4" /></div>
-              <h3 className="font-semibold text-gray-900">Recent</h3>
+              <h3 className="font-semibold text-gray-900">Recent Broadcasts</h3>
             </div>
             {recentNotifs.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">No notifications sent yet</p>

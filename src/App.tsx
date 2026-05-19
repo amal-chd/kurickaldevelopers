@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthInit } from './hooks/useAuth';
 import LandingPage from './pages/landing/LandingPage';
 import PrivacyPolicyPage from './pages/landing/PrivacyPolicyPage';
+import TermsOfUsePage from './pages/landing/TermsOfUsePage';
 import { useAuthStore } from './store/authStore';
 
 import AppLayout from './components/layout/AppLayout';
@@ -50,7 +51,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-gray-500">Loading Kurickal TMS…</p>
+          <p className="text-sm text-gray-500">Loading Task Master Pro…</p>
         </div>
       </div>
     );
@@ -75,7 +76,9 @@ function App() {
 
           {/* Public Auth */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/policy" element={<PrivacyPolicyPage />} />
+          <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
+          <Route path="/terms" element={<TermsOfUsePage />} />
 
           {/* Protected App */}
           <Route

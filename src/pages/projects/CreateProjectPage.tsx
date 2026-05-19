@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
+import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import { createProject, updateProject, getProject, getAllUsers } from '../../lib/firestore';
-import { AppUser, ProjectStatus } from '../../types';
+import { AppUser, Project, ProjectStatus } from '../../types';
 import toast from 'react-hot-toast';
 
 const CreateProjectPage: React.FC = () => {
@@ -17,6 +19,9 @@ const CreateProjectPage: React.FC = () => {
   const isEdit = !!projectId;
   const navigate = useNavigate();
   const { appUser } = useAuthStore();
+  const { can } = usePermissions();
+
+  const canAccess = isEdit ? can('projects_edit') : can('projects_create');
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,14 +71,25 @@ const CreateProjectPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser) return;
+    if (!form.name.trim()) {
+      toast.error('Project name is required');
+      return;
+    }
+    if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
+      toast.error('End date cannot be before the start date');
+      return;
+    }
     setLoading(true);
     try {
-      const data = {
+      // Omit start/end date entirely when blank — Firestore rejects undefined,
+      // and Timestamp.now() defaults previously polluted project timelines.
+      const data: Omit<Project, 'id' | 'startDate' | 'endDate'> &
+        Pick<Project, 'startDate' | 'endDate'> = {
         name: form.name.trim(),
         description: form.description.trim(),
         status: form.status,
-        startDate: form.startDate ? Timestamp.fromDate(new Date(form.startDate)) : Timestamp.now(),
-        endDate: form.endDate ? Timestamp.fromDate(new Date(form.endDate)) : Timestamp.now(),
+        ...(form.startDate ? { startDate: Timestamp.fromDate(new Date(form.startDate)) } : {}),
+        ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate)) } : {}),
         budget: Number(form.budget) || 0,
         managerId: form.managerId || appUser.id,
         memberIds: form.memberIds,
@@ -94,6 +110,18 @@ const CreateProjectPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (!canAccess) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <EmptyState
+          icon={<Shield className="w-8 h-8" />}
+          title="Access Denied"
+          description={`You need '${isEdit ? 'projects_edit' : 'projects_create'}' permission.`}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto">

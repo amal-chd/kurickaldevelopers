@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Plus, BookOpen, Users, Wrench, Edit2, Trash2, Camera,
+  Plus, BookOpen, Users, Wrench, Edit2, Camera,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -11,7 +11,7 @@ import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import { useAuthStore } from '../../store/authStore';
-import { getSiteDiary, createSiteDiary, updateSiteDiary, deleteSiteDiary, getProjects } from '../../lib/firestore';
+import { getSiteDiary, createSiteDiary, updateSiteDiary, getProjects } from '../../lib/firestore';
 import { SiteDiaryEntry, Project } from '../../types';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -92,7 +92,9 @@ const SiteDiaryPage: React.FC = () => {
         equipment: form.equipment,
         remarks: form.remarks,
         photoUrls: form.photoUrls,
-        createdBy: appUser.id,
+        // Firestore security rule for site_diaries checks resource.data.authorId;
+        // `createdBy` was being written before, which broke author-self-update.
+        authorId: appUser.id,
       };
       if (editing) {
         await updateSiteDiary(editing.id, data);
@@ -112,12 +114,8 @@ const SiteDiaryPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this entry?')) return;
-    await deleteSiteDiary(id);
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    toast.success('Deleted');
-  };
+  // Site diary deletions are disabled by Firestore rules ("allow delete: if false")
+  // for audit-trail integrity. The delete button has been removed from the UI.
 
   const filtered = projectFilter
     ? entries.filter((e) => e.projectId === projectFilter)
@@ -192,14 +190,9 @@ const SiteDiaryPage: React.FC = () => {
                   <button
                     onClick={(e) => { e.stopPropagation(); openEdit(entry); }}
                     className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                    title="Edit"
                   >
                     <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
                   </button>
                   {expanded === entry.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </div>

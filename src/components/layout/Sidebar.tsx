@@ -41,7 +41,21 @@ const NAV_GROUPS = [
     label: 'Account',
     items: [
       { to: '/app/notifications', label: 'Notifications', icon: Bell, always: true, isNotifBadge: true },
-      { to: '/app/admin', label: 'Admin', icon: Shield, perm: 'settings_manage' as const },
+      // Admin is visible to anyone with any admin sub-permission, not just settings_manage.
+      {
+        to: '/app/admin',
+        label: 'Admin',
+        icon: Shield,
+        anyPerm: [
+          'settings_manage',
+          'roles_manage',
+          'team_manage',
+          'attendance_view_all',
+          'notifications_manage',
+          'contact_view',
+          'contact_manage',
+        ] as const,
+      },
       { to: '/app/profile', label: 'Profile', icon: User, always: true },
     ],
   },
@@ -67,8 +81,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     }
   };
 
-  const isItemVisible = (item: { always?: boolean; perm?: keyof ReturnType<typeof usePermissions>['permissions'] }) => {
+  const isItemVisible = (item: {
+    always?: boolean;
+    perm?: keyof ReturnType<typeof usePermissions>['permissions'];
+    anyPerm?: readonly string[];
+  }) => {
     if (item.always) return true;
+    if (item.anyPerm && item.anyPerm.length > 0) {
+      return item.anyPerm.some((p) => can(p as any));
+    }
     if (item.perm) return can(item.perm as any);
     return true;
   };

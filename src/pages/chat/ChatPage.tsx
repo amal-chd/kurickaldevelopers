@@ -314,9 +314,11 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [u, t] = await Promise.all([getAllUsers(), getTasks()]);
-      setUsers(u);
-      setTasks(t);
+      // Use allSettled so chat works even when the user has chat_view but not
+      // tasks_view — they still see DMs/messages, just can't share tasks.
+      const [uRes, tRes] = await Promise.allSettled([getAllUsers(), getTasks()]);
+      if (uRes.status === 'fulfilled') setUsers(uRes.value);
+      if (tRes.status === 'fulfilled') setTasks(tRes.value);
     };
     load();
   }, []);

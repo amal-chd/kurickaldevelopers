@@ -49,10 +49,17 @@ const TasksPage: React.FC = () => {
   useEffect(() => {
     if (!appUser) return;
     (async () => {
-      try {
-        const [t, u, p] = await Promise.all([getTasks(), getAllUsers(), getProjects()]);
-        setTasks(t); setUsers(u); setProjects(p);
-      } finally { setLoading(false); }
+      // Independent settle so a user with tasks_view but not projects_view
+      // (or vice-versa) still sees what they have permission to read.
+      const [tRes, uRes, pRes] = await Promise.allSettled([
+        getTasks(),
+        getAllUsers(),
+        getProjects(),
+      ]);
+      if (tRes.status === 'fulfilled') setTasks(tRes.value);
+      if (uRes.status === 'fulfilled') setUsers(uRes.value);
+      if (pRes.status === 'fulfilled') setProjects(pRes.value);
+      setLoading(false);
     })();
   }, [appUser]);
 

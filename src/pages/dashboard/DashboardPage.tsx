@@ -67,15 +67,20 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     if (!appUser) return;
     (async () => {
-      try {
-        const [p, t, u] = await Promise.all([getProjects(), getTasks(), getAllUsers()]);
-        setProjects(p);
-        setAllTasks(t);
-        setMyTasks(t.filter((task) => task.assigneeIds?.includes(appUser.id)));
-        setUsers(u);
-      } finally {
-        setLoading(false);
+      // Load each source independently so a user without one permission
+      // still sees the other dashboards instead of an all-or-nothing failure.
+      const [pRes, tRes, uRes] = await Promise.allSettled([
+        getProjects(),
+        getTasks(),
+        getAllUsers(),
+      ]);
+      if (pRes.status === 'fulfilled') setProjects(pRes.value);
+      if (tRes.status === 'fulfilled') {
+        setAllTasks(tRes.value);
+        setMyTasks(tRes.value.filter((task) => task.assigneeIds?.includes(appUser.id)));
       }
+      if (uRes.status === 'fulfilled') setUsers(uRes.value);
+      setLoading(false);
     })();
   }, [appUser]);
 
