@@ -54,7 +54,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
     if (/^\/app\/projects\/[^/]+$/.test(path))     return ['Projects', 'Project Detail'];
     if (/^\/app\/team\/[^/]+$/.test(path))         return ['People', 'Team', 'Member'];
     if (/^\/app\/chat\/.+$/.test(path))            return ['People', 'Chat'];
-    return ['Task Master Pro'];
+    return ['Task Pilot'];
   };
   const crumbs = resolveCrumbs(location.pathname);
   const today = format(new Date(), 'EEE, dd MMM');

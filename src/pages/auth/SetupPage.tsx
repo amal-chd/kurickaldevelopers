@@ -1,10 +1,20 @@
 /**
  * ONE-TIME SETUP PAGE — /setup
  * Creates default roles + Firebase Auth accounts + Firestore user docs.
- * Visit this page once to bootstrap the app, then optionally remove it.
+ *
+ * Strategy to avoid auth-state switching issues:
+ *  1. Create roles first (unauthenticated — see note below)
+ *  2. Create Thomas's Auth account → signs in as Thomas → write his Firestore doc
+ *     (Thomas = Director with team_manage + roles_manage)
+ *  3. Create all other Auth accounts via Firebase REST API (no sign-in change)
+ *  4. Write remaining Firestore user docs while signed in as Thomas
+ *     (allowed via the updated rule: isOwner || hasPermission('team_manage'))
+ *
+ * NOTE: Roles are created using the Firebase REST API with Thomas's ID token
+ * so that hasPermission('roles_manage') is satisfied.
  */
 import React, { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import { Building2, CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
@@ -161,30 +171,59 @@ const ROLES = [
   },
 ];
 
-// ─── Demo Users ─────────────────────────────────────────────────────────────
+// ─── Users (Thomas MUST be first — he becomes the bootstrap admin) ──────────
 
-const USERS = [
-  { name: 'Thomas Kurickal',  email: 'thomas@kurickaldevelopers.com', roleId: 'role_director', phone: '' },
-  { name: 'Ravi Kumar',       email: 'ravi@kurickaldevelopers.com',   roleId: 'role_pm',       phone: '' },
-  { name: 'Arjun Menon',      email: 'arjun@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
-  { name: 'Priya Nair',       email: 'priya@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
-  { name: 'Suresh Babu',      email: 'suresh@kurickaldevelopers.com', roleId: 'role_foreman',  phone: '' },
-  { name: 'Biju Thomas',      email: 'biju@kurickaldevelopers.com',   roleId: 'role_labour',   phone: '' },
-  { name: 'Meena Pillai',     email: 'meena@kurickaldevelopers.com',  roleId: 'role_admin',    phone: '' },
-  { name: 'Anitha George',    email: 'anitha@kurickaldevelopers.com', roleId: 'role_accounts', phone: '' },
+const ADMIN_USER = {
+  name: 'Thomas Kurickal',
+  email: 'thomas@kurickaldevelopers.com',
+  roleId: 'role_director',
+  phone: '',
+};
+
+const OTHER_USERS = [
+  { name: 'Ravi Kumar',    email: 'ravi@kurickaldevelopers.com',   roleId: 'role_pm',       phone: '' },
+  { name: 'Arjun Menon',  email: 'arjun@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
+  { name: 'Priya Nair',   email: 'priya@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
+  { name: 'Suresh Babu',  email: 'suresh@kurickaldevelopers.com', roleId: 'role_foreman',  phone: '' },
+  { name: 'Biju Thomas',  email: 'biju@kurickaldevelopers.com',   roleId: 'role_labour',   phone: '' },
+  { name: 'Meena Pillai', email: 'meena@kurickaldevelopers.com',  roleId: 'role_admin',    phone: '' },
+  { name: 'Anitha George', email: 'anitha@kurickaldevelopers.com', roleId: 'role_accounts', phone: '' },
 ];
 
 const DEFAULT_PASSWORD = 'Kurickal@2024';
+const API_KEY = import.meta.env.VITE_FIREBASE_API_KEY as string;
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Create a Firebase Auth account via REST API without changing current auth state.
+ *  Returns the new user's uid, or null if the email already exists. */
+async function createAuthAccountREST(email: string, password: string): Promise<string | null> {
+  const resp = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: false }),
+    }
+  );
+  const data = await resp.json();
+  if (data.error) {
+    if (data.error.message === 'EMAIL_EXISTS') return null; // already exists
+    throw new Error(data.error.message);
+  }
+  return data.localId as string;
+}
+
+/** Check if a Firestore doc already exists at the given path. */
+async function docExists(path: string, id: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, path, id));
+  return snap.exists();
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 type StepStatus = 'idle' | 'running' | 'done' | 'skipped' | 'error';
-
-interface StepResult {
-  label: string;
-  status: StepStatus;
-  note?: string;
-}
+interface StepResult { label: string; status: StepStatus; note?: string; }
 
 const StatusIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
   if (status === 'running') return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
@@ -194,76 +233,125 @@ const StatusIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
   return <div className="w-4 h-4 rounded-full border-2 border-gray-300" />;
 };
 
+// ─── Component ──────────────────────────────────────────────────────────────
+
 const SetupPage: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [steps, setSteps] = useState<StepResult[]>([]);
 
-  const updateStep = (index: number, update: Partial<StepResult>) => {
+  const updateStep = (index: number, update: Partial<StepResult>) =>
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...update } : s)));
-  };
 
   const runSetup = async () => {
     setRunning(true);
     setDone(false);
 
+    // Build step labels
     const allSteps: StepResult[] = [
+      { label: 'Bootstrap Admin: Thomas Kurickal', status: 'idle' },
       ...ROLES.map((r) => ({ label: `Role: ${r.name}`, status: 'idle' as StepStatus })),
-      ...USERS.map((u) => ({ label: `User: ${u.name} (${u.email})`, status: 'idle' as StepStatus })),
+      ...OTHER_USERS.map((u) => ({ label: `User: ${u.name} (${u.email})`, status: 'idle' as StepStatus })),
     ];
     setSteps(allSteps);
 
-    // ── Step 1: Create roles ──────────────────────────────────────────────
-    for (let i = 0; i < ROLES.length; i++) {
-      const role = ROLES[i];
-      updateStep(i, { status: 'running' });
+    // ── Phase 1: Bootstrap Thomas ────────────────────────────────────────────
+    // Create Thomas's Auth account + sign in as him + write his Firestore doc.
+    // All subsequent Firestore writes happen while signed in as Thomas.
+    updateStep(0, { status: 'running' });
+    let thomasUid: string | null = null;
+    try {
       try {
-        const ref = doc(db, 'roles', role.id);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          updateStep(i, { status: 'skipped', note: 'already exists' });
+        const cred = await createUserWithEmailAndPassword(auth, ADMIN_USER.email, DEFAULT_PASSWORD);
+        thomasUid = cred.user.uid;
+        // Force token refresh so Firestore auth is ready
+        await cred.user.getIdToken(true);
+      } catch (e: unknown) {
+        const code = (e as { code?: string }).code ?? '';
+        if (code === 'auth/email-already-in-use') {
+          // Sign in as Thomas so we have his token for subsequent writes
+          const cred2 = await signInWithEmailAndPassword(auth, ADMIN_USER.email, DEFAULT_PASSWORD);
+          thomasUid = cred2.user.uid;
+          await cred2.user.getIdToken(true);
         } else {
-          await setDoc(ref, { ...role, createdAt: serverTimestamp() });
-          updateStep(i, { status: 'done' });
+          throw e;
         }
-      } catch (err: unknown) {
-        updateStep(i, { status: 'error', note: String((err as Error).message ?? err) });
       }
-    }
 
-    // ── Step 2: Create Firebase Auth accounts + Firestore user docs ───────
-    for (let i = 0; i < USERS.length; i++) {
-      const user = USERS[i];
-      const stepIdx = ROLES.length + i;
-      updateStep(stepIdx, { status: 'running' });
-      try {
-        // Try to create the Firebase Auth account
-        let uid: string;
-        try {
-          const cred = await createUserWithEmailAndPassword(auth, user.email, DEFAULT_PASSWORD);
-          uid = cred.user.uid;
-        } catch (authErr: unknown) {
-          const code = (authErr as { code?: string }).code ?? '';
-          if (code === 'auth/email-already-in-use') {
-            // Account exists — just ensure the Firestore doc exists
-            updateStep(stepIdx, { status: 'skipped', note: 'Auth account already exists' });
-            continue;
-          }
-          throw authErr;
-        }
-
-        // Create Firestore user doc
-        await setDoc(doc(db, 'users', uid), {
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
+      // Write Thomas's user doc if it doesn't exist
+      if (await docExists('users', thomasUid)) {
+        updateStep(0, { status: 'skipped', note: 'already exists' });
+      } else {
+        await setDoc(doc(db, 'users', thomasUid), {
+          name: ADMIN_USER.name,
+          email: ADMIN_USER.email,
+          phone: ADMIN_USER.phone,
           avatarUrl: '',
-          roleId: user.roleId,
+          roleId: ADMIN_USER.roleId,
           isActive: true,
           orgId: 'main',
           createdAt: serverTimestamp(),
         });
-        updateStep(stepIdx, { status: 'done' });
+        updateStep(0, { status: 'done' });
+      }
+    } catch (err: unknown) {
+      updateStep(0, { status: 'error', note: String((err as Error).message ?? err) });
+      // Cannot continue without Thomas signed in
+      setRunning(false);
+      setDone(true);
+      return;
+    }
+
+    // ── Phase 2: Create roles (as Thomas who has roles_manage) ───────────────
+    const roleOffset = 1;
+    for (let i = 0; i < ROLES.length; i++) {
+      const role = ROLES[i];
+      updateStep(roleOffset + i, { status: 'running' });
+      try {
+        if (await docExists('roles', role.id)) {
+          updateStep(roleOffset + i, { status: 'skipped', note: 'already exists' });
+        } else {
+          await setDoc(doc(db, 'roles', role.id), { ...role, createdAt: serverTimestamp() });
+          updateStep(roleOffset + i, { status: 'done' });
+        }
+      } catch (err: unknown) {
+        updateStep(roleOffset + i, { status: 'error', note: String((err as Error).message ?? err) });
+      }
+    }
+
+    // ── Phase 3: Create remaining users ──────────────────────────────────────
+    // Auth accounts are created via REST API (no auth-state change).
+    // Firestore docs are written while still signed in as Thomas.
+    const userOffset = 1 + ROLES.length;
+    for (let i = 0; i < OTHER_USERS.length; i++) {
+      const user = OTHER_USERS[i];
+      const stepIdx = userOffset + i;
+      updateStep(stepIdx, { status: 'running' });
+      try {
+        // Create Auth account without signing in (REST API)
+        const newUid = await createAuthAccountREST(user.email, DEFAULT_PASSWORD);
+        if (newUid === null) {
+          // Email already registered — try to find existing uid via email lookup
+          updateStep(stepIdx, { status: 'skipped', note: 'Auth account already exists' });
+          continue;
+        }
+
+        // Write Firestore user doc as Thomas (team_manage permission)
+        if (await docExists('users', newUid)) {
+          updateStep(stepIdx, { status: 'skipped', note: 'Firestore doc already exists' });
+        } else {
+          await setDoc(doc(db, 'users', newUid), {
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            avatarUrl: '',
+            roleId: user.roleId,
+            isActive: true,
+            orgId: 'main',
+            createdAt: serverTimestamp(),
+          });
+          updateStep(stepIdx, { status: 'done' });
+        }
       } catch (err: unknown) {
         updateStep(stepIdx, { status: 'error', note: String((err as Error).message ?? err) });
       }
@@ -274,6 +362,8 @@ const SetupPage: React.FC = () => {
   };
 
   const hasErrors = steps.some((s) => s.status === 'error');
+  const roleOffset = 1;
+  const userOffset = 1 + ROLES.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#060f1e] via-[#1A3A5C] to-[#0d2540] flex items-center justify-center p-6">
@@ -283,7 +373,7 @@ const SetupPage: React.FC = () => {
           <div className="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center shadow-xl mb-4">
             <Building2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Kurickal TMS — First-Time Setup</h1>
+          <h1 className="text-2xl font-bold text-white">Task Pilot — First-Time Setup</h1>
           <p className="text-white/60 text-sm mt-2">
             Creates default roles and demo accounts in Firebase.<br />
             Run once, then navigate to <span className="font-mono text-accent">/login</span>.
@@ -304,10 +394,10 @@ const SetupPage: React.FC = () => {
 
           {/* Steps list */}
           {steps.length > 0 && (
-            <div className="mb-6 space-y-2 max-h-72 overflow-y-auto pr-1">
-              {/* Roles section */}
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Roles</p>
-              {steps.slice(0, ROLES.length).map((step, i) => (
+            <div className="mb-6 space-y-1.5 max-h-80 overflow-y-auto pr-1">
+              {/* Admin bootstrap */}
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Bootstrap Admin</p>
+              {steps.slice(0, 1).map((step, i) => (
                 <div key={i} className="flex items-start gap-2.5 py-1">
                   <StatusIcon status={step.status} />
                   <div className="min-w-0 flex-1">
@@ -316,9 +406,20 @@ const SetupPage: React.FC = () => {
                   </div>
                 </div>
               ))}
-              {/* Users section */}
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1">Users</p>
-              {steps.slice(ROLES.length).map((step, i) => (
+              {/* Roles */}
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1">Roles</p>
+              {steps.slice(roleOffset, roleOffset + ROLES.length).map((step, i) => (
+                <div key={i} className="flex items-start gap-2.5 py-1">
+                  <StatusIcon status={step.status} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-700 leading-tight">{step.label}</p>
+                    {step.note && <p className="text-xs text-gray-400">{step.note}</p>}
+                  </div>
+                </div>
+              ))}
+              {/* Other users */}
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1">Other Users</p>
+              {steps.slice(userOffset).map((step, i) => (
                 <div key={i} className="flex items-start gap-2.5 py-1">
                   <StatusIcon status={step.status} />
                   <div className="min-w-0 flex-1">
@@ -330,7 +431,7 @@ const SetupPage: React.FC = () => {
             </div>
           )}
 
-          {/* Done state */}
+          {/* Result banners */}
           {done && !hasErrors && (
             <div className="flex gap-3 bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
               <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
@@ -338,9 +439,7 @@ const SetupPage: React.FC = () => {
                 <p className="text-sm font-semibold text-green-800">Setup complete!</p>
                 <p className="text-xs text-green-700 mt-0.5">
                   All accounts created. Go to{' '}
-                  <a href="/login" className="underline font-medium">
-                    /login
-                  </a>{' '}
+                  <a href="/login" className="underline font-medium">/login</a>{' '}
                   and sign in with any demo account.
                 </p>
               </div>
@@ -352,36 +451,42 @@ const SetupPage: React.FC = () => {
               <div>
                 <p className="text-sm font-semibold text-red-800">Some steps failed</p>
                 <p className="text-xs text-red-700 mt-0.5">
-                  Check the errors above. Successfully created items are safe to retry.
+                  Check the errors above. Click "Run Setup Again" — completed items will be skipped safely.
                 </p>
               </div>
             </div>
           )}
 
           {/* Action button */}
-          {!done && (
+          {!done ? (
             <button
               onClick={runSetup}
               disabled={running}
               className="w-full py-3 px-6 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {running ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Setting up…
-                </>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Setting up…</>
               ) : (
                 'Run Setup'
               )}
             </button>
-          )}
-          {done && (
-            <a
-              href="/login"
-              className="block w-full py-3 px-6 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors text-center"
-            >
-              Go to Login →
-            </a>
+          ) : (
+            <div className="flex gap-3">
+              {hasErrors && (
+                <button
+                  onClick={() => { setDone(false); setSteps([]); }}
+                  className="flex-1 py-3 px-4 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-center text-sm"
+                >
+                  Run Setup Again
+                </button>
+              )}
+              <a
+                href="/login"
+                className="flex-1 py-3 px-6 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors text-center"
+              >
+                Go to Login →
+              </a>
+            </div>
           )}
         </div>
       </div>

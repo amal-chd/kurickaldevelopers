@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
             <div className="w-10 h-10 border-2 border-white flex items-center justify-center rotate-45">
               <div className="w-4 h-4 bg-white -rotate-45" />
             </div>
-            <span className="font-bold text-2xl tracking-wide text-white uppercase">Kurickal</span>
+            <span className="font-bold text-2xl tracking-wide text-white uppercase">Task Pilot</span>
           </div>
           <button
             onClick={() => navigate('/')}

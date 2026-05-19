@@ -148,7 +148,7 @@ const LoginPage: React.FC = () => {
               <Building2 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-base">Kurickal TMS</p>
+              <p className="text-white font-bold text-base">Task Pilot</p>
               <p className="text-white/40 text-xs">Task Management System</p>
             </div>
           </div>
@@ -187,7 +187,7 @@ const LoginPage: React.FC = () => {
             <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-xl mb-3">
               <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Kurickal TMS</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Task Pilot</h1>
             <p className="text-gray-500 text-sm">Construction Task Management</p>
           </div>
 

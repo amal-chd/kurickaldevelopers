@@ -30,7 +30,7 @@ const OnboardingPage: React.FC = () => {
       };
       await createUser(firebaseUser.uid, userData);
       setAppUser({ id: firebaseUser.uid, ...userData });
-      toast.success('Welcome to Kurickal TMS!');
+      toast.success('Welcome to Task Pilot!');
       navigate('/app/dashboard');
     } catch {
       toast.error('Failed to save profile');

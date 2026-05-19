@@ -118,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-tight tracking-wide">Task Master Pro</p>
+              <p className="text-white font-bold text-sm leading-tight tracking-wide">Task Pilot</p>
               <p className="text-white/40 text-xs">Construction TMS</p>
             </div>
           </div>

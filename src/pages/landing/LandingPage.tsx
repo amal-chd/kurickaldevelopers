@@ -102,7 +102,7 @@ export default function LandingPage() {
             <div className="w-10 h-10 border-2 border-white flex items-center justify-center rotate-45">
               <div className="w-4 h-4 bg-white -rotate-45" />
             </div>
-            <span className="font-bold text-2xl tracking-wide text-white uppercase">Kurickal</span>
+            <span className="font-bold text-2xl tracking-wide text-white uppercase">Task Pilot</span>
           </div>
           
           <nav className="hidden md:flex items-center gap-10">
@@ -276,7 +276,7 @@ export default function LandingPage() {
                         <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
                     <h3 className="text-2xl font-bold text-[#0f2143] mb-3">Inquiry Received</h3>
-                    <p className="text-slate-500 mb-8 max-w-sm mx-auto">Thank you for reaching out. A Kurickal representative will contact you shortly.</p>
+                    <p className="text-slate-500 mb-8 max-w-sm mx-auto">Thank you for reaching out. A Task Pilot representative will contact you shortly.</p>
                     <button onClick={() => setContactSuccess(false)} className="text-[#1b61d4] font-semibold text-sm hover:underline">Submit another inquiry</button>
                 </div>
             ) : (

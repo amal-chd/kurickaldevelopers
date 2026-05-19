@@ -52,7 +52,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       <div className="flex h-screen items-center justify-center bg-[#F8FAFC]">
         <div className="flex flex-col items-center gap-3">
           <Spinner size="lg" />
-          <p className="text-sm text-gray-500">Loading Task Master Pro…</p>
+          <p className="text-sm text-gray-500">Loading Task Pilot…</p>
         </div>
       </div>
     );
