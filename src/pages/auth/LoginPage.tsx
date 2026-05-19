@@ -2,70 +2,76 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
+  updateProfile,
 } from 'firebase/auth';
 import { auth } from '../../firebase/config';
-import { Building2, Mail, Lock, Eye, EyeOff, FlaskConical, ChevronDown, ChevronUp, LogIn } from 'lucide-react';
+import {
+  Building2, Mail, Lock, Eye, EyeOff, User,
+  ArrowRight, ChevronDown, ChevronUp,
+} from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 
-interface DemoCredential {
-  role: string;
-  email: string;
-  password: string;
-  color: string;
-}
+// ─── Left panel stats ─────────────────────────────────────────────────────────
 
-const DEMO_CREDENTIALS: DemoCredential[] = [
-  { role: 'Director / Owner',  email: 'thomas@kurickaldevelopers.com', password: 'Kurickal@2024', color: '#1A3A5C' },
-  { role: 'Project Manager',   email: 'ravi@kurickaldevelopers.com',   password: 'Kurickal@2024', color: '#2196F3' },
-  { role: 'Site Engineer',     email: 'arjun@kurickaldevelopers.com',  password: 'Kurickal@2024', color: '#009688' },
-  { role: 'Site Engineer 2',   email: 'priya@kurickaldevelopers.com',  password: 'Kurickal@2024', color: '#009688' },
-  { role: 'Foreman',           email: 'suresh@kurickaldevelopers.com', password: 'Kurickal@2024', color: '#F59E0B' },
-  { role: 'Labour',            email: 'biju@kurickaldevelopers.com',   password: 'Kurickal@2024', color: '#9E9E9E' },
-  { role: 'Admin',             email: 'meena@kurickaldevelopers.com',  password: 'Kurickal@2024', color: '#9C27B0' },
-  { role: 'Accounts',          email: 'anitha@kurickaldevelopers.com', password: 'Kurickal@2024', color: '#4CAF50' },
+const STATS = [
+  { label: 'Projects Managed', value: '50+' },
+  { label: 'Team Members',     value: '35+' },
+  { label: 'Tasks Completed',  value: '1,200+' },
+  { label: 'Years Active',     value: '7+' },
 ];
 
-const DevCredentialsPanel: React.FC<{ onSelect: (email: string, password: string) => void }> = ({ onSelect }) => {
-  const [expanded, setExpanded] = useState(false);
+// ─── Quick-login panel (dev/demo only) ───────────────────────────────────────
 
+const DEMO = [
+  { role: 'Director / Owner', email: 'thomas@kurickaldevelopers.com', color: '#1A3A5C' },
+  { role: 'Project Manager',  email: 'ravi@kurickaldevelopers.com',   color: '#2196F3' },
+  { role: 'Site Engineer',    email: 'arjun@kurickaldevelopers.com',  color: '#009688' },
+  { role: 'Site Engineer 2',  email: 'priya@kurickaldevelopers.com',  color: '#009688' },
+  { role: 'Foreman',          email: 'suresh@kurickaldevelopers.com', color: '#F59E0B' },
+  { role: 'Labour',           email: 'biju@kurickaldevelopers.com',   color: '#9E9E9E' },
+  { role: 'Admin',            email: 'meena@kurickaldevelopers.com',  color: '#9C27B0' },
+  { role: 'Accounts',         email: 'anitha@kurickaldevelopers.com', color: '#4CAF50' },
+];
+const DEMO_PASSWORD = 'Kurickal@2024';
+
+const DemoPanel: React.FC<{ onSelect: (email: string, pass: string) => void }> = ({ onSelect }) => {
+  const [open, setOpen] = useState(false);
   return (
     <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/60 overflow-hidden">
       <button
         type="button"
-        onClick={() => setExpanded((p) => !p)}
+        onClick={() => setOpen((p) => !p)}
         className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-amber-100/60 transition-colors"
       >
-        <FlaskConical className="w-4 h-4 text-amber-600 shrink-0" />
-        <span className="text-sm font-semibold text-amber-700 flex-1">Dev — Test Accounts</span>
-        {expanded
-          ? <ChevronUp className="w-4 h-4 text-amber-500" />
-          : <ChevronDown className="w-4 h-4 text-amber-500" />}
+        <span className="text-sm font-semibold text-amber-700 flex-1">Quick Sign-In (Demo)</span>
+        {open ? <ChevronUp className="w-4 h-4 text-amber-500" /> : <ChevronDown className="w-4 h-4 text-amber-500" />}
       </button>
-      {expanded && (
+      {open && (
         <div className="border-t border-amber-200 divide-y divide-amber-100">
-          {DEMO_CREDENTIALS.map((cred) => (
+          {DEMO.map((d) => (
             <button
-              key={cred.email}
+              key={d.email}
               type="button"
-              onClick={() => onSelect(cred.email, cred.password)}
+              onClick={() => onSelect(d.email, DEMO_PASSWORD)}
               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-amber-100/60 transition-colors text-left group"
             >
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cred.color }} />
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-700">{cred.role}</p>
-                <p className="text-xs text-gray-400 truncate">{cred.email}</p>
+                <p className="text-xs font-semibold text-gray-700">{d.role}</p>
+                <p className="text-xs text-gray-400 truncate">{d.email}</p>
               </div>
-              <LogIn className="w-3.5 h-3.5 text-gray-300 group-hover:text-amber-600 transition-colors shrink-0" />
+              <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-amber-600 transition-colors shrink-0" />
             </button>
           ))}
           <p className="px-4 py-2 text-xs text-amber-600 bg-amber-50">
-            Password: <span className="font-mono font-bold">Kurickal@2024</span>
+            Password: <span className="font-mono font-bold">{DEMO_PASSWORD}</span>
           </p>
         </div>
       )}
@@ -73,41 +79,83 @@ const DevCredentialsPanel: React.FC<{ onSelect: (email: string, password: string
   );
 };
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+type Mode = 'signin' | 'signup';
+
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [mode, setMode]         = useState<Mode>('signin');
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { firebaseUser } = useAuthStore();
+  const [loading, setLoading]   = useState(false);
+  const navigate                = useNavigate();
+  const { firebaseUser }        = useAuthStore();
 
+  // Already logged in → redirect
   useEffect(() => {
     if (firebaseUser) navigate('/app/dashboard');
   }, [firebaseUser, navigate]);
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  // Switch mode clears form
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setName(''); setEmail(''); setPassword('');
+  };
+
+  // ── Error helper ────────────────────────────────────────────────────────────
+  const toastAuthError = (code: string) => {
+    const map: Record<string, string> = {
+      'auth/invalid-credential':    'Invalid email or password.',
+      'auth/user-not-found':        'No account found with this email.',
+      'auth/wrong-password':        'Invalid email or password.',
+      'auth/email-already-in-use':  'An account with this email already exists.',
+      'auth/weak-password':         'Password must be at least 6 characters.',
+      'auth/invalid-email':         'Please enter a valid email address.',
+      'auth/too-many-requests':     'Too many attempts. Try again later.',
+    };
+    toast.error(map[code] ?? 'Authentication failed. Please try again.');
+  };
+
+  // ── Sign In ─────────────────────────────────────────────────────────────────
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      toast.success('Signed in successfully!');
+      toast.success('Signed in!');
       navigate('/app/dashboard');
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? '';
-      if (['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'].includes(code)) {
-        toast.error('Invalid email or password.');
-      } else if (code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.');
-      } else {
-        toast.error('Sign-in failed. Please try again.');
-      }
+      toastAuthError((err as { code?: string }).code ?? '');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  // ── Sign Up ─────────────────────────────────────────────────────────────────
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password) return;
+    if (password.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
+    setLoading(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // Store display name in Firebase Auth profile
+      await updateProfile(cred.user, { displayName: name.trim() });
+      // useAuthInit will auto-create the Firestore user doc + seed roles
+      toast.success('Account created! Welcome to Task Pilot.');
+      navigate('/app/dashboard');
+    } catch (err: unknown) {
+      toastAuthError((err as { code?: string }).code ?? '');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Google ──────────────────────────────────────────────────────────────────
+  const handleGoogle = async () => {
     setLoading(true);
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
@@ -115,14 +163,15 @@ const LoginPage: React.FC = () => {
       navigate('/app/dashboard');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
-      if (code !== 'auth/popup-closed-by-user') toast.error('Google sign-in failed.');
+      if (code !== 'auth/popup-closed-by-user') toastAuthError(code);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email.trim()) { toast.error('Enter your email first.'); return; }
+  // ── Forgot password ─────────────────────────────────────────────────────────
+  const handleForgot = async () => {
+    if (!email.trim()) { toast.error('Enter your email above first.'); return; }
     try {
       await sendPasswordResetEmail(auth, email.trim());
       toast.success('Password reset email sent!');
@@ -131,13 +180,21 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  // ── Quick demo fill ──────────────────────────────────────────────────────────
+  const handleDemoSelect = (e: string, p: string) => {
+    setMode('signin');
+    setEmail(e);
+    setPassword(p);
+  };
+
+  // ─── UI ────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex">
-      {/* Left panel — branding */}
+
+      {/* ── Left branding panel ── */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 bg-gradient-to-br from-[#060f1e] via-[#1A3A5C] to-[#0d2540] p-12 relative overflow-hidden">
-        {/* bg grid */}
         <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
           backgroundSize: '48px 48px',
         }} />
         <div className="absolute top-1/3 -right-16 w-72 h-72 bg-accent/10 rounded-full blur-[80px]" />
@@ -152,7 +209,6 @@ const LoginPage: React.FC = () => {
               <p className="text-white/40 text-xs">Task Management System</p>
             </div>
           </div>
-
           <h2 className="text-3xl font-black text-white leading-tight mb-4">
             Manage your<br />
             <span className="text-accent">construction projects</span><br />
@@ -163,14 +219,8 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Stats */}
         <div className="relative grid grid-cols-2 gap-3">
-          {[
-            { label: 'Projects Managed', value: '50+' },
-            { label: 'Team Members', value: '35+' },
-            { label: 'Tasks Completed', value: '1,200+' },
-            { label: 'Years Active', value: '7+' },
-          ].map((s) => (
+          {STATS.map((s) => (
             <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <p className="text-xl font-black text-white">{s.value}</p>
               <p className="text-white/40 text-xs mt-0.5">{s.label}</p>
@@ -179,9 +229,10 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right panel — form */}
+      {/* ── Right form panel ── */}
       <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
         <div className="w-full max-w-[400px]">
+
           {/* Mobile logo */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-xl mb-3">
@@ -192,25 +243,39 @@ const LoginPage: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 p-8">
-            <div className="mb-7">
-              <h2 className="text-xl font-bold text-gray-900">Welcome back</h2>
-              <p className="text-gray-500 text-sm mt-1">Sign in to your account to continue</p>
+
+            {/* Mode tabs */}
+            <div className="flex bg-gray-100 rounded-xl p-1 mb-7">
+              {(['signin', 'signup'] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => switchMode(m)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    mode === m
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {m === 'signin' ? 'Sign In' : 'Create Account'}
+                </button>
+              ))}
             </div>
 
-            <form onSubmit={handleEmailSignIn} className="space-y-4">
-              <Input
-                label="Email address"
-                type="email"
-                placeholder="you@kurickaldevelopers.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                leftIcon={<Mail className="w-4 h-4" />}
-              />
-
-              <div>
-                <div className="relative">
+            {/* Sign In form */}
+            {mode === 'signin' && (
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <Input
+                  label="Email address"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  leftIcon={<Mail className="w-4 h-4" />}
+                />
+                <div>
                   <Input
                     label="Password"
                     type={showPass ? 'text' : 'password'}
@@ -221,44 +286,86 @@ const LoginPage: React.FC = () => {
                     autoComplete="current-password"
                     leftIcon={<Lock className="w-4 h-4" />}
                     rightIcon={
-                      <button
-                        type="button"
-                        onClick={() => setShowPass((p) => !p)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        tabIndex={-1}
-                      >
+                      <button type="button" onClick={() => setShowPass((p) => !p)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors" tabIndex={-1}>
                         {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     }
                   />
+                  <div className="flex justify-end mt-1.5">
+                    <button type="button" onClick={handleForgot}
+                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                      Forgot password?
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-end mt-1.5">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    className="text-xs text-primary hover:text-primary-600 font-medium transition-colors"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              </div>
+                <Button type="submit" className="w-full" loading={loading} size="lg">
+                  Sign In
+                </Button>
+              </form>
+            )}
 
-              <Button type="submit" className="w-full" loading={loading} size="lg">
-                Sign In
-              </Button>
-            </form>
+            {/* Sign Up form */}
+            {mode === 'signup' && (
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <Input
+                  label="Full name"
+                  type="text"
+                  placeholder="Your full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoComplete="name"
+                  leftIcon={<User className="w-4 h-4" />}
+                />
+                <Input
+                  label="Email address"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  leftIcon={<Mail className="w-4 h-4" />}
+                />
+                <Input
+                  label="Password"
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Min. 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  rightIcon={
+                    <button type="button" onClick={() => setShowPass((p) => !p)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors" tabIndex={-1}>
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                />
+                <Button type="submit" className="w-full" loading={loading} size="lg">
+                  Create Account
+                </Button>
+                <p className="text-xs text-gray-400 text-center">
+                  Your account will be active once an admin assigns your role.
+                </p>
+              </form>
+            )}
 
+            {/* Divider */}
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-xs text-gray-400 font-medium">or continue with</span>
+              <span className="text-xs text-gray-400 font-medium">or</span>
               <div className="flex-1 h-px bg-gray-100" />
             </div>
 
+            {/* Google */}
             <button
               type="button"
-              onClick={handleGoogleSignIn}
+              onClick={handleGoogle}
               disabled={loading}
-              className="mx-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm font-medium text-gray-700 disabled:opacity-50 shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm font-medium text-gray-700 disabled:opacity-50 shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -269,7 +376,8 @@ const LoginPage: React.FC = () => {
               Continue with Google
             </button>
 
-            <DevCredentialsPanel onSelect={(e, p) => { setEmail(e); setPassword(p); }} />
+            {/* Demo panel */}
+            <DemoPanel onSelect={handleDemoSelect} />
           </div>
 
           <p className="text-center text-gray-400 text-xs mt-6">
