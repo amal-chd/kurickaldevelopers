@@ -17,7 +17,7 @@ import React, { useState } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
-import { Building2, CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 // ─── Roles ──────────────────────────────────────────────────────────────────
 
@@ -370,9 +370,7 @@ const SetupPage: React.FC = () => {
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center shadow-xl mb-4">
-            <Building2 className="w-8 h-8 text-white" />
-          </div>
+          <img src="/logo.png" alt="Task Pilot" className="w-14 h-14 rounded-2xl object-cover shadow-xl mb-4" />
           <h1 className="text-2xl font-bold text-white">Task Pilot — First-Time Setup</h1>
           <p className="text-white/60 text-sm mt-2">
             Creates default roles and demo accounts in Firebase.<br />

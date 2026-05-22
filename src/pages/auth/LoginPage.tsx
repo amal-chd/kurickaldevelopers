@@ -11,7 +11,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../firebase/config';
 import {
-  Building2, Mail, Lock, Eye, EyeOff, User,
+  Mail, Lock, Eye, EyeOff, User,
   ArrowRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -233,9 +233,7 @@ const LoginPage: React.FC = () => {
 
         <div className="relative">
           <div className="flex items-center gap-3 mb-14">
-            <div className="w-11 h-11 bg-accent rounded-2xl flex items-center justify-center shadow-lg shadow-accent/30">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="Task Pilot" className="w-11 h-11 rounded-2xl object-cover shadow-lg" />
             <div>
               <p className="text-white font-bold text-base">Task Pilot</p>
               <p className="text-white/40 text-xs">Task Management System</p>
@@ -267,9 +265,7 @@ const LoginPage: React.FC = () => {
 
           {/* Mobile logo */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-xl mb-3">
-              <Building2 className="w-8 h-8 text-white" />
-            </div>
+            <img src="/logo.png" alt="Task Pilot" className="w-14 h-14 rounded-2xl object-cover shadow-xl mb-3" />
             <h1 className="text-2xl font-bold text-gray-900">Task Pilot</h1>
             <p className="text-gray-500 text-sm">Construction Task Management</p>
           </div>

@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CheckSquare, FolderOpen, Users, FileText,
   MessageSquare, BookOpen, BarChart2, Bell, Shield, User, LogOut, X,
-  Building2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -114,9 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
         {/* Logo */}
         <div className="px-4 py-5 flex items-center justify-between flex-shrink-0 border-b border-white/8">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/30">
-              <Building2 className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt="Task Pilot" className="w-9 h-9 rounded-xl object-cover shadow-lg" />
             <div>
               <p className="text-white font-bold text-sm leading-tight tracking-wide">Task Pilot</p>
               <p className="text-white/40 text-xs">Construction TMS</p>
