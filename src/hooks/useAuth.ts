@@ -190,17 +190,34 @@ async function seedRolesIfNeeded(): Promise<void> {
   }
 }
 
-// ─── Auto-create user doc on first login ────────────────────────────────────
+// ─── Auto-create / patch user doc on first login ────────────────────────────
 
 async function ensureUserDoc(uid: string, email: string, displayName: string | null): Promise<void> {
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
-  if (snap.exists()) return;
 
+  // Derive the best available name: auth profile > email prefix > 'User'
+  const derivedName = displayName?.trim() || email.split('@')[0] || 'User';
   const roleId = EMAIL_ROLE_MAP[email] ?? '';
 
+  if (snap.exists()) {
+    // Patch empty name or missing roleId on existing docs
+    const data = snap.data();
+    const needsPatch =
+      (!data.name || data.name === '') ||
+      (roleId && !data.roleId);
+    if (needsPatch) {
+      await setDoc(ref, {
+        ...data,
+        name: data.name || derivedName,
+        roleId: data.roleId || roleId,
+      }, { merge: true });
+    }
+    return;
+  }
+
   await setDoc(ref, {
-    name: displayName ?? email.split('@')[0],
+    name: derivedName,
     email,
     phone: '',
     avatarUrl: '',
@@ -249,7 +266,23 @@ export function useAuthInit() {
           setAppUser(appUser);
 
           if (appUser?.roleId) {
-            const role = await getRole(appUser.roleId);
+            // Try Firestore first; fall back to built-in defaults so the app
+            // works even when roles haven't been seeded to Firestore yet.
+            let role = await getRole(appUser.roleId);
+            if (!role) {
+              const builtin = DEFAULT_ROLES.find((r) => r.id === appUser.roleId);
+              if (builtin) {
+                role = {
+                  id: builtin.id,
+                  name: builtin.name,
+                  description: builtin.description,
+                  color: builtin.color,
+                  level: builtin.level,
+                  permissions: builtin.permissions,
+                  createdBy: 'system',
+                };
+              }
+            }
             setRole(role);
           } else {
             setRole(null);

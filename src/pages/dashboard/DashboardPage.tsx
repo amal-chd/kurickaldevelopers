@@ -122,7 +122,7 @@ const DashboardPage: React.FC = () => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">
-            {greeting}, {appUser?.name.split(' ')[0]}!
+            {greeting}{appUser?.name ? `, ${appUser.name.split(' ')[0]}` : ''}!
           </h2>
           <p className="text-gray-500 text-sm mt-1">Here's what's happening on your projects today.</p>
         </div>

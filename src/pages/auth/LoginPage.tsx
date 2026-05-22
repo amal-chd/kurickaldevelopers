@@ -8,7 +8,8 @@ import {
   signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
-import { auth } from '../../firebase/config';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../../firebase/config';
 import {
   Building2, Mail, Lock, Eye, EyeOff, User,
   ArrowRight, ChevronDown, ChevronUp,
@@ -141,10 +142,41 @@ const LoginPage: React.FC = () => {
     if (password.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
     setLoading(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      // Store display name in Firebase Auth profile
-      await updateProfile(cred.user, { displayName: name.trim() });
-      // useAuthInit will auto-create the Firestore user doc + seed roles
+      const trimmedEmail = email.trim();
+      const trimmedName  = name.trim();
+
+      // 1. Create Firebase Auth account
+      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+      // 2. Set display name in Auth profile
+      await updateProfile(cred.user, { displayName: trimmedName });
+      // 3. Force fresh token before Firestore write
+      await cred.user.getIdToken(true);
+      // 4. Write Firestore user doc directly here — at this point
+      //    displayName is set and token is fresh, so isOwner rule passes.
+      const userRef = doc(db, 'users', cred.user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        const roleMap: Record<string, string> = {
+          'thomas@kurickaldevelopers.com': 'role_director',
+          'meena@kurickaldevelopers.com':  'role_admin',
+          'ravi@kurickaldevelopers.com':   'role_pm',
+          'arjun@kurickaldevelopers.com':  'role_engineer',
+          'priya@kurickaldevelopers.com':  'role_engineer',
+          'suresh@kurickaldevelopers.com': 'role_foreman',
+          'biju@kurickaldevelopers.com':   'role_labour',
+          'anitha@kurickaldevelopers.com': 'role_accounts',
+        };
+        await setDoc(userRef, {
+          name: trimmedName,
+          email: trimmedEmail,
+          phone: '',
+          avatarUrl: '',
+          roleId: roleMap[trimmedEmail] ?? '',
+          isActive: true,
+          orgId: 'main',
+          createdAt: serverTimestamp(),
+        });
+      }
       toast.success('Account created! Welcome to Task Pilot.');
       navigate('/app/dashboard');
     } catch (err: unknown) {
