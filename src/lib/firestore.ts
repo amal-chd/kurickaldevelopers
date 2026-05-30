@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase/config';
+import { useAuthStore } from '../store/authStore';
 import {
   AppUser, Role, Project, Task, Subtask, Document as TDocument,
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
@@ -30,14 +31,24 @@ import {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const getUser = async (uid: string): Promise<AppUser | null> => {
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as AppUser;
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as AppUser;
+  } catch (err: any) {
+    console.warn('Gracefully handled getUser error:', err);
+    return null;
+  }
 };
 
 export const getAllUsers = async (): Promise<AppUser[]> => {
-  const snap = await getDocs(collection(db, 'users'));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser));
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAllUsers error:', err);
+    return [];
+  }
 };
 
 export const updateUser = async (uid: string, data: Partial<AppUser>): Promise<void> => {
@@ -56,14 +67,24 @@ export const subscribeUsers = (cb: (users: AppUser[]) => void) => {
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
 export const getRole = async (roleId: string): Promise<Role | null> => {
-  const snap = await getDoc(doc(db, 'roles', roleId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Role;
+  try {
+    const snap = await getDoc(doc(db, 'roles', roleId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Role;
+  } catch (err: any) {
+    console.warn('Gracefully handled getRole error:', err);
+    return null;
+  }
 };
 
 export const getAllRoles = async (): Promise<Role[]> => {
-  const snap = await getDocs(collection(db, 'roles'));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Role));
+  try {
+    const snap = await getDocs(collection(db, 'roles'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Role));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAllRoles error:', err);
+    return [];
+  }
 };
 
 export const createRole = async (data: Omit<Role, 'id'>): Promise<string> => {
@@ -81,14 +102,46 @@ export const deleteRole = async (roleId: string): Promise<void> => {
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 export const getProjects = async (): Promise<Project[]> => {
-  const snap = await getDocs(query(collection(db, 'projects'), orderBy('createdAt', 'desc')));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+  try {
+    const { firebaseUser, permissions } = useAuthStore.getState();
+    const uid = firebaseUser?.uid;
+
+    if (!uid) return [];
+
+    let q;
+    if (permissions.projects_view) {
+      q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+    } else {
+      q = query(collection(db, 'projects'), where('memberIds', 'array-contains', uid));
+    }
+
+    const snap = await getDocs(q);
+    const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+
+    if (!permissions.projects_view) {
+      projects.sort((a, b) => {
+        const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+        const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+        return tb - ta;
+      });
+    }
+
+    return projects;
+  } catch (err: any) {
+    console.warn('Gracefully handled getProjects error:', err);
+    return [];
+  }
 };
 
 export const getProject = async (id: string): Promise<Project | null> => {
-  const snap = await getDoc(doc(db, 'projects', id));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Project;
+  try {
+    const snap = await getDoc(doc(db, 'projects', id));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Project;
+  } catch (err: any) {
+    console.warn('Gracefully handled getProject error:', err);
+    return null;
+  }
 };
 
 export const createProject = async (data: Omit<Project, 'id'>): Promise<string> => {
@@ -105,23 +158,133 @@ export const deleteProject = async (id: string): Promise<void> => {
 };
 
 export const subscribeProjects = (cb: (projects: Project[]) => void) => {
-  return onSnapshot(
-    query(collection(db, 'projects'), orderBy('createdAt', 'desc')),
-    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project)))
-  );
+  const { firebaseUser, permissions } = useAuthStore.getState();
+  const uid = firebaseUser?.uid;
+
+  if (!uid) {
+    cb([]);
+    return () => {};
+  }
+
+  let q;
+  if (permissions.projects_view) {
+    q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+  } else {
+    q = query(collection(db, 'projects'), where('memberIds', 'array-contains', uid));
+  }
+
+  return onSnapshot(q, (snap) => {
+    const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
+    if (!permissions.projects_view) {
+      projects.sort((a, b) => {
+        const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+        const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+        return tb - ta;
+      });
+    }
+    cb(projects);
+  });
 };
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Task[]> => {
-  const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+  try {
+    const { firebaseUser, permissions } = useAuthStore.getState();
+    const uid = firebaseUser?.uid;
+
+    if (!uid) return [];
+
+    if (permissions.tasks_view) {
+      try {
+        const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+      } catch (err: any) {
+        console.warn('Gracefully handled tasks_view tasks fetch error:', err);
+        return [];
+      }
+    }
+
+    if (constraints.length > 0) {
+      try {
+        const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+      } catch (err: any) {
+        console.warn('Gracefully handled tasks fetch error with constraints:', err);
+        return [];
+      }
+    }
+
+    const tasksMap = new Map<string, Task>();
+
+    try {
+      const qAssignee = query(collection(db, 'tasks'), where('assigneeIds', 'array-contains', uid));
+      const assigneeSnap = await getDocs(qAssignee);
+      assigneeSnap.docs.forEach((d) => {
+        tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
+      });
+    } catch (err: any) {
+      console.warn('Gracefully handled assignee tasks fetch error:', err);
+    }
+
+    try {
+      const qCreated = query(collection(db, 'tasks'), where('createdBy', '==', uid));
+      const createdSnap = await getDocs(qCreated);
+      createdSnap.docs.forEach((d) => {
+        tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
+      });
+    } catch (err: any) {
+      console.warn('Gracefully handled created tasks fetch error:', err);
+    }
+
+    const myProjects = await getProjects();
+    const myProjectIds = myProjects.map((p) => p.id);
+
+    if (myProjectIds.length > 0) {
+      const chunks: string[][] = [];
+      for (let i = 0; i < myProjectIds.length; i += 10) {
+        chunks.push(myProjectIds.slice(i, i + 10));
+      }
+
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          try {
+            const qProj = query(collection(db, 'tasks'), where('projectId', 'in', chunk));
+            const projSnap = await getDocs(qProj);
+            projSnap.docs.forEach((d) => {
+              tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
+            });
+          } catch (err: any) {
+            console.warn('Gracefully handled projects chunk task fetch error:', err);
+          }
+        })
+      );
+    }
+
+    const tasks = Array.from(tasksMap.values());
+    tasks.sort((a, b) => {
+      const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+      const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+      return tb - ta;
+    });
+
+    return tasks;
+  } catch (err: any) {
+    console.warn('Gracefully handled getTasks top-level error:', err);
+    return [];
+  }
 };
 
 export const getTask = async (id: string): Promise<Task | null> => {
-  const snap = await getDoc(doc(db, 'tasks', id));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Task;
+  try {
+    const snap = await getDoc(doc(db, 'tasks', id));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Task;
+  } catch (err: any) {
+    console.warn('Gracefully handled getTask error:', err);
+    return null;
+  }
 };
 
 export const createTask = async (data: Omit<Task, 'id'>): Promise<string> => {
@@ -142,14 +305,123 @@ export const deleteTask = async (id: string): Promise<void> => {
 };
 
 export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryConstraint[] = []) => {
-  const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))));
+  const { firebaseUser, permissions } = useAuthStore.getState();
+  const uid = firebaseUser?.uid;
+
+  if (!uid) {
+    cb([]);
+    return () => {};
+  }
+
+  if (permissions.tasks_view) {
+    const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))));
+  }
+
+  if (constraints.length > 0) {
+    const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))),
+      (err) => {
+        if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
+          console.warn('Gracefully handled tasks subscription permission denial:', err);
+          cb([]);
+        }
+      }
+    );
+  }
+
+  let assigneeTasks: Task[] = [];
+  let createdTasks: Task[] = [];
+  const projectTasksMap = new Map<string, Task[]>();
+  let projectUnsubs: (() => void)[] = [];
+
+  const emit = () => {
+    const mergedMap = new Map<string, Task>();
+    assigneeTasks.forEach((t) => mergedMap.set(t.id, t));
+    createdTasks.forEach((t) => mergedMap.set(t.id, t));
+    projectTasksMap.forEach((tasksList) => {
+      tasksList.forEach((t) => mergedMap.set(t.id, t));
+    });
+
+    const tasks = Array.from(mergedMap.values());
+    tasks.sort((a, b) => {
+      const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
+      const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
+      return tb - ta;
+    });
+    cb(tasks);
+  };
+
+  const unsubAssignee = onSnapshot(
+    query(collection(db, 'tasks'), where('assigneeIds', 'array-contains', uid)),
+    (snap) => {
+      assigneeTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+      emit();
+    },
+    (err) => console.warn('Assignee tasks sub error:', err)
+  );
+
+  const unsubCreated = onSnapshot(
+    query(collection(db, 'tasks'), where('createdBy', '==', uid)),
+    (snap) => {
+      createdTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+      emit();
+    },
+    (err) => console.warn('Created tasks sub error:', err)
+  );
+
+  const unsubProjects = subscribeProjects((projects) => {
+    const myProjectIds = projects.map((p) => p.id);
+
+    projectUnsubs.forEach((unsub) => unsub());
+    projectUnsubs = [];
+    projectTasksMap.clear();
+
+    if (myProjectIds.length > 0) {
+      const chunks: string[][] = [];
+      for (let i = 0; i < myProjectIds.length; i += 10) {
+        chunks.push(myProjectIds.slice(i, i + 10));
+      }
+
+      chunks.forEach((chunk, index) => {
+        const qProj = query(collection(db, 'tasks'), where('projectId', 'in', chunk));
+        const unsubProj = onSnapshot(
+          qProj,
+          (snap) => {
+            projectTasksMap.set(
+              index.toString(),
+              snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))
+            );
+            emit();
+          },
+          (err) => console.warn(`Project chunk ${index} tasks sub error:`, err)
+        );
+        projectUnsubs.push(unsubProj);
+      });
+    } else {
+      emit();
+    }
+  });
+
+  return () => {
+    unsubAssignee();
+    unsubCreated();
+    unsubProjects();
+    projectUnsubs.forEach((unsub) => unsub());
+  };
 };
 
 // ─── Subtasks ─────────────────────────────────────────────────────────────────
 export const getSubtasks = async (taskId: string): Promise<Subtask[]> => {
-  const snap = await getDocs(collection(db, 'tasks', taskId, 'subtasks'));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Subtask));
+  try {
+    const snap = await getDocs(collection(db, 'tasks', taskId, 'subtasks'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Subtask));
+  } catch (err: any) {
+    console.warn('Gracefully handled getSubtasks error:', err);
+    return [];
+  }
 };
 
 export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>): Promise<string> => {
@@ -173,10 +445,15 @@ export const subscribeSubtasks = (taskId: string, cb: (subtasks: Subtask[]) => v
 
 // ─── Documents ────────────────────────────────────────────────────────────────
 export const getDocuments = async (projectId?: string): Promise<TDocument[]> => {
-  const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
-  if (projectId) constraints.unshift(where('projectId', '==', projectId));
-  const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TDocument));
+  try {
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    if (projectId) constraints.unshift(where('projectId', '==', projectId));
+    const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TDocument));
+  } catch (err: any) {
+    console.warn('Gracefully handled getDocuments error:', err);
+    return [];
+  }
 };
 
 export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<string> => {
@@ -200,11 +477,16 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 export const getAttendance = async (date?: string, userId?: string): Promise<Attendance[]> => {
-  const constraints: QueryConstraint[] = [];
-  if (date) constraints.push(where('date', '==', date));
-  if (userId) constraints.push(where('userId', '==', userId));
-  const snap = await getDocs(query(collection(db, 'attendance'), ...constraints));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+  try {
+    const constraints: QueryConstraint[] = [];
+    if (date) constraints.push(where('date', '==', date));
+    if (userId) constraints.push(where('userId', '==', userId));
+    const snap = await getDocs(query(collection(db, 'attendance'), ...constraints));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAttendance error:', err);
+    return [];
+  }
 };
 
 export const subscribeAttendance = (date: string, cb: (records: Attendance[]) => void) => {
@@ -215,10 +497,15 @@ export const subscribeAttendance = (date: string, cb: (records: Attendance[]) =>
 };
 
 export const getUserAttendanceHistory = async (userId: string, limit2 = 30): Promise<Attendance[]> => {
-  const snap = await getDocs(
-    query(collection(db, 'attendance'), where('userId', '==', userId), orderBy('date', 'desc'), limit(limit2))
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'attendance'), where('userId', '==', userId), orderBy('date', 'desc'), limit(limit2))
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance));
+  } catch (err: any) {
+    console.warn('Gracefully handled getUserAttendanceHistory error:', err);
+    return [];
+  }
 };
 
 // ─── Chat Channels ────────────────────────────────────────────────────────────
@@ -239,9 +526,14 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
 };
 
 export const getChannel = async (channelId: string): Promise<ChatChannel | null> => {
-  const snap = await getDoc(doc(db, 'chats', channelId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as ChatChannel;
+  try {
+    const snap = await getDoc(doc(db, 'chats', channelId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as ChatChannel;
+  } catch (err: any) {
+    console.warn('Gracefully handled getChannel error:', err);
+    return null;
+  }
 };
 
 export const createChannel = async (data: Omit<ChatChannel, 'id'>): Promise<string> => {
@@ -371,10 +663,15 @@ export const subscribeTyping = (channelId: string, cb: (typing: Record<string, s
 
 // ─── Site Diary ───────────────────────────────────────────────────────────────
 export const getSiteDiary = async (projectId?: string): Promise<SiteDiaryEntry[]> => {
-  const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
-  if (projectId) constraints.unshift(where('projectId', '==', projectId));
-  const snap = await getDocs(query(collection(db, 'site_diaries'), ...constraints));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SiteDiaryEntry));
+  try {
+    const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
+    if (projectId) constraints.unshift(where('projectId', '==', projectId));
+    const snap = await getDocs(query(collection(db, 'site_diaries'), ...constraints));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SiteDiaryEntry));
+  } catch (err: any) {
+    console.warn('Gracefully handled getSiteDiary error:', err);
+    return [];
+  }
 };
 
 export const createSiteDiary = async (data: Omit<SiteDiaryEntry, 'id'>): Promise<string> => {
@@ -392,9 +689,14 @@ export const deleteSiteDiary = async (id: string): Promise<void> => {
 
 // ─── Org Settings ─────────────────────────────────────────────────────────────
 export const getOrgSettings = async (): Promise<OrgSettings | null> => {
-  const snap = await getDoc(doc(db, 'settings', 'org'));
-  if (!snap.exists()) return null;
-  return snap.data() as OrgSettings;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'org'));
+    if (!snap.exists()) return null;
+    return snap.data() as OrgSettings;
+  } catch (err: any) {
+    console.warn('Gracefully handled getOrgSettings error:', err);
+    return null;
+  }
 };
 
 export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<void> => {
@@ -403,10 +705,15 @@ export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<voi
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 export const getAuditLogs = async (pageLimit = 50): Promise<AuditLog[]> => {
-  const snap = await getDocs(
-    query(collection(db, 'audit_logs'), orderBy('createdAt', 'desc'), limit(pageLimit))
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'audit_logs'), orderBy('createdAt', 'desc'), limit(pageLimit))
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAuditLogs error:', err);
+    return [];
+  }
 };
 
 export const addAuditLog = async (data: Omit<AuditLog, 'id'>): Promise<void> => {
@@ -437,6 +744,11 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
     (snap) => {
       results.broadcast = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification));
       emit();
+    },
+    (err) => {
+      console.warn('Gracefully handled notifications broadcast subscription error:', err);
+      results.broadcast = [];
+      emit();
     }
   );
 
@@ -444,6 +756,11 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
     query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(50)),
     (snap) => {
       results.targeted = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppNotification));
+      emit();
+    },
+    (err) => {
+      console.warn('Gracefully handled notifications targeted subscription error:', err);
+      results.targeted = [];
       emit();
     }
   );
@@ -482,10 +799,15 @@ export const createContactInquiry = async (
 };
 
 export const getContactInquiries = async (): Promise<ContactInquiry[]> => {
-  const snap = await getDocs(
-    query(collection(db, 'contact_inquiries'), orderBy('createdAt', 'desc'))
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as ContactInquiry));
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'contact_inquiries'), orderBy('createdAt', 'desc'))
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as ContactInquiry));
+  } catch (err: any) {
+    console.warn('Gracefully handled getContactInquiries error:', err);
+    return [];
+  }
 };
 
 export const updateContactInquiry = async (

@@ -23,7 +23,7 @@ import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 const ROLES = [
   {
-    id: 'role_director',
+    id: 'director',
     name: 'Director / Owner',
     description: 'Full access to all features and settings',
     color: '#1A3A5C',
@@ -44,7 +44,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_admin',
+    id: 'admin',
     name: 'Admin',
     description: 'Administrative access — team, roles, settings',
     color: '#9C27B0',
@@ -65,7 +65,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_pm',
+    id: 'project_manager',
     name: 'Project Manager',
     description: 'Manages projects, tasks, and team assignments',
     color: '#2196F3',
@@ -86,7 +86,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_accounts',
+    id: 'accounts',
     name: 'Accounts',
     description: 'Finance, reports, and document access',
     color: '#4CAF50',
@@ -107,7 +107,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_engineer',
+    id: 'site_engineer',
     name: 'Site Engineer',
     description: 'Field engineer — tasks, site diary, documents',
     color: '#009688',
@@ -128,7 +128,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_foreman',
+    id: 'foreman',
     name: 'Foreman',
     description: 'Site foreman — limited task and attendance access',
     color: '#F59E0B',
@@ -149,7 +149,7 @@ const ROLES = [
     },
   },
   {
-    id: 'role_labour',
+    id: 'labour',
     name: 'Labour',
     description: 'Site worker — attendance and basic task view only',
     color: '#9E9E9E',
@@ -176,18 +176,18 @@ const ROLES = [
 const ADMIN_USER = {
   name: 'Thomas Kurickal',
   email: 'thomas@kurickaldevelopers.com',
-  roleId: 'role_director',
+  roleId: 'director',
   phone: '',
 };
 
 const OTHER_USERS = [
-  { name: 'Ravi Kumar',    email: 'ravi@kurickaldevelopers.com',   roleId: 'role_pm',       phone: '' },
-  { name: 'Arjun Menon',  email: 'arjun@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
-  { name: 'Priya Nair',   email: 'priya@kurickaldevelopers.com',  roleId: 'role_engineer', phone: '' },
-  { name: 'Suresh Babu',  email: 'suresh@kurickaldevelopers.com', roleId: 'role_foreman',  phone: '' },
-  { name: 'Biju Thomas',  email: 'biju@kurickaldevelopers.com',   roleId: 'role_labour',   phone: '' },
-  { name: 'Meena Pillai', email: 'meena@kurickaldevelopers.com',  roleId: 'role_admin',    phone: '' },
-  { name: 'Anitha George', email: 'anitha@kurickaldevelopers.com', roleId: 'role_accounts', phone: '' },
+  { name: 'Ravi Kumar',    email: 'ravi@kurickaldevelopers.com',   roleId: 'project_manager', phone: '' },
+  { name: 'Arjun Menon',  email: 'arjun@kurickaldevelopers.com',  roleId: 'site_engineer',   phone: '' },
+  { name: 'Priya Nair',   email: 'priya@kurickaldevelopers.com',  roleId: 'site_engineer',   phone: '' },
+  { name: 'Suresh Babu',  email: 'suresh@kurickaldevelopers.com', roleId: 'foreman',         phone: '' },
+  { name: 'Biju Thomas',  email: 'biju@kurickaldevelopers.com',   roleId: 'labour',          phone: '' },
+  { name: 'Meena Pillai', email: 'meena@kurickaldevelopers.com',  roleId: 'admin',           phone: '' },
+  { name: 'Anitha George', email: 'anitha@kurickaldevelopers.com', roleId: 'accounts',        phone: '' },
 ];
 
 const DEFAULT_PASSWORD = 'Kurickal@2024';

@@ -157,25 +157,28 @@ const LoginPage: React.FC = () => {
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
         const roleMap: Record<string, string> = {
-          'thomas@kurickaldevelopers.com': 'role_director',
-          'meena@kurickaldevelopers.com':  'role_admin',
-          'ravi@kurickaldevelopers.com':   'role_pm',
-          'arjun@kurickaldevelopers.com':  'role_engineer',
-          'priya@kurickaldevelopers.com':  'role_engineer',
-          'suresh@kurickaldevelopers.com': 'role_foreman',
-          'biju@kurickaldevelopers.com':   'role_labour',
-          'anitha@kurickaldevelopers.com': 'role_accounts',
+          'thomas@kurickaldevelopers.com': 'director',
+          'meena@kurickaldevelopers.com':  'admin',
+          'ravi@kurickaldevelopers.com':   'project_manager',
+          'arjun@kurickaldevelopers.com':  'site_engineer',
+          'priya@kurickaldevelopers.com':  'site_engineer',
+          'suresh@kurickaldevelopers.com': 'foreman',
+          'biju@kurickaldevelopers.com':   'labour',
+          'anitha@kurickaldevelopers.com': 'accounts',
         };
-        await setDoc(userRef, {
-          name: trimmedName,
-          email: trimmedEmail,
-          phone: '',
-          avatarUrl: '',
-          roleId: roleMap[trimmedEmail] ?? '',
-          isActive: true,
-          orgId: 'main',
-          createdAt: serverTimestamp(),
-        });
+        const roleId = roleMap[trimmedEmail];
+        if (roleId) {
+          await setDoc(userRef, {
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: '',
+            avatarUrl: '',
+            roleId,
+            isActive: true,
+            orgId: 'main',
+            createdAt: serverTimestamp(),
+          });
+        }
       }
       toast.success('Account created! Welcome to Task Pilot.');
       navigate('/app/dashboard');

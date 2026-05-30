@@ -30,16 +30,32 @@ const MemberDetailPage: React.FC = () => {
     if (!userId) return;
     const load = async () => {
       try {
-        const [u, r, t, a] = await Promise.all([
-          getUser(userId),
-          getAllRoles(),
-          getTasks([where('assigneeIds', 'array-contains', userId)]),
-          getUserAttendanceHistory(userId, 30),
-        ]);
+        // Fetch core user first
+        const u = await getUser(userId);
         setMember(u);
-        setRoles(r);
-        setTasks(t);
-        setAttendance(a);
+
+        if (u) {
+          // Fetch secondary resources in parallel, individual safe fallbacks
+          const [r, t, a] = await Promise.all([
+            getAllRoles().catch((err) => {
+              console.warn('MemberDetail: failed to load roles:', err);
+              return [];
+            }),
+            getTasks([where('assigneeIds', 'array-contains', userId)]).catch((err) => {
+              console.warn('MemberDetail: failed to load tasks:', err);
+              return [];
+            }),
+            getUserAttendanceHistory(userId, 30).catch((err) => {
+              console.warn('MemberDetail: failed to load attendance history:', err);
+              return [];
+            }),
+          ]);
+          setRoles(r);
+          setTasks(t);
+          setAttendance(a);
+        }
+      } catch (err) {
+        console.error('Failed to load member details:', err);
       } finally {
         setLoading(false);
       }

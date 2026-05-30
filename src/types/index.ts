@@ -55,7 +55,11 @@ export interface AppUser {
   roleId: string;
   isActive: boolean;
   orgId: string;
-  createdAt?: Timestamp;
+  createdAt?: any;
+  lastLoginAt?: any;
+  projectIds?: string[];
+  notificationsEnabled?: boolean;
+  biometricEnabled?: boolean;
 }
 
 // ─── Project ──────────────────────────────────────────────────────────────────

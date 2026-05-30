@@ -2,109 +2,90 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare, FolderOpen, Users, Clock, Plus, ArrowRight,
-  TrendingUp, AlertCircle, Zap,
+  TrendingUp, AlertCircle, Zap, Calendar, RefreshCw,
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Avatar from '../../components/ui/Avatar';
 import { TaskStatusChip, PriorityChip } from '../../components/ui/StatusChip';
-import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import { useAuthStore } from '../../store/authStore';
-import { getProjects, getTasks, getAllUsers } from '../../lib/firestore';
+import { usePermissions } from '../../hooks/usePermissions';
+import { subscribeProjects, subscribeTasks, subscribeUsers } from '../../lib/firestore';
 import { Task, Project, AppUser } from '../../types';
 import { formatDate, projectStatusColor, projectStatusLabel } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
-const STAT_CONFIG = [
-  {
-    key: 'activeTasks',
-    label: 'Active Tasks',
-    icon: CheckSquare,
-    gradient: 'from-blue-500 to-blue-600',
-    shadow: 'shadow-blue-200',
-    textColor: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  {
-    key: 'activeProjects',
-    label: 'Active Projects',
-    icon: FolderOpen,
-    gradient: 'from-emerald-500 to-emerald-600',
-    shadow: 'shadow-emerald-200',
-    textColor: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-  },
-  {
-    key: 'teamMembers',
-    label: 'Team Members',
-    icon: Users,
-    gradient: 'from-purple-500 to-purple-600',
-    shadow: 'shadow-purple-200',
-    textColor: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-  {
-    key: 'pendingApprovals',
-    label: 'Pending Approvals',
-    icon: Clock,
-    gradient: 'from-amber-500 to-amber-600',
-    shadow: 'shadow-amber-200',
-    textColor: 'text-amber-600',
-    bg: 'bg-amber-50',
-  },
-];
-
 const DashboardPage: React.FC = () => {
   const { appUser } = useAuthStore();
+  const { can } = usePermissions();
   const navigate = useNavigate();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers]       = useState<AppUser[]>([]);
+
+  // Track which of the three subscriptions have fired at least once
+  const [ready, setReady] = useState({ projects: false, tasks: false, users: false });
+
+  const markReady = (key: keyof typeof ready) =>
+    setReady((prev) => ({ ...prev, [key]: true }));
+
+  const loading = !ready.projects || !ready.tasks || !ready.users;
 
   useEffect(() => {
-    // Load all data independently — do not gate on appUser so the spinner
-    // never hangs when appUser arrives slightly after initialized.
-    (async () => {
-      const [pRes, tRes, uRes] = await Promise.allSettled([
-        getProjects(),
-        getTasks(),
-        getAllUsers(),
-      ]);
-      if (pRes.status === 'fulfilled') setProjects(pRes.value);
-      if (tRes.status === 'fulfilled') {
-        setAllTasks(tRes.value);
-        setMyTasks(tRes.value.filter((task) => task.assigneeIds?.includes(appUser?.id ?? '')));
-      }
-      if (uRes.status === 'fulfilled') setUsers(uRes.value);
-      setLoading(false);
-    })();
+    // onSnapshot subscriptions automatically re-run when the auth token
+    // refreshes, so they recover from the initial permission-denied race
+    // without any manual "Try again" click.
+    const unsubProjects = subscribeProjects((data) => {
+      setProjects(data);
+      markReady('projects');
+    });
+    const unsubTasks = subscribeTasks((data) => {
+      setAllTasks(data);
+      markReady('tasks');
+    });
+    const unsubUsers = subscribeUsers((data) => {
+      setUsers(data);
+      markReady('users');
+    });
+
+    // Safety net: if any subscription never fires (e.g. offline), unblock after 7 s
+    const timer = setTimeout(() => setReady({ projects: true, tasks: true, users: true }), 7000);
+
+    return () => {
+      unsubProjects();
+      unsubTasks();
+      unsubUsers();
+      clearTimeout(timer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full gap-3">
         <Spinner size="lg" />
+        <p className="text-sm text-gray-400">Loading dashboard…</p>
       </div>
     );
   }
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
-  const activeTasks = allTasks.filter((t) => t.status === 'in_progress');
-  const pendingApprovals = allTasks.filter((t) => t.approvalStatus === 'pending');
-  const overdueTasks = myTasks.filter(
-    (t) => t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done'
-  );
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const userId      = appUser?.id ?? '';
+  const isManager   = can('tasks_approve');
 
-  const stats = {
-    activeTasks: activeTasks.length,
-    activeProjects: activeProjects.length,
-    teamMembers: users.length,
-    pendingApprovals: pendingApprovals.length,
-  };
+  // Managers see all tasks; others see only their own
+  const myTasks     = isManager
+    ? allTasks
+    : allTasks.filter((t) => t.assigneeIds?.includes(userId));
+
+  const activeProjects   = projects.filter((p) => p.status === 'active');
+  const inProgressTasks  = allTasks.filter((t) => t.status === 'in_progress');
+  const pendingApprovals = allTasks.filter((t) => t.approvalStatus === 'pending');
+  const overdueTasks     = myTasks.filter(
+    (t) => t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done',
+  );
 
   const getProjectProgress = (projectId: string) => {
     const pts = allTasks.filter((t) => t.projectId === projectId);
@@ -112,49 +93,66 @@ const DashboardPage: React.FC = () => {
     return Math.round((pts.filter((t) => t.status === 'done').length / pts.length) * 100);
   };
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  // Safe greeting — guard against empty/null name
+  const hour      = new Date().getHours();
+  const greeting  = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = (appUser?.name || appUser?.email || '').split(/[\s@]/)[0] || '';
+
+  const STATS = [
+    { label: 'Active Tasks',      value: inProgressTasks.length,  icon: CheckSquare, textColor: 'text-blue-600',    bg: 'bg-blue-50',    path: '/app/tasks' },
+    { label: 'Active Projects',   value: activeProjects.length,   icon: FolderOpen,  textColor: 'text-emerald-600', bg: 'bg-emerald-50', path: '/app/projects' },
+    { label: 'Team Members',      value: users.length,            icon: Users,       textColor: 'text-purple-600',  bg: 'bg-purple-50',  path: '/app/team' },
+    { label: 'Pending Approvals', value: pendingApprovals.length, icon: Clock,       textColor: 'text-amber-600',   bg: 'bg-amber-50',   path: '/app/tasks' },
+  ];
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-gray-900">
-            {greeting}{appUser?.name ? `, ${appUser.name.split(' ')[0]}` : ''}!
+            {greeting}{firstName ? `, ${firstName}` : ''}!
           </h2>
           <p className="text-gray-500 text-sm mt-1">Here's what's happening on your projects today.</p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/app/tasks/create')}>
-            Task
-          </Button>
-          <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/app/projects/create')} className="hidden sm:flex">
-            Project
-          </Button>
+        <div className="flex gap-2 flex-shrink-0 flex-wrap">
+          {can('tasks_create') && (
+            <Button variant="outline" size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/app/tasks/create')}>
+              Task
+            </Button>
+          )}
+          {can('projects_create') && (
+            <Button size="sm" leftIcon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/app/projects/create')} className="hidden sm:flex">
+              Project
+            </Button>
+          )}
         </div>
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STAT_CONFIG.map((s) => (
-          <Card key={s.key} className="flex items-center gap-4 !p-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {STATS.map((s) => (
+          <button
+            key={s.label}
+            onClick={() => navigate(s.path)}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full group"
+          >
             <div className={`p-3 rounded-xl ${s.bg} flex-shrink-0`}>
               <s.icon className={`w-5 h-5 ${s.textColor}`} />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{(stats as any)[s.key]}</p>
+              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
               <p className="text-xs text-gray-500 mt-0.5 leading-tight">{s.label}</p>
             </div>
-          </Card>
+          </button>
         ))}
       </div>
 
-      {/* ── Main content ── */}
+      {/* ── Main grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* My Tasks */}
+        {/* ── My Tasks ── */}
         <div className="lg:col-span-2">
           <Card padding={false}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -162,12 +160,17 @@ const DashboardPage: React.FC = () => {
                 <div className="p-1.5 bg-blue-50 rounded-lg">
                   <CheckSquare className="w-4 h-4 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">My Tasks</h3>
+                <h3 className="font-semibold text-gray-900">
+                  {isManager ? 'All Tasks' : 'My Tasks'}
+                </h3>
                 {overdueTasks.length > 0 && (
                   <span className="text-xs bg-red-50 text-red-600 font-semibold px-2 py-0.5 rounded-full border border-red-100">
                     {overdueTasks.length} overdue
                   </span>
                 )}
+                <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                  {myTasks.length}
+                </span>
               </div>
               <button
                 onClick={() => navigate('/app/tasks')}
@@ -178,17 +181,28 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {myTasks.length === 0 ? (
-              <div className="py-12 text-center">
+              <div className="py-14 text-center">
                 <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <CheckSquare className="w-6 h-6 text-gray-200" />
                 </div>
-                <p className="text-sm text-gray-400">No tasks assigned to you yet</p>
+                <p className="text-sm font-medium text-gray-400">No tasks yet</p>
+                <p className="text-xs text-gray-300 mt-1">Tasks assigned to you will appear here</p>
+                {can('tasks_create') && (
+                  <button
+                    onClick={() => navigate('/app/tasks/create')}
+                    className="mt-4 text-xs text-primary font-semibold hover:underline"
+                  >
+                    + Create your first task
+                  </button>
+                )}
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {myTasks.slice(0, 7).map((task) => {
+                {myTasks.slice(0, 8).map((task) => {
                   const isOverdue =
-                    task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && task.status !== 'done';
+                    task.dueDate &&
+                    isAfter(new Date(), task.dueDate.toDate()) &&
+                    task.status !== 'done';
                   return (
                     <div
                       key={task.id}
@@ -200,9 +214,12 @@ const DashboardPage: React.FC = () => {
                           {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
                           <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
                         </div>
-                        <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`}>
-                          Due {formatDate(task.dueDate)}
-                        </p>
+                        {task.dueDate && (
+                          <p className={`text-xs mt-0.5 flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`}>
+                            <Calendar className="w-3 h-3" />
+                            {isOverdue ? 'Overdue · ' : ''}Due {formatDate(task.dueDate)}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <PriorityChip priority={task.priority} />
@@ -211,13 +228,24 @@ const DashboardPage: React.FC = () => {
                     </div>
                   );
                 })}
+                {myTasks.length > 8 && (
+                  <div className="px-5 py-3 bg-gray-50/40">
+                    <button
+                      onClick={() => navigate('/app/tasks')}
+                      className="text-xs text-primary font-semibold hover:underline"
+                    >
+                      + {myTasks.length - 8} more tasks — view all
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </Card>
         </div>
 
-        {/* Right column */}
+        {/* ── Right column ── */}
         <div className="space-y-4">
+
           {/* Projects */}
           <Card padding={false}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -226,6 +254,9 @@ const DashboardPage: React.FC = () => {
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                 </div>
                 <h3 className="font-semibold text-gray-900">Projects</h3>
+                <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                  {projects.length}
+                </span>
               </div>
               <button
                 onClick={() => navigate('/app/projects')}
@@ -234,11 +265,25 @@ const DashboardPage: React.FC = () => {
                 View all <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
-            <div className="divide-y divide-gray-50">
-              {projects.length === 0 ? (
-                <p className="py-8 text-center text-sm text-gray-400">No projects yet</p>
-              ) : (
-                projects.slice(0, 5).map((project) => {
+
+            {projects.length === 0 ? (
+              <div className="py-10 text-center">
+                <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                  <FolderOpen className="w-5 h-5 text-gray-200" />
+                </div>
+                <p className="text-sm text-gray-400">No projects yet</p>
+                {can('projects_create') && (
+                  <button
+                    onClick={() => navigate('/app/projects/create')}
+                    className="mt-3 text-xs text-primary font-semibold hover:underline"
+                  >
+                    + Create a project
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {projects.slice(0, 5).map((project) => {
                   const progress = getProjectProgress(project.id);
                   return (
                     <div
@@ -248,14 +293,14 @@ const DashboardPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-medium text-gray-900 truncate flex-1 mr-2">{project.name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${projectStatusColor(project.status)}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${projectStatusColor(project.status)}`}>
                           {projectStatusLabel(project.status)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
+                            className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -263,12 +308,58 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </Card>
 
-          {/* Quick actions */}
+          {/* Team snapshot */}
+          {users.length > 0 && (
+            <Card padding={false}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-purple-50 rounded-lg">
+                    <Users className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">Team</h3>
+                  <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                    {users.length}
+                  </span>
+                </div>
+                {can('team_view') && (
+                  <button
+                    onClick={() => navigate('/app/team')}
+                    className="text-xs text-primary font-medium hover:text-primary-600 flex items-center gap-1 transition-colors"
+                  >
+                    View all <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="px-5 py-3 flex flex-wrap gap-2">
+                {users.slice(0, 12).map((u) => (
+                  <div
+                    key={u.id}
+                    className="group relative cursor-pointer"
+                    onClick={() => can('team_view') && navigate(`/app/team/${u.id}`)}
+                  >
+                    <Avatar name={u.name || u.email} src={u.avatarUrl} size="sm" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-10 pointer-events-none">
+                      <div className="bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded-lg whitespace-nowrap shadow-lg">
+                        {u.name || u.email}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {users.length > 12 && (
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                    +{users.length - 12}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Quick Actions */}
           <Card>
             <div className="flex items-center gap-2 mb-4">
               <div className="p-1.5 bg-amber-50 rounded-lg">
@@ -277,12 +368,12 @@ const DashboardPage: React.FC = () => {
               <h3 className="font-semibold text-gray-900">Quick Actions</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'New Task', icon: CheckSquare, path: '/app/tasks/create', color: 'hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700' },
-                { label: 'New Project', icon: FolderOpen, path: '/app/projects/create', color: 'hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700' },
-                { label: 'Site Diary', icon: Clock, path: '/app/site-diary', color: 'hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700' },
-                { label: 'Documents', icon: Users, path: '/app/documents', color: 'hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700' },
-              ].map((a) => (
+              {([
+                can('tasks_create')    && { label: 'New Task',    icon: CheckSquare, path: '/app/tasks/create',    color: 'hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700' },
+                can('projects_create') && { label: 'New Project', icon: FolderOpen,  path: '/app/projects/create', color: 'hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700' },
+                                          { label: 'Site Diary',  icon: Clock,       path: '/app/site-diary',      color: 'hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700' },
+                can('docs_view')       && { label: 'Documents',   icon: FolderOpen,  path: '/app/documents',       color: 'hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700' },
+              ] as any[]).filter(Boolean).map((a: any) => (
                 <button
                   key={a.label}
                   onClick={() => navigate(a.path)}

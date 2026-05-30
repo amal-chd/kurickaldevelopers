@@ -39,18 +39,37 @@ const ProjectDetailPage: React.FC = () => {
     if (!projectId) return;
     const load = async () => {
       try {
-        const [p, t, u, d, s] = await Promise.all([
-          getProject(projectId),
-          getTasks([where('projectId', '==', projectId)]),
-          getAllUsers(),
-          getDocuments(projectId),
-          getSiteDiary(projectId),
-        ]);
+        // Fetch core project first
+        const p = await getProject(projectId);
         setProject(p);
-        setTasks(t);
-        setUsers(u);
-        setDocuments(d);
-        setDiary(s);
+
+        if (p) {
+          // Fetch secondary resources in parallel, individual safe fallbacks
+          const [t, u, d, s] = await Promise.all([
+            getTasks([where('projectId', '==', projectId)]).catch((err) => {
+              console.warn('ProjectDetail: failed to load tasks:', err);
+              return [];
+            }),
+            getAllUsers().catch((err) => {
+              console.warn('ProjectDetail: failed to load users:', err);
+              return [];
+            }),
+            getDocuments(projectId).catch((err) => {
+              console.warn('ProjectDetail: failed to load documents:', err);
+              return [];
+            }),
+            getSiteDiary(projectId).catch((err) => {
+              console.warn('ProjectDetail: failed to load site diary entries:', err);
+              return [];
+            }),
+          ]);
+          setTasks(t);
+          setUsers(u);
+          setDocuments(d);
+          setDiary(s);
+        }
+      } catch (err) {
+        console.error('Failed to load project details:', err);
       } finally {
         setLoading(false);
       }

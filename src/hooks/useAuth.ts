@@ -9,7 +9,7 @@ import { getUser, getRole } from '../lib/firestore';
 
 const DEFAULT_ROLES = [
   {
-    id: 'role_director',
+    id: 'director',
     name: 'Director / Owner',
     description: 'Full access to all features and settings',
     color: '#1A3A5C',
@@ -30,7 +30,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_admin',
+    id: 'admin',
     name: 'Admin',
     description: 'Administrative access — team, roles, settings',
     color: '#9C27B0',
@@ -51,7 +51,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_pm',
+    id: 'project_manager',
     name: 'Project Manager',
     description: 'Manages projects, tasks, and team assignments',
     color: '#2196F3',
@@ -72,7 +72,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_accounts',
+    id: 'accounts',
     name: 'Accounts',
     description: 'Finance, reports, and document access',
     color: '#4CAF50',
@@ -93,7 +93,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_engineer',
+    id: 'site_engineer',
     name: 'Site Engineer',
     description: 'Field engineer — tasks, site diary, documents',
     color: '#009688',
@@ -114,7 +114,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_foreman',
+    id: 'foreman',
     name: 'Foreman',
     description: 'Site foreman — limited task and attendance access',
     color: '#F59E0B',
@@ -135,7 +135,7 @@ const DEFAULT_ROLES = [
     },
   },
   {
-    id: 'role_labour',
+    id: 'labour',
     name: 'Labour',
     description: 'Site worker — attendance and basic task view only',
     color: '#9E9E9E',
@@ -162,21 +162,21 @@ const DIRECTOR_EMAIL = 'thomas@kurickaldevelopers.com';
 
 // Role assigned by email when no admin has manually set a role yet
 const EMAIL_ROLE_MAP: Record<string, string> = {
-  'thomas@kurickaldevelopers.com': 'role_director',
-  'meena@kurickaldevelopers.com':  'role_admin',
-  'ravi@kurickaldevelopers.com':   'role_pm',
-  'arjun@kurickaldevelopers.com':  'role_engineer',
-  'priya@kurickaldevelopers.com':  'role_engineer',
-  'suresh@kurickaldevelopers.com': 'role_foreman',
-  'biju@kurickaldevelopers.com':   'role_labour',
-  'anitha@kurickaldevelopers.com': 'role_accounts',
+  'thomas@kurickaldevelopers.com': 'director',
+  'meena@kurickaldevelopers.com':  'admin',
+  'ravi@kurickaldevelopers.com':   'project_manager',
+  'arjun@kurickaldevelopers.com':  'site_engineer',
+  'priya@kurickaldevelopers.com':  'site_engineer',
+  'suresh@kurickaldevelopers.com': 'foreman',
+  'biju@kurickaldevelopers.com':   'labour',
+  'anitha@kurickaldevelopers.com': 'accounts',
 };
 
 // ─── Seed roles if Firestore has none ───────────────────────────────────────
 
 async function seedRolesIfNeeded(): Promise<void> {
   try {
-    const directorSnap = await getDoc(doc(db, 'roles', 'role_director'));
+    const directorSnap = await getDoc(doc(db, 'roles', 'director'));
     if (directorSnap.exists()) return; // already seeded
 
     await Promise.all(
@@ -216,16 +216,19 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
     return;
   }
 
-  await setDoc(ref, {
-    name: derivedName,
-    email,
-    phone: '',
-    avatarUrl: '',
-    roleId,
-    isActive: true,
-    orgId: 'main',
-    createdAt: serverTimestamp(),
-  });
+  // Only auto-create if this email is mapped to a predefined role
+  if (roleId) {
+    await setDoc(ref, {
+      name: derivedName,
+      email,
+      phone: '',
+      avatarUrl: '',
+      roleId,
+      isActive: true,
+      orgId: 'main',
+      createdAt: serverTimestamp(),
+    });
+  }
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -243,6 +246,11 @@ export function useAuthInit() {
           // Force a fresh ID token so Firestore auth validation is ready.
           // This prevents "Missing or insufficient permissions" on first login.
           await firebaseUser.getIdToken(true);
+
+          // Small delay to let the Firestore SDK pick up the new token before
+          // any collection reads begin. Without this, the first getDocs/onSnapshot
+          // can fire with the old (unauthenticated) token and get permission-denied.
+          await new Promise((r) => setTimeout(r, 300));
 
           // 1. Seed roles on very first use (silently ignores permission errors —
           //    roles may already exist from a prior run or from the Flutter app)
