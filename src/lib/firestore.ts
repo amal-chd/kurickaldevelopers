@@ -549,6 +549,12 @@ export const updateChannel = async (id: string, data: Partial<ChatChannel>): Pro
   await updateDoc(doc(db, 'chats', id), { ...data });
 };
 
+// Soft-delete a conversation: archived channels are hidden from every member's
+// chat list.
+export const archiveChannel = async (id: string): Promise<void> => {
+  await updateDoc(doc(db, 'chats', id), { isArchived: true });
+};
+
 // ─── Chat Messages ────────────────────────────────────────────────────────────
 export const subscribeMessages = (
   channelId: string,

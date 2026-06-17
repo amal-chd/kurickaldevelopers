@@ -18,7 +18,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useChannels, useMessages, useTypingIndicators, useChatActions } from '../../hooks/useChat';
 import {
   subscribeUsers, getAllUsers, getChannel, createChannelWithId, getTasks,
-  createChannel,
+  createChannel, archiveChannel,
 } from '../../lib/firestore';
 import { ChatChannel, ChatMessage, AppUser, Task, ChannelType } from '../../types';
 import { getDmChannelId, formatRelative } from '../../lib/utils';
@@ -489,6 +489,8 @@ const ChatPage: React.FC = () => {
 
   // Channels filtered by search, then sorted by type order then lastMessageAt
   const filteredChannels = channels
+    // Hide archived (deleted) conversations entirely.
+    .filter((ch) => !ch.isArchived)
     // Hide conversations with no real content — last message deleted or never
     // sent. Keeps "Message deleted" / empty rows out of the chat list.
     .filter((ch) => {
@@ -610,6 +612,33 @@ const ChatPage: React.FC = () => {
   const handleCopy = (txt: string) => {
     navigator.clipboard.writeText(txt);
     toast.success('Copied');
+  };
+
+  // Who may delete a conversation: either party in a DM, the channel creator
+  // or an admin, or anyone with the chat_moderate permission.
+  const canDeleteChannel =
+    !!currentChannel &&
+    (currentChannel.type === 'direct' ||
+      currentChannel.createdBy === appUser?.id ||
+      currentChannel.adminIds?.includes(appUser?.id ?? '') ||
+      chatModerate);
+
+  const handleDeleteChannel = async () => {
+    if (!currentChannel) return;
+    const isDm = currentChannel.type === 'direct';
+    const ok = window.confirm(
+      isDm
+        ? 'Delete this conversation? It will be removed from your chat list.'
+        : 'Delete this channel? It will be removed from everyone\'s chat list.',
+    );
+    if (!ok) return;
+    try {
+      await archiveChannel(currentChannel.id);
+      toast.success('Conversation deleted');
+      navigate('/app/chat');
+    } catch {
+      toast.error('Failed to delete conversation');
+    }
   };
 
   const handleShareTask = async (task: Task) => {
@@ -879,6 +908,17 @@ const ChatPage: React.FC = () => {
                     title="Channel info"
                   >
                     <Info className="w-5 h-5" />
+                  </button>
+                )}
+
+                {/* Delete conversation */}
+                {canDeleteChannel && (
+                  <button
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 flex-shrink-0"
+                    onClick={handleDeleteChannel}
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 )}
               </>

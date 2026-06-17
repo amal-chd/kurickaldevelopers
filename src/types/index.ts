@@ -143,6 +143,7 @@ export interface ChatChannel {
   id: string;
   type: ChannelType;
   name: string;
+  createdBy?: string;
   memberIds: string[];
   adminIds: string[];
   lastMessageText: string;
@@ -150,6 +151,7 @@ export interface ChatChannel {
   lastMessageBy: string;
   unreadCounts: Record<string, number>;
   lastReadAt: Record<string, Timestamp>;
+  isArchived?: boolean;
 }
 
 export type MessageType = 'text' | 'image' | 'file' | 'task_ref' | 'system';
