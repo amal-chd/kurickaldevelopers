@@ -604,6 +604,40 @@ export const deleteMessage = async (channelId: string, messageId: string): Promi
     isDeleted: true,
     text: 'This message was deleted',
   });
+  // Recompute the channel preview from the latest non-deleted message so the
+  // chat list never shows stale or deleted text for this channel.
+  await syncChannelPreview(channelId);
+};
+
+// Recompute a channel's last-message preview from its most recent non-deleted
+// message. Clears the preview when no visible message remains.
+export const syncChannelPreview = async (channelId: string): Promise<void> => {
+  const snap = await getDocs(
+    query(
+      collection(db, 'chats', channelId, 'messages'),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    ),
+  );
+  const lastVisible = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as ChatMessage))
+    .find((m) => !m.isDeleted);
+
+  if (!lastVisible) {
+    await updateDoc(doc(db, 'chats', channelId), {
+      lastMessageText: '',
+      lastMessageBy: '',
+    });
+    return;
+  }
+
+  const text = lastVisible.text.length > 80
+    ? lastVisible.text.slice(0, 80) + '…'
+    : lastVisible.text;
+  await updateDoc(doc(db, 'chats', channelId), {
+    lastMessageText: text,
+    lastMessageBy: lastVisible.senderId,
+  });
 };
 
 export const addReaction = async (

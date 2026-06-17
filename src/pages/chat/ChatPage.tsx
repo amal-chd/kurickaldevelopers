@@ -489,6 +489,12 @@ const ChatPage: React.FC = () => {
 
   // Channels filtered by search, then sorted by type order then lastMessageAt
   const filteredChannels = channels
+    // Hide conversations with no real content — last message deleted or never
+    // sent. Keeps "Message deleted" / empty rows out of the chat list.
+    .filter((ch) => {
+      const t = (ch.lastMessageText ?? '').trim().toLowerCase();
+      return t !== '' && t !== 'message deleted' && t !== 'this message was deleted';
+    })
     .filter((ch) => {
       if (!search) return true;
       const name =
