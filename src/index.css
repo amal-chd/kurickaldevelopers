@@ -13,7 +13,17 @@
     scroll-behavior: smooth;
     font-feature-settings: 'cv11', 'ss01';
   }
-  body { @apply bg-slate-50 text-gray-900; }
+  body {
+    @apply text-gray-900 antialiased;
+    background-color: #F7F8FA;
+  }
+
+  /* Premium typographic hierarchy — tighter tracking on headings */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1 { letter-spacing: -0.03em; }
 }
 
 /* ── Scrollbar ── */
@@ -69,7 +79,46 @@ select {
 
 /* ── Focus ring ── */
 *:focus-visible {
-  outline: 2px solid rgba(26, 58, 92, 0.4);
+  outline: 2px solid rgba(26, 58, 92, 0.45);
   outline-offset: 2px;
   border-radius: 8px;
+}
+
+/* ── Text selection ── */
+::selection { background: rgba(26, 58, 92, 0.14); }
+
+/* ── Reusable surface + interaction utilities ── */
+@layer components {
+  .card-surface {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+  }
+  .hover-lift {
+    @apply transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  /* Skeleton shimmer for loading states */
+  .skeleton {
+    @apply relative overflow-hidden bg-gray-100 rounded-lg;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+    animation: shimmer 1.6s infinite;
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

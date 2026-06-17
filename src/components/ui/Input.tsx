@@ -28,12 +28,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'w-full h-10 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900',
-              'placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60',
-              'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors',
+              'w-full h-10 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 shadow-xs',
+              'placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary',
+              'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-all duration-150',
               leftIcon ? 'pl-10' : undefined,
               rightIcon ? 'pr-10' : undefined,
-              error ? 'border-red-400 focus:ring-red-300/40 focus:border-red-400' : undefined,
+              error ? 'border-danger focus:ring-danger/10 focus:border-danger' : undefined,
               className
             )}
             {...props}
@@ -73,10 +73,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={cn(
-            'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900',
-            'placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60',
-            'disabled:bg-gray-50 disabled:text-gray-400 transition-colors resize-none',
-            error && 'border-red-400 focus:ring-red-300/40 focus:border-red-400',
+            'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 shadow-xs',
+            'placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary',
+            'disabled:bg-gray-50 disabled:text-gray-400 transition-all duration-150 resize-none',
+            error && 'border-danger focus:ring-danger/10 focus:border-danger',
             className
           )}
           {...props}

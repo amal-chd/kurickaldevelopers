@@ -61,10 +61,10 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const today = format(new Date(), 'EEE, dd MMM');
 
   return (
-    <header className="h-14 bg-white border-b border-gray-100 flex items-center px-4 gap-3 flex-shrink-0 z-20">
+    <header className="h-16 bg-white/85 backdrop-blur-md border-b border-gray-100 flex items-center px-4 sm:px-5 gap-3 flex-shrink-0 z-20 sticky top-0">
       {/* Mobile hamburger */}
       <button
-        className="lg:hidden p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
+        className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
         onClick={onMenuClick}
       >
         <Menu className="w-5 h-5" />
@@ -75,7 +75,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         {crumbs.map((crumb, i) => (
           <React.Fragment key={crumb}>
             {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />}
-            <span className={i === crumbs.length - 1 ? 'font-semibold text-gray-900 truncate' : 'text-gray-400 hidden sm:inline'}>
+            <span className={i === crumbs.length - 1 ? 'font-semibold text-gray-900 truncate tracking-tight' : 'text-gray-400 hidden sm:inline'}>
               {crumb}
             </span>
           </React.Fragment>
@@ -85,16 +85,17 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       <div className="flex-1" />
 
       {/* Date */}
-      <span className="text-xs text-gray-400 font-medium hidden md:block flex-shrink-0">{today}</span>
+      <span className="text-xs text-gray-400 font-medium hidden md:block flex-shrink-0 mr-1">{today}</span>
 
       {/* Notifications bell */}
       <button
         onClick={() => navigate('/app/notifications')}
-        className="relative p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors flex-shrink-0"
+        className="relative p-2 rounded-xl hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
+        aria-label="Notifications"
       >
         <Bell className="w-5 h-5" />
         {totalUnread > 0 && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full ring-2 ring-white animate-pulse" />
         )}
       </button>
 
@@ -102,11 +103,11 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
       {appUser && (
         <button
           onClick={() => navigate('/app/profile')}
-          className="flex items-center gap-2 pl-1 rounded-xl hover:bg-gray-50 pr-2 py-1 transition-colors"
+          className="flex items-center gap-2 pl-1 rounded-xl hover:bg-gray-100 pr-2 py-1 transition-colors ml-0.5"
         >
           <Avatar name={appUser.name} src={appUser.avatarUrl} size="sm" />
-          <div className="hidden sm:block text-left">
-            <p className="text-xs font-semibold text-gray-800 leading-tight">{appUser.name.split(' ')[0]}</p>
+          <div className="hidden sm:block text-left pr-0.5">
+            <p className="text-xs font-semibold text-gray-800 leading-tight">{(appUser.name || appUser.email || 'User').split(' ')[0]}</p>
           </div>
         </button>
       )}

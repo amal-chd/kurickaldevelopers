@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       <aside
         className={cn(
           'fixed top-0 left-0 h-full w-60 z-40 flex flex-col transition-transform duration-300 ease-in-out',
-          'bg-[#0f1f35] lg:translate-x-0 lg:static lg:z-auto',
+          'bg-gradient-to-b from-[#102339] to-[#0a1525] lg:translate-x-0 lg:static lg:z-auto',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -142,20 +142,20 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
                         cn(
                           'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative',
                           isActive
-                            ? 'bg-white/12 text-white'
-                            : 'text-white/55 hover:bg-white/8 hover:text-white/90'
+                            ? 'bg-gradient-to-r from-white/[0.13] to-white/[0.04] text-white shadow-sm ring-1 ring-white/5'
+                            : 'text-white/55 hover:bg-white/[0.06] hover:text-white/90'
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
                           {isActive && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent rounded-r-full" />
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-full shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                           )}
                           <item.icon className={cn('w-4 h-4 flex-shrink-0 transition-colors', isActive ? 'text-accent' : 'text-white/40 group-hover:text-white/70')} />
                           <span className="flex-1 truncate">{item.label}</span>
                           {(item as any).isBadge && totalUnread > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                            <span className="bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ring-2 ring-[#0e1d31]">
                               {totalUnread > 99 ? '99+' : totalUnread}
                             </span>
                           )}
