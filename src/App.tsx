@@ -12,7 +12,6 @@ import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import LoginPage from './pages/auth/LoginPage';
 import SetupPage from './pages/auth/SetupPage';
-import OnboardingPage from './pages/auth/OnboardingPage';
 
 import TasksPage from './pages/tasks/TasksPage';
 import TaskDetailPage from './pages/tasks/TaskDetailPage';
@@ -30,6 +29,7 @@ import NotificationsPage from './pages/notifications/NotificationsPage';
 import AdminPage from './pages/admin/AdminPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import RoleManagementPage from './pages/admin/RoleManagementPage';
+import TaskAssignmentSettingsPage from './pages/admin/TaskAssignmentSettingsPage';
 import OrgSettingsPage from './pages/admin/OrgSettingsPage';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import NotificationAdminPage from './pages/admin/NotificationAdminPage';
@@ -45,8 +45,11 @@ const queryClient = new QueryClient({
 });
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
-const ProtectedRoute = ({ children, allowOnboarding = false }: { children: React.ReactNode; allowOnboarding?: boolean }) => {
-  const { firebaseUser, appUser, loading, initialized } = useAuthStore();
+// Sign-in only (mirrors the mobile app): once authenticated the user goes
+// straight to the app. There is no onboarding flow — roles are assigned by an
+// admin in User Management.
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { firebaseUser, loading, initialized } = useAuthStore();
 
   // Show spinner until auth is both initialized AND finished loading user data
   if (!initialized || loading) {
@@ -62,18 +65,6 @@ const ProtectedRoute = ({ children, allowOnboarding = false }: { children: React
 
   // Not logged in → Login
   if (!firebaseUser) return <Navigate to="/login" replace />;
-
-  const hasRole = appUser?.roleId && appUser.roleId !== '';
-
-  // If user does not have a role and is NOT going to onboarding, redirect to onboarding
-  if (!hasRole && !allowOnboarding) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  // If user already has a role and IS trying to go to onboarding, redirect to dashboard
-  if (hasRole && allowOnboarding) {
-    return <Navigate to="/app/dashboard" replace />;
-  }
 
   return <>{children}</>;
 };
@@ -95,16 +86,6 @@ function App() {
           <Route path="/policy" element={<PrivacyPolicyPage />} />
           <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
           <Route path="/terms" element={<TermsOfUsePage />} />
-
-          {/* Onboarding */}
-          <Route
-            path="/onboarding"
-            element={
-              <ProtectedRoute allowOnboarding={true}>
-                <OnboardingPage />
-              </ProtectedRoute>
-            }
-          />
 
           {/* Protected App */}
           <Route
@@ -146,6 +127,7 @@ function App() {
             <Route path="admin" element={<AdminPage />} />
             <Route path="admin/users" element={<UserManagementPage />} />
             <Route path="admin/roles" element={<RoleManagementPage />} />
+            <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
             <Route path="admin/org-settings" element={<OrgSettingsPage />} />
             <Route path="admin/audit-log" element={<AuditLogPage />} />
             <Route path="admin/notifications" element={<NotificationAdminPage />} />

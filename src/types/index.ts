@@ -246,3 +246,16 @@ export interface AppNotification {
   type: string;
   createdAt: Timestamp;
 }
+
+// ─── Task Assignment Rules ────────────────────────────────────────────────────
+// Configured by the Director: controls which roles a given role is allowed to
+// assign tasks to. When `enabled` is false (or the doc is missing) anyone with
+// the tasks_create permission may assign to anyone — the historical behaviour.
+//
+// `matrix[roleId]` = array of roleIds that members of `roleId` may assign to.
+export interface TaskAssignmentConfig {
+  enabled: boolean;
+  matrix: Record<string, string[]>;
+  updatedBy?: string;
+  updatedAt?: Timestamp;
+}

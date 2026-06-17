@@ -9,8 +9,8 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { createTask, updateTask, getTask, getAllUsers, getProjects } from '../../lib/firestore';
-import { Task, AppUser, Project, TaskPriority, TaskStatus } from '../../types';
+import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig } from '../../lib/firestore';
+import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig } from '../../types';
 import toast from 'react-hot-toast';
 import Avatar from '../../components/ui/Avatar';
 
@@ -26,6 +26,7 @@ const CreateTaskPage: React.FC = () => {
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [assignConfig, setAssignConfig] = useState<TaskAssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -42,9 +43,14 @@ const CreateTaskPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [u, p] = await Promise.all([getAllUsers(), getProjects()]);
+      const [u, p, cfg] = await Promise.all([
+        getAllUsers(),
+        getProjects(),
+        getTaskAssignmentConfig(),
+      ]);
       setUsers(u);
       setProjects(p);
+      setAssignConfig(cfg);
 
       if (isEdit && taskId) {
         const task = await getTask(taskId);
@@ -65,6 +71,23 @@ const CreateTaskPage: React.FC = () => {
     };
     load();
   }, [isEdit, taskId]);
+
+  // Which users the current user is allowed to assign this task to.
+  // Driven by the Director's assignment matrix; falls back to "everyone" when
+  // the rules are disabled or this role hasn't been configured. Already-selected
+  // assignees stay visible so editing never silently drops them.
+  const assignableUsers = (() => {
+    if (!assignConfig || !assignConfig.enabled) return users;
+    const myRole = appUser?.roleId ?? '';
+    const allowed = assignConfig.matrix?.[myRole];
+    if (!allowed) return users; // role not configured → unrestricted
+    return users.filter(
+      (u) => allowed.includes(u.roleId) || form.assigneeIds.includes(u.id),
+    );
+  })();
+
+  const assignmentRestricted =
+    !!assignConfig?.enabled && !!assignConfig.matrix?.[appUser?.roleId ?? ''];
 
   const toggleAssignee = (uid: string) => {
     setForm((prev) => ({
@@ -214,8 +237,18 @@ const CreateTaskPage: React.FC = () => {
 
         <Card>
           <h3 className="font-semibold text-gray-900 mb-3">Assignees</h3>
+          {assignmentRestricted && (
+            <p className="text-xs text-gray-500 mb-3 -mt-1">
+              You can assign this task only to the roles your Director has allowed.
+            </p>
+          )}
+          {assignableUsers.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">
+              Your role isn't allowed to assign tasks to anyone. Ask your Director to update the assignment rules.
+            </p>
+          ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-            {users.map((user) => {
+            {assignableUsers.map((user) => {
               const selected = form.assigneeIds.includes(user.id);
               return (
                 <button
@@ -234,6 +267,7 @@ const CreateTaskPage: React.FC = () => {
               );
             })}
           </div>
+          )}
         </Card>
 
         <div className="flex justify-end gap-3">

@@ -26,7 +26,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   AppUser, Role, Project, Task, Subtask, Document as TDocument,
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
-  OrgSettings, AuditLog, AppNotification, ContactInquiry,
+  OrgSettings, AuditLog, AppNotification, ContactInquiry, TaskAssignmentConfig,
 } from '../types';
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -701,6 +701,33 @@ export const getOrgSettings = async (): Promise<OrgSettings | null> => {
 
 export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<void> => {
   await setDoc(doc(db, 'settings', 'org'), data, { merge: true });
+};
+
+// ─── Task Assignment Config ─────────────────────────────────────────────────
+export const getTaskAssignmentConfig = async (): Promise<TaskAssignmentConfig | null> => {
+  const snap = await getDoc(doc(db, 'settings', 'task_assignment'));
+  if (!snap.exists()) return null;
+  return snap.data() as TaskAssignmentConfig;
+};
+
+export const updateTaskAssignmentConfig = async (
+  data: Partial<TaskAssignmentConfig>,
+): Promise<void> => {
+  await setDoc(
+    doc(db, 'settings', 'task_assignment'),
+    { ...data, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+};
+
+export const subscribeTaskAssignmentConfig = (
+  cb: (config: TaskAssignmentConfig | null) => void,
+) => {
+  return onSnapshot(
+    doc(db, 'settings', 'task_assignment'),
+    (snap) => cb(snap.exists() ? (snap.data() as TaskAssignmentConfig) : null),
+    (err) => { console.warn('subscribeTaskAssignmentConfig error:', err.code); cb(null); },
+  );
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ const pageTitles: Record<string, string> = {
   '/app/admin': 'Admin Panel',
   '/app/admin/users': 'User Management',
   '/app/admin/roles': 'Role Management',
+  '/app/admin/task-assignment': 'Task Assignment Rules',
   '/app/admin/org-settings': 'Org Settings',
   '/app/admin/audit-log': 'Audit Log',
   '/app/admin/notifications': 'Notification Center',

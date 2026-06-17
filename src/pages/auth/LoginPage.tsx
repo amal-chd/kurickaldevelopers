@@ -2,16 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
-  updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../firebase/config';
+import { auth } from '../../firebase/config';
 import {
-  Mail, Lock, Eye, EyeOff, User,
+  Mail, Lock, Eye, EyeOff,
   ArrowRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -28,7 +25,7 @@ const STATS = [
   { label: 'Years Active',     value: '7+' },
 ];
 
-// ─── Quick-login panel (dev/demo only) ───────────────────────────────────────
+// ─── Quick-login panel (dev only — never shown in production) ─────────────────
 
 const DEMO = [
   { role: 'Director / Owner', email: 'thomas@kurickaldevelopers.com', color: '#1A3A5C' },
@@ -80,13 +77,9 @@ const DemoPanel: React.FC<{ onSelect: (email: string, pass: string) => void }> =
   );
 };
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
-type Mode = 'signin' | 'signup';
+// ─── Main — sign-in only (mirrors the mobile app: no sign-up, no onboarding) ──
 
 const LoginPage: React.FC = () => {
-  const [mode, setMode]         = useState<Mode>('signin');
-  const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -94,16 +87,10 @@ const LoginPage: React.FC = () => {
   const navigate                = useNavigate();
   const { firebaseUser }        = useAuthStore();
 
-  // Already logged in → redirect
+  // Already logged in → straight to dashboard
   useEffect(() => {
     if (firebaseUser) navigate('/app/dashboard');
   }, [firebaseUser, navigate]);
-
-  // Switch mode clears form
-  const switchMode = (m: Mode) => {
-    setMode(m);
-    setName(''); setEmail(''); setPassword('');
-  };
 
   // ── Error helper ────────────────────────────────────────────────────────────
   const toastAuthError = (code: string) => {
@@ -111,10 +98,9 @@ const LoginPage: React.FC = () => {
       'auth/invalid-credential':    'Invalid email or password.',
       'auth/user-not-found':        'No account found with this email.',
       'auth/wrong-password':        'Invalid email or password.',
-      'auth/email-already-in-use':  'An account with this email already exists.',
-      'auth/weak-password':         'Password must be at least 6 characters.',
       'auth/invalid-email':         'Please enter a valid email address.',
       'auth/too-many-requests':     'Too many attempts. Try again later.',
+      'auth/user-disabled':         'This account has been disabled. Contact your admin.',
     };
     toast.error(map[code] ?? 'Authentication failed. Please try again.');
   };
@@ -127,60 +113,6 @@ const LoginPage: React.FC = () => {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       toast.success('Signed in!');
-      navigate('/app/dashboard');
-    } catch (err: unknown) {
-      toastAuthError((err as { code?: string }).code ?? '');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Sign Up ─────────────────────────────────────────────────────────────────
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) return;
-    if (password.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
-    setLoading(true);
-    try {
-      const trimmedEmail = email.trim();
-      const trimmedName  = name.trim();
-
-      // 1. Create Firebase Auth account
-      const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
-      // 2. Set display name in Auth profile
-      await updateProfile(cred.user, { displayName: trimmedName });
-      // 3. Force fresh token before Firestore write
-      await cred.user.getIdToken(true);
-      // 4. Write Firestore user doc directly here — at this point
-      //    displayName is set and token is fresh, so isOwner rule passes.
-      const userRef = doc(db, 'users', cred.user.uid);
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) {
-        const roleMap: Record<string, string> = {
-          'thomas@kurickaldevelopers.com': 'director',
-          'meena@kurickaldevelopers.com':  'admin',
-          'ravi@kurickaldevelopers.com':   'project_manager',
-          'arjun@kurickaldevelopers.com':  'site_engineer',
-          'priya@kurickaldevelopers.com':  'site_engineer',
-          'suresh@kurickaldevelopers.com': 'foreman',
-          'biju@kurickaldevelopers.com':   'labour',
-          'anitha@kurickaldevelopers.com': 'accounts',
-        };
-        const roleId = roleMap[trimmedEmail];
-        if (roleId) {
-          await setDoc(userRef, {
-            name: trimmedName,
-            email: trimmedEmail,
-            phone: '',
-            avatarUrl: '',
-            roleId,
-            isActive: true,
-            orgId: 'main',
-            createdAt: serverTimestamp(),
-          });
-        }
-      }
-      toast.success('Account created! Welcome to Task Pilot.');
       navigate('/app/dashboard');
     } catch (err: unknown) {
       toastAuthError((err as { code?: string }).code ?? '');
@@ -215,9 +147,8 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // ── Quick demo fill ──────────────────────────────────────────────────────────
+  // ── Quick demo fill (dev only) ────────────────────────────────────────────────
   const handleDemoSelect = (e: string, p: string) => {
-    setMode('signin');
     setEmail(e);
     setPassword(p);
   };
@@ -275,98 +206,33 @@ const LoginPage: React.FC = () => {
 
           <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 p-8">
 
-            {/* Mode tabs */}
-            <div className="flex bg-gray-100 rounded-xl p-1 mb-7">
-              {(['signin', 'signup'] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    mode === m
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {m === 'signin' ? 'Sign In' : 'Create Account'}
-                </button>
-              ))}
+            {/* Heading */}
+            <div className="mb-7">
+              <h2 className="text-xl font-bold text-gray-900">Sign in to your account</h2>
+              <p className="text-sm text-gray-500 mt-1">Welcome back. Enter your credentials to continue.</p>
             </div>
 
             {/* Sign In form */}
-            {mode === 'signin' && (
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <Input
-                  label="Email address"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  leftIcon={<Mail className="w-4 h-4" />}
-                />
-                <div>
-                  <Input
-                    label="Password"
-                    type={showPass ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                    leftIcon={<Lock className="w-4 h-4" />}
-                    rightIcon={
-                      <button type="button" onClick={() => setShowPass((p) => !p)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors" tabIndex={-1}>
-                        {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    }
-                  />
-                  <div className="flex justify-end mt-1.5">
-                    <button type="button" onClick={handleForgot}
-                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-                      Forgot password?
-                    </button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" loading={loading} size="lg">
-                  Sign In
-                </Button>
-              </form>
-            )}
-
-            {/* Sign Up form */}
-            {mode === 'signup' && (
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <Input
-                  label="Full name"
-                  type="text"
-                  placeholder="Your full name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  leftIcon={<User className="w-4 h-4" />}
-                />
-                <Input
-                  label="Email address"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  leftIcon={<Mail className="w-4 h-4" />}
-                />
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                leftIcon={<Mail className="w-4 h-4" />}
+              />
+              <div>
                 <Input
                   label="Password"
                   type={showPass ? 'text' : 'password'}
-                  placeholder="Min. 6 characters"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  autoComplete="new-password"
+                  autoComplete="current-password"
                   leftIcon={<Lock className="w-4 h-4" />}
                   rightIcon={
                     <button type="button" onClick={() => setShowPass((p) => !p)}
@@ -375,14 +241,17 @@ const LoginPage: React.FC = () => {
                     </button>
                   }
                 />
-                <Button type="submit" className="w-full" loading={loading} size="lg">
-                  Create Account
-                </Button>
-                <p className="text-xs text-gray-400 text-center">
-                  Your account will be active once an admin assigns your role.
-                </p>
-              </form>
-            )}
+                <div className="flex justify-end mt-1.5">
+                  <button type="button" onClick={handleForgot}
+                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" loading={loading} size="lg">
+                Sign In
+              </Button>
+            </form>
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-5">
@@ -407,8 +276,8 @@ const LoginPage: React.FC = () => {
               Continue with Google
             </button>
 
-            {/* Demo panel */}
-            <DemoPanel onSelect={handleDemoSelect} />
+            {/* Demo panel — dev only, never in production builds */}
+            {import.meta.env.DEV && <DemoPanel onSelect={handleDemoSelect} />}
           </div>
 
           <p className="text-center text-gray-400 text-xs mt-6">

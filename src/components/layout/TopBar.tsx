@@ -26,6 +26,7 @@ const BREADCRUMBS: Record<string, string[]> = {
   '/app/admin': ['Admin'],
   '/app/admin/users': ['Admin', 'Users'],
   '/app/admin/roles': ['Admin', 'Roles'],
+  '/app/admin/task-assignment': ['Admin', 'Task Assignment'],
   '/app/admin/org-settings': ['Admin', 'Org Settings'],
   '/app/admin/audit-log': ['Admin', 'Audit Log'],
   '/app/admin/notifications': ['Admin', 'Notifications'],
