@@ -4,6 +4,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getUser, getRole } from '../lib/firestore';
+import { registerFcm } from '../lib/fcm';
 
 // ─── Default roles seeded on first boot ─────────────────────────────────────
 
@@ -272,6 +273,9 @@ export function useAuthInit() {
         try {
           const appUser = await getUser(firebaseUser.uid);
           setAppUser(appUser);
+
+          // Register this browser for push (no-op until a VAPID key is set).
+          if (appUser) registerFcm(appUser.id);
 
           if (appUser?.roleId) {
             // Try Firestore first; fall back to built-in defaults so the app
