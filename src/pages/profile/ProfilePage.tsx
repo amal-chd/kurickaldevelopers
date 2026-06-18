@@ -74,7 +74,7 @@ const ProfilePage: React.FC = () => {
         {/* Cover gradient */}
         <div
           className="h-28 relative"
-          style={{ background: `linear-gradient(135deg, ${role?.color ?? '#1A3A5C'}22, ${role?.color ?? '#1A3A5C'}44)` }}
+          style={{ background: `linear-gradient(135deg, ${role?.color ?? '#1A3A5C'}, ${role?.color ?? '#1A3A5C'}cc 55%, ${role?.color ?? '#2C5F8F'}88)` }}
         >
           <div className="absolute inset-0 opacity-10" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
@@ -135,7 +135,7 @@ const ProfilePage: React.FC = () => {
             </div>
           ) : (
             <div>
-              <h3 className="text-xl font-bold text-gray-900">{appUser.name}</h3>
+              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{appUser.name || appUser.email}</h3>
               <div className="flex items-center flex-wrap gap-2 mt-2">
                 {role && (
                   <span

@@ -177,28 +177,29 @@ const ReportsPage: React.FC = () => {
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-gray-800"
+          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-gray-800"
         />
         <span className="text-gray-400 text-sm">to</span>
         <input
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-gray-800"
+          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-gray-800"
         />
       </Card>
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Tasks', value: totalTasks, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Completion Rate', value: `${completionRate}%`, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Active Projects', value: projects.filter((p) => p.status === 'active').length, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Team Members', value: users.length, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Total Tasks', value: totalTasks, color: 'text-blue-600', dot: 'bg-blue-500' },
+          { label: 'Completion Rate', value: `${completionRate}%`, color: 'text-emerald-600', dot: 'bg-emerald-500' },
+          { label: 'Active Projects', value: projects.filter((p) => p.status === 'active').length, color: 'text-violet-600', dot: 'bg-violet-500' },
+          { label: 'Team Members', value: users.length, color: 'text-amber-600', dot: 'bg-amber-500' },
         ].map((s) => (
-          <Card key={s.label}>
-            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+          <Card key={s.label} className="relative overflow-hidden">
+            <span className={`absolute top-0 left-0 h-full w-1 ${s.dot}`} />
+            <p className={`text-3xl font-bold tracking-tight ${s.color}`}>{s.value}</p>
+            <p className="text-sm text-gray-500 mt-1 font-medium">{s.label}</p>
           </Card>
         ))}
       </div>
