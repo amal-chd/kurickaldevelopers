@@ -9,7 +9,7 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig } from '../../lib/firestore';
+import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig, createNotification } from '../../lib/firestore';
 import { notifyPush } from '../../lib/push';
 import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig } from '../../types';
 import toast from 'react-hot-toast';
@@ -131,7 +131,22 @@ const CreateTaskPage: React.FC = () => {
         toast.success('Task updated');
       } else {
         const id = await createTask(data);
-        if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId: id, kind: 'assigned' });
+        if (form.assigneeIds.length > 0) {
+          notifyPush({ event: 'task', taskId: id, kind: 'assigned' });
+          // In-app notification for each assignee (works on the free plan).
+          form.assigneeIds
+            .filter((uid) => uid !== appUser.id)
+            .forEach((uid) =>
+              createNotification({
+                title: 'New Task Assigned',
+                body: `You have been assigned to: ${form.title.trim()}`,
+                userId: uid,
+                type: 'task_assigned',
+                isRead: {},
+                createdAt: null as any,
+              }).catch(() => {}),
+            );
+        }
         toast.success('Task created');
         navigate(`/app/tasks/${id}`);
         return;

@@ -16,6 +16,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   getTask, getAllUsers, getSubtasks, addSubtask, updateSubtask, deleteSubtask,
   updateTask, deleteTask, getProject, sendMessage, getChannel, createChannelWithId,
+  createNotification,
 } from '../../lib/firestore';
 import { Task, Subtask, AppUser, Project, TaskStatus } from '../../types';
 import { notifyPush } from '../../lib/push';
@@ -80,6 +81,17 @@ const TaskDetailPage: React.FC = () => {
     try {
       await updateTask(taskId, { status: newStatus });
       notifyPush({ event: 'task', taskId, kind: 'status' });
+      // In-app notification to the task's creator (skip if they made the change).
+      if (task.createdBy && task.createdBy !== appUser.id) {
+        createNotification({
+          title: 'Task Status Updated',
+          body: `${task.title} is now ${taskStatusLabel(newStatus)}`,
+          userId: task.createdBy,
+          type: 'task_updated',
+          isRead: {},
+          createdAt: null as any,
+        }).catch(() => {});
+      }
       setTask((prev) => prev ? { ...prev, status: newStatus } : prev);
       setStatusOpen(false);
 
