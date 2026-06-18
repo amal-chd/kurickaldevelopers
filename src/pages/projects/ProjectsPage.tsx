@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import Input from '../../components/ui/Input';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 import { getProjects, getTasks, getAllUsers } from '../../lib/firestore';
 import { Project, Task, AppUser } from '../../types';
 import { formatDate, projectStatusLabel } from '../../lib/utils';
@@ -23,6 +24,7 @@ const STATUS_FILTERS = ['all', 'active', 'planning', 'on_hold', 'completed', 'ca
 
 const ProjectsPage: React.FC = () => {
   const { can } = usePermissions();
+  const { appUser } = useAuthStore();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -56,14 +58,23 @@ const ProjectsPage: React.FC = () => {
     return Math.round((pts.filter((t) => t.status === 'done').length / pts.length) * 100);
   };
 
-  const filtered = projects.filter((p) => {
+  // Org-wide oversight (Director / Admin) sees every project; everyone else
+  // sees only the projects they are a member or manager of.
+  const canViewAll = can('team_manage') || can('settings_manage');
+  const scopedProjects = canViewAll
+    ? projects
+    : projects.filter(
+        (p) => p.memberIds?.includes(appUser?.id ?? '') || p.managerId === appUser?.id,
+      );
+
+  const filtered = scopedProjects.filter((p) => {
     if (filter !== 'all' && p.status !== filter) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   const counts = STATUS_FILTERS.reduce((acc, s) => {
-    acc[s] = s === 'all' ? projects.length : projects.filter((p) => p.status === s).length;
+    acc[s] = s === 'all' ? scopedProjects.length : scopedProjects.filter((p) => p.status === s).length;
     return acc;
   }, {} as Record<string, number>);
 

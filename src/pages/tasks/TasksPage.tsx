@@ -44,7 +44,9 @@ const TasksPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
 
-  const isManager = can('tasks_approve') || can('tasks_edit');
+  // Only roles that approve tasks (Director / Admin / PM) see every task.
+  // Field staff who can create/edit still see only the tasks assigned to them.
+  const isManager = can('tasks_approve');
 
   useEffect(() => {
     (async () => {

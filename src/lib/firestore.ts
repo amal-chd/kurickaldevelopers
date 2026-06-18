@@ -510,19 +510,33 @@ export const getUserAttendanceHistory = async (userId: string, limit2 = 30): Pro
 
 // ─── Chat Channels ────────────────────────────────────────────────────────────
 export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) => void) => {
-  return onSnapshot(
+  // The user's own channels + all company announcement channels (visible to all
+  // staff via chat_view), merged and deduped so announcements always show.
+  const buckets: Record<'mine' | 'announce', ChatChannel[]> = { mine: [], announce: [] };
+  const emit = () => {
+    const byId = new Map<string, ChatChannel>();
+    [...buckets.mine, ...buckets.announce].forEach((c) => byId.set(c.id, c));
+    const channels = Array.from(byId.values()).sort((a, b) => {
+      const at = (a.lastMessageAt as any)?.toMillis?.() ?? 0;
+      const bt = (b.lastMessageAt as any)?.toMillis?.() ?? 0;
+      return bt - at;
+    });
+    cb(channels);
+  };
+
+  const unsubMine = onSnapshot(
     query(collection(db, 'chats'), where('memberIds', 'array-contains', userId)),
-    (snap) => {
-      const channels = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as ChatChannel))
-        .sort((a, b) => {
-          const at = (a.lastMessageAt as any)?.toMillis?.() ?? 0;
-          const bt = (b.lastMessageAt as any)?.toMillis?.() ?? 0;
-          return bt - at;
-        });
-      cb(channels);
-    }
+    (snap) => { buckets.mine = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatChannel)); emit(); },
+    (err) => { console.warn('subscribeChannels(mine) error:', err.code); buckets.mine = []; emit(); },
   );
+
+  const unsubAnnounce = onSnapshot(
+    query(collection(db, 'chats'), where('type', '==', 'announcement')),
+    (snap) => { buckets.announce = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatChannel)); emit(); },
+    (err) => { console.warn('subscribeChannels(announce) error:', err.code); buckets.announce = []; emit(); },
+  );
+
+  return () => { unsubMine(); unsubAnnounce(); };
 };
 
 export const getChannel = async (channelId: string): Promise<ChatChannel | null> => {
