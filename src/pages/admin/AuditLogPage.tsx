@@ -151,12 +151,12 @@ const AuditLogPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left">
-                    <th className="px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">Timestamp</th>
-                    <th className="px-4 py-3 font-semibold text-gray-600">User</th>
-                    <th className="px-4 py-3 font-semibold text-gray-600">Action</th>
-                    <th className="px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Target</th>
-                    <th className="px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Details</th>
+                  <tr className="border-b border-gray-100 text-left bg-gray-50/60">
+                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">Timestamp</th>
+                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">User</th>
+                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Action</th>
+                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Target</th>
+                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
