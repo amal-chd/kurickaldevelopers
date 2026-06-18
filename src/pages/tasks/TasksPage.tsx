@@ -139,16 +139,18 @@ const TasksPage: React.FC = () => {
             New Task
           </Button>
         )}
-        <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
           <button
-            className={`p-2.5 transition-colors ${view === 'kanban' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            className={`p-2 rounded-lg transition-all ${view === 'kanban' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             onClick={() => setView('kanban')}
+            aria-label="Board view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
-            className={`p-2.5 transition-colors ${view === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            className={`p-2 rounded-lg transition-all ${view === 'list' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             onClick={() => setView('list')}
+            aria-label="List view"
           >
             <List className="w-4 h-4" />
           </button>
@@ -167,7 +169,7 @@ const TasksPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm"
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >

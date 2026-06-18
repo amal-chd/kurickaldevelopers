@@ -140,7 +140,7 @@ const ProjectsPage: React.FC = () => {
               <div
                 key={project.id}
                 onClick={() => navigate(`/app/projects/${project.id}`)}
-                className={`bg-white rounded-2xl border border-gray-100 border-t-4 ${style.border} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden`}
+                className={`bg-white rounded-2xl border border-gray-100 border-t-4 ${style.border} shadow-sm hover:shadow-card-hover hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden`}
               >
                 <div className="p-5 space-y-3">
                   {/* Top row */}
@@ -191,9 +191,9 @@ const ProjectsPage: React.FC = () => {
                   {manager && (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] font-bold text-primary">{manager.name[0]}</span>
+                        <span className="text-[10px] font-bold text-primary">{(manager.name || manager.email || '?')[0].toUpperCase()}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{manager.name}</span>
+                      <span className="text-xs text-gray-500">{manager.name || manager.email}</span>
                     </div>
                   )}
                 </div>

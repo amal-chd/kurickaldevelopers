@@ -75,7 +75,7 @@ const TeamPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60 h-10"
+            className="appearance-none px-3.5 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all h-10"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
           >
@@ -96,7 +96,7 @@ const TeamPage: React.FC = () => {
               <div
                 key={user.id}
                 onClick={() => navigate(`/app/team/${user.id}`)}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-card-hover hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
               >
                 {/* Color header */}
                 <div
@@ -114,7 +114,7 @@ const TeamPage: React.FC = () => {
 
                 {/* Content */}
                 <div className="pt-10 pb-5 px-4 text-center">
-                  <h3 className="font-semibold text-gray-900">{user.name}</h3>
+                  <h3 className="font-semibold text-gray-900 truncate">{user.name || user.email}</h3>
                   {role && (
                     <span
                       className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
