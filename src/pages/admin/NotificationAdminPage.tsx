@@ -171,7 +171,7 @@ const NotificationAdminPage: React.FC = () => {
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Message</label>
               <textarea
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary resize-none"
                 rows={4}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}

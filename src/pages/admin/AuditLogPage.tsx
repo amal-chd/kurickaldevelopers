@@ -104,7 +104,7 @@ const AuditLogPage: React.FC = () => {
         <div className="flex-1 min-w-48 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
             placeholder="Search by action, user, or details..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -112,7 +112,7 @@ const AuditLogPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="appearance-none px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >

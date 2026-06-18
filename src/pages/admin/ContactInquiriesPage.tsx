@@ -392,7 +392,7 @@ const ContactInquiriesPage: React.FC = () => {
                 onChange={(e) => setNotesValue(e.target.value)}
                 disabled={!can('contact_manage')}
                 placeholder="Add internal notes about this inquiry…"
-                className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>

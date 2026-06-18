@@ -98,7 +98,7 @@ const OrgSettingsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Timezone</label>
             <div className="relative">
               <select
-                className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full appearance-none border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
                 value={settings.timezone}
                 onChange={(e) => set('timezone', e.target.value)}
               >
@@ -119,7 +119,7 @@ const OrgSettingsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Work Start Time</label>
             <input
               type="time"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
               value={settings.workStartTime}
               onChange={(e) => set('workStartTime', e.target.value)}
             />
@@ -128,7 +128,7 @@ const OrgSettingsPage: React.FC = () => {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Work End Time</label>
             <input
               type="time"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
               value={settings.workEndTime}
               onChange={(e) => set('workEndTime', e.target.value)}
             />

@@ -1079,7 +1079,7 @@ const ChatPage: React.FC = () => {
                     value={text}
                     onChange={handleTextChange}
                     onKeyDown={handleKeyDown}
-                    className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary max-h-32"
+                    className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary focus:border-primary max-h-32"
                     style={{ minHeight: '42px' }}
                   />
                 </div>

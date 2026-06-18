@@ -169,7 +169,7 @@ const DocumentsPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm"
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >
