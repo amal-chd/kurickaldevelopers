@@ -435,7 +435,16 @@ const ChatPage: React.FC = () => {
   const tasksView = can('tasks_view');
 
   const isAnnouncement = currentChannel?.type === 'announcement';
-  const canSend = chatSend && (!isAnnouncement || chatAnnounce);
+  const isMember = currentChannel?.memberIds?.includes(appUser?.id ?? '') ?? false;
+  // Project and direct channels are open to their members regardless of the
+  // global chat_send permission — mirrors the Firestore rules. Announcements
+  // still require chat_announce.
+  const memberCanPost =
+    isMember &&
+    (currentChannel?.type === 'project' || currentChannel?.type === 'direct');
+  const canSend = isAnnouncement
+    ? chatSend && chatAnnounce
+    : chatSend || memberCanPost;
 
   // ─── Data loading ──────────────────────────────────────────────────────────
 
