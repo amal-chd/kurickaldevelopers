@@ -8,6 +8,7 @@ import Avatar from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
 import { createNotification, getAllUsers } from '../../lib/firestore';
+import { notifyPush } from '../../lib/push';
 import { AppUser, AppNotification } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -92,6 +93,12 @@ const NotificationAdminPage: React.FC = () => {
             createdAt: null as any,
           })
         )
+      );
+      // Deliver as push as well (the writes above only create the in-app docs).
+      notifyPush(
+        targetMode === 'broadcast'
+          ? { event: 'broadcast', title: title.trim(), body: body.trim() }
+          : { event: 'broadcast', title: title.trim(), body: body.trim(), userIds: selectedUserIds }
       );
       toast.success(
         targetMode === 'broadcast'

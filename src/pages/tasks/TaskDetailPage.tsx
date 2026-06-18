@@ -18,6 +18,7 @@ import {
   updateTask, deleteTask, getProject, sendMessage, getChannel, createChannelWithId,
 } from '../../lib/firestore';
 import { Task, Subtask, AppUser, Project, TaskStatus } from '../../types';
+import { notifyPush } from '../../lib/push';
 import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
@@ -78,6 +79,7 @@ const TaskDetailPage: React.FC = () => {
     if (!taskId || !appUser) return;
     try {
       await updateTask(taskId, { status: newStatus });
+      notifyPush({ event: 'task', taskId, kind: 'status' });
       setTask((prev) => prev ? { ...prev, status: newStatus } : prev);
       setStatusOpen(false);
 

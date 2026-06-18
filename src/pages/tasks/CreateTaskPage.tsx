@@ -10,6 +10,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig } from '../../lib/firestore';
+import { notifyPush } from '../../lib/push';
 import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig } from '../../types';
 import toast from 'react-hot-toast';
 import Avatar from '../../components/ui/Avatar';
@@ -126,9 +127,11 @@ const CreateTaskPage: React.FC = () => {
 
       if (isEdit && taskId) {
         await updateTask(taskId, data);
+        if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId, kind: 'assigned' });
         toast.success('Task updated');
       } else {
         const id = await createTask(data);
+        if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId: id, kind: 'assigned' });
         toast.success('Task created');
         navigate(`/app/tasks/${id}`);
         return;

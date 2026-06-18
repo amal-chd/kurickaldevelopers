@@ -14,6 +14,7 @@ import {
 } from '../lib/firestore';
 import { ChatChannel, ChatMessage } from '../types';
 import { useAuthStore } from '../store/authStore';
+import { notifyPush } from '../lib/push';
 
 // Module-level singleton subscription so multiple components (Sidebar + TopBar +
 // ChatPage) share a single Firestore listener instead of each opening their own.
@@ -124,7 +125,9 @@ export function useChatActions(channelId: string | null) {
   const send = useCallback(
     async (data: Omit<ChatMessage, 'id' | 'createdAt'>) => {
       if (!channelId) return;
-      await sendMessage(channelId, data);
+      const messageId = await sendMessage(channelId, data);
+      // Trigger push to the other channel members (server picks recipients).
+      notifyPush({ event: 'chat', channelId, messageId });
     },
     [channelId]
   );

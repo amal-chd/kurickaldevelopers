@@ -78,28 +78,6 @@ async function sendToTokens(
   return success;
 }
 
-async function createNotificationDocs(
-  db: admin.firestore.Firestore,
-  recipientIds: string[],
-  notif: { type: string; title: string; body: string; relatedId?: string; relatedType?: string }
-) {
-  const batch = db.batch();
-  for (const uid of recipientIds) {
-    const ref = db.collection('notifications').doc();
-    batch.set(ref, {
-      recipientId: uid,
-      type: notif.type,
-      title: notif.title,
-      body: notif.body,
-      relatedId: notif.relatedId ?? null,
-      relatedType: notif.relatedType ?? null,
-      isRead: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-  await batch.commit();
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS (harmless for same-origin web; mobile clients ignore it).
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -209,9 +187,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (recipients.length === 0) return res.status(200).json({ ok: true, sent: 0 });
 
-      await createNotificationDocs(db, recipients, {
-        type, title, body: bodyText, relatedId: taskId, relatedType: 'task',
-      });
       const tokens = await tokensFor(db, recipients);
       const sent = await sendToTokens(messaging, tokens, title, bodyText, {
         type, relatedId: taskId,
@@ -219,9 +194,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true, sent });
     }
 
-    // ── Admin broadcast ─────────────────────────────────────────────────────
+    // ── Admin broadcast (push only — in-app docs are written by the client) ──
     if (event === 'broadcast') {
-      const { title, body: bodyText, targetRoleId } = body;
+      const { title, body: bodyText, targetRoleId, userIds } = body;
       if (!title || !bodyText) return res.status(400).json({ error: 'title and body required' });
 
       // Permission gate: caller's role must allow notifications_manage.
@@ -235,23 +210,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (!allowed) return res.status(403).json({ error: 'Not allowed to broadcast' });
 
-      let usersQuery: admin.firestore.Query = db.collection('users');
-      if (targetRoleId) usersQuery = usersQuery.where('roleId', '==', targetRoleId);
-      const usersSnap = await usersQuery.get();
-      const recipientIds = usersSnap.docs.map((d) => d.id);
+      // Recipients: explicit user list, else a role filter, else everyone.
+      let tokens: string[];
+      if (Array.isArray(userIds) && userIds.length > 0) {
+        tokens = await tokensFor(db, userIds);
+      } else {
+        let usersQuery: admin.firestore.Query = db.collection('users');
+        if (targetRoleId) usersQuery = usersQuery.where('roleId', '==', targetRoleId);
+        const usersSnap = await usersQuery.get();
+        tokens = [];
+        usersSnap.docs.forEach((d) => {
+          const t = d.data()?.fcmToken;
+          if (t) tokens.push(t);
+        });
+      }
 
-      await createNotificationDocs(db, recipientIds, {
-        type: 'admin_broadcast', title, body: bodyText, relatedType: 'broadcast',
-      });
-      const tokens: string[] = [];
-      usersSnap.docs.forEach((d) => {
-        const t = d.data()?.fcmToken;
-        if (t) tokens.push(t);
-      });
       const sent = await sendToTokens(messaging, tokens, title, bodyText, {
         type: 'admin_broadcast',
       });
-      return res.status(200).json({ ok: true, sent, recipients: recipientIds.length });
+      return res.status(200).json({ ok: true, sent });
     }
 
     return res.status(400).json({ error: `Unknown event: ${event}` });
