@@ -20,6 +20,8 @@ import {
   subscribeUsers, getAllUsers, getChannel, createChannelWithId, getTasks,
   createChannel, archiveChannel,
 } from '../../lib/firestore';
+import { uploadToSupabase, STORAGE_BUCKETS } from '../../lib/storage';
+import { Paperclip } from 'lucide-react';
 import { ChatChannel, ChatMessage, AppUser, Task, ChannelType } from '../../types';
 import { getDmChannelId, formatRelative } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -266,7 +268,36 @@ const MessageBubble: React.FC<{
               : 'bg-white text-gray-900 rounded-bl-sm'
           }`}
         >
-          <p className="whitespace-pre-wrap break-words">{message.text}</p>
+          {/* Image attachment */}
+          {message.attachmentUrl && message.type === 'image' && (
+            <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mb-1">
+              <img
+                src={message.attachmentUrl}
+                alt={message.attachmentName ?? 'image'}
+                className="rounded-xl max-h-64 max-w-full object-cover"
+                loading="lazy"
+              />
+            </a>
+          )}
+          {/* File attachment */}
+          {message.attachmentUrl && message.type === 'file' && (
+            <a
+              href={message.attachmentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-2 mb-1 rounded-xl px-2.5 py-2 transition-colors ${
+                isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-50 border border-gray-100 hover:bg-gray-100'
+              }`}
+            >
+              <Paperclip className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-xs font-medium max-w-[180px]">
+                {message.attachmentName ?? 'Download file'}
+              </span>
+            </a>
+          )}
+          {!message.attachmentUrl && (
+            <p className="whitespace-pre-wrap break-words">{message.text}</p>
+          )}
           <div
             className={`flex items-center gap-1 mt-0.5 ${
               isOwn ? 'justify-end' : 'justify-start'
@@ -422,6 +453,8 @@ const ChatPage: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attaching, setAttaching] = useState(false);
   const typingTimeout = useRef<number | null>(null);
 
   const currentChannel = channels.find((c) => c.id === channelId);
@@ -607,6 +640,44 @@ const ChatPage: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  // Upload a file to Supabase Storage (chat-files bucket) and send it as a
+  // message. Images render inline; everything else shows a download chip.
+  const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file || !appUser || !channelId) return;
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File too large (max 25 MB).');
+      return;
+    }
+    setAttaching(true);
+    try {
+      const { url, path, bucket } = await uploadToSupabase(
+        file,
+        STORAGE_BUCKETS.chatFiles,
+        channelId,
+      );
+      const isImage = file.type.startsWith('image/');
+      await send({
+        senderId: appUser.id,
+        text: file.name,
+        type: isImage ? 'image' : 'file',
+        reactions: {},
+        mentionedUserIds: [],
+        isDeleted: false,
+        attachmentUrl: url,
+        attachmentName: file.name,
+        attachmentSize: file.size,
+        attachmentBucket: bucket,
+        attachmentPath: path,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload file');
+    } finally {
+      setAttaching(false);
     }
   };
 
@@ -1059,6 +1130,24 @@ const ChatPage: React.FC = () => {
               )}
 
               <div className="flex items-end gap-2 p-3">
+                {/* Attach file */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleAttach}
+                />
+                <button
+                  className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 flex-shrink-0 disabled:opacity-50"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={attaching}
+                  title="Attach file"
+                >
+                  {attaching
+                    ? <Spinner size="sm" />
+                    : <Paperclip className="w-5 h-5" />}
+                </button>
+
                 {/* Share task button */}
                 {tasksView && (
                   <button

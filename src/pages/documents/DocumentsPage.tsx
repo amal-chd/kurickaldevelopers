@@ -12,7 +12,8 @@ import Modal from '../../components/ui/Modal';
 import Avatar from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { getDocuments, createDocument, deleteDocument, updateDocument, getProjects, getAllUsers, uploadFile } from '../../lib/firestore';
+import { getDocuments, createDocument, deleteDocument, updateDocument, getProjects, getAllUsers } from '../../lib/firestore';
+import { uploadToSupabase, deleteFromSupabase, STORAGE_BUCKETS } from '../../lib/storage';
 import { Document as TDocument, Project, AppUser } from '../../types';
 import { formatDate, formatFileSize, getMimeIcon } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -83,33 +84,30 @@ const DocumentsPage: React.FC = () => {
     }
     setUploading(true);
     try {
-      const path = `documents/${Date.now()}_${selectedFile.name}`;
-      const url = await uploadFile(selectedFile, path);
-      const id = await createDocument({
+      // Upload the file to Supabase Storage (documents bucket), foldered by project.
+      const { url, path, bucket } = await uploadToSupabase(
+        selectedFile,
+        STORAGE_BUCKETS.documents,
+        uploadProjectId,
+      );
+      const docData = {
         name: selectedFile.name,
         url,
         mimeType: selectedFile.type,
         size: selectedFile.size,
         projectId: uploadProjectId,
         uploadedBy: appUser.id,
-        approvalStatus: 'pending',
-      });
-      const newDoc: TDocument = {
-        id,
-        name: selectedFile.name,
-        url,
-        mimeType: selectedFile.type,
-        size: selectedFile.size,
-        projectId: uploadProjectId,
-        uploadedBy: appUser.id,
-        approvalStatus: 'pending',
+        approvalStatus: 'pending' as const,
+        storageBucket: bucket,
+        storagePath: path,
       };
-      setDocuments((prev) => [newDoc, ...prev]);
+      const id = await createDocument(docData);
+      setDocuments((prev) => [{ id, ...docData }, ...prev]);
       setUploadModal(false);
       setSelectedFile(null);
       toast.success('Document uploaded successfully');
-    } catch {
-      toast.error('Failed to upload document');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload document');
     } finally {
       setUploading(false);
     }
@@ -129,7 +127,12 @@ const DocumentsPage: React.FC = () => {
 
   const handleDelete = async (docId: string) => {
     if (!window.confirm('Delete this document?')) return;
+    const target = documents.find((d) => d.id === docId);
     await deleteDocument(docId);
+    // Best-effort: also remove the underlying file from Supabase Storage.
+    if (target?.storageBucket && target?.storagePath) {
+      deleteFromSupabase(target.storageBucket, target.storagePath).catch(() => {});
+    }
     setDocuments((prev) => prev.filter((d) => d.id !== docId));
     toast.success('Deleted');
   };

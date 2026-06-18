@@ -119,6 +119,9 @@ export interface Document {
   projectId: string;
   uploadedBy: string;
   approvalStatus: ApprovalStatus;
+  // Supabase Storage location (used to delete the underlying file).
+  storageBucket?: string;
+  storagePath?: string;
   createdAt?: Timestamp;
 }
 
@@ -169,6 +172,12 @@ export interface ChatMessage {
   taskId?: string;
   taskTitle?: string;
   taskStatus?: TaskStatus;
+  // File / image attachment (stored in Supabase Storage)
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
+  attachmentBucket?: string;
+  attachmentPath?: string;
   editedAt?: Timestamp;
   isDeleted: boolean;
   createdAt: Timestamp;
