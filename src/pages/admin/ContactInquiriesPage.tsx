@@ -136,7 +136,7 @@ const ContactInquiriesPage: React.FC = () => {
           Back
         </Button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">Contact Inquiries</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Contact Inquiries</h2>
           <p className="text-sm text-gray-500 mt-0.5">{inquiries.length} total · from website &amp; mobile app</p>
         </div>
       </div>

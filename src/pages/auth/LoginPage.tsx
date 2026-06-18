@@ -208,7 +208,7 @@ const LoginPage: React.FC = () => {
 
             {/* Heading */}
             <div className="mb-7">
-              <h2 className="text-xl font-bold text-gray-900">Sign in to your account</h2>
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Sign in to your account</h2>
               <p className="text-sm text-gray-500 mt-1">Welcome back. Enter your credentials to continue.</p>
             </div>
 

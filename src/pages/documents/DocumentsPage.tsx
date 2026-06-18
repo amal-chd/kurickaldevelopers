@@ -146,7 +146,7 @@ const DocumentsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Documents</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Documents</h2>
         {can('docs_upload') && (
           <Button
             size="sm"

@@ -53,7 +53,7 @@ const TeamPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Team</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Team</h2>
           <p className="text-sm text-gray-500 mt-0.5">{users.length} members · {activeCount} active</p>
         </div>
         {can('team_manage') && (

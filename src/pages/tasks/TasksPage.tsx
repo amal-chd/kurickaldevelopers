@@ -132,7 +132,7 @@ const TasksPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">Tasks</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Tasks</h2>
         </div>
         {can('tasks_create') && (
           <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => navigate('/app/tasks/create')}>

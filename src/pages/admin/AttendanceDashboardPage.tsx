@@ -236,7 +236,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">Attendance Dashboard</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Attendance Dashboard</h2>
           <p className="text-sm text-gray-500 mt-0.5">Monitor daily check-ins, check-outs & geofence compliance</p>
         </div>
         {/* Date Picker */}

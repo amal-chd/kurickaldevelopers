@@ -131,7 +131,7 @@ const UserManagementPage: React.FC = () => {
           Back
         </Button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">User Management</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">User Management</h2>
           <p className="text-sm text-gray-500 mt-0.5">{users.length} total users</p>
         </div>
       </div>

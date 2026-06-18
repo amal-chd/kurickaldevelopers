@@ -162,7 +162,7 @@ const ReportsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-gray-900">Reports & Analytics</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Reports & Analytics</h2>
         {can('reports_export') && (
           <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
             Export CSV

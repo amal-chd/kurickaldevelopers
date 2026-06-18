@@ -72,7 +72,7 @@ const ProjectsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Projects</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Projects</h2>
           <p className="text-sm text-gray-500 mt-0.5">{projects.length} total</p>
         </div>
         {can('projects_create') && (

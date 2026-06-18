@@ -123,7 +123,7 @@ const NotificationAdminPage: React.FC = () => {
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Push Notifications</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Push Notifications</h2>
         <p className="text-sm text-gray-500 mt-1">Broadcast or send targeted notifications to staff</p>
       </div>
 

@@ -136,7 +136,7 @@ const SiteDiaryPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Site Diary</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Site Diary</h2>
         <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => { resetForm(); setModal(true); }}>
           New Entry
         </Button>

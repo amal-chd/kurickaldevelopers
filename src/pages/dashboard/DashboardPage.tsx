@@ -99,19 +99,19 @@ const DashboardPage: React.FC = () => {
   const firstName = (appUser?.name || appUser?.email || '').split(/[\s@]/)[0] || '';
 
   const STATS = [
-    { label: 'Active Tasks',      value: inProgressTasks.length,  icon: CheckSquare, textColor: 'text-blue-600',    bg: 'bg-blue-50',    path: '/app/tasks' },
-    { label: 'Active Projects',   value: activeProjects.length,   icon: FolderOpen,  textColor: 'text-emerald-600', bg: 'bg-emerald-50', path: '/app/projects' },
-    { label: 'Team Members',      value: users.length,            icon: Users,       textColor: 'text-purple-600',  bg: 'bg-purple-50',  path: '/app/team' },
-    { label: 'Pending Approvals', value: pendingApprovals.length, icon: Clock,       textColor: 'text-amber-600',   bg: 'bg-amber-50',   path: '/app/tasks' },
+    { label: 'Active Tasks',      value: inProgressTasks.length,  icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
+    { label: 'Active Projects',   value: activeProjects.length,   icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
+    { label: 'Team Members',      value: users.length,            icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
+    { label: 'Pending Approvals', value: pendingApprovals.length, icon: Clock,       gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
   ];
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
             {greeting}{firstName ? `, ${firstName}` : ''}!
           </h2>
           <p className="text-gray-500 text-sm mt-1">Here's what's happening on your projects today.</p>
@@ -136,15 +136,16 @@ const DashboardPage: React.FC = () => {
           <button
             key={s.label}
             onClick={() => navigate(s.path)}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full group"
+            className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex items-center gap-4 hover:shadow-card-hover hover:-translate-y-0.5 hover:border-gray-200 transition-all duration-200 text-left w-full overflow-hidden"
           >
-            <div className={`p-3 rounded-xl ${s.bg} flex-shrink-0`}>
-              <s.icon className={`w-5 h-5 ${s.textColor}`} />
+            <div className={`p-3 rounded-xl bg-gradient-to-br ${s.gradient} ring-1 ring-inset ring-white/40 flex-shrink-0 shadow-sm`}>
+              <s.icon className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5 leading-tight">{s.label}</p>
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-[28px] font-bold text-gray-900 leading-none tracking-tight">{s.value}</p>
+              <p className="text-xs text-gray-500 mt-1.5 leading-tight font-medium">{s.label}</p>
             </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 absolute top-4 right-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
           </button>
         ))}
       </div>

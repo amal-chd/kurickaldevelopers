@@ -159,7 +159,7 @@ const CreateTaskPage: React.FC = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <h2 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -79,7 +79,7 @@ const OrgSettingsPage: React.FC = () => {
     <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Organisation Settings</h2>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Organisation Settings</h2>
           <p className="text-sm text-gray-500 mt-1">Manage company info, work hours & geofence</p>
         </div>
         <Button onClick={handleSave} loading={saving} leftIcon={<Save className="w-4 h-4" />}>
