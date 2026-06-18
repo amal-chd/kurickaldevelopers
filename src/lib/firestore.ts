@@ -549,6 +549,39 @@ export const updateChannel = async (id: string, data: Partial<ChatChannel>): Pro
   await updateDoc(doc(db, 'chats', id), { ...data });
 };
 
+// Deterministic project channel id so web + mobile share one channel per project.
+export const projectChannelId = (projectId: string) => `project_${projectId}`;
+
+// Keeps a project's chat channel membership in sync with the project. Creates
+// the channel on first call, then upserts memberIds (project members + manager)
+// on every project edit — so adding a member to a project adds them to the chat.
+export const syncProjectChannel = async (
+  projectId: string,
+  projectName: string,
+  memberIds: string[],
+  managerId: string,
+): Promise<void> => {
+  const id = projectChannelId(projectId);
+  const members = Array.from(new Set([...memberIds, managerId].filter(Boolean)));
+  const existing = await getChannel(id);
+  if (existing) {
+    await updateChannel(id, { name: projectName, memberIds: members });
+  } else {
+    await createChannelWithId(id, {
+      type: 'project',
+      name: projectName,
+      createdBy: managerId,
+      memberIds: members,
+      adminIds: managerId ? [managerId] : [],
+      lastMessageText: 'Project channel created',
+      lastMessageBy: '',
+      unreadCounts: {},
+      lastReadAt: {},
+      isArchived: false,
+    });
+  }
+};
+
 // Soft-delete a conversation: archived channels are hidden from every member's
 // chat list.
 export const archiveChannel = async (id: string): Promise<void> => {

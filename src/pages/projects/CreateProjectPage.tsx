@@ -10,7 +10,7 @@ import Avatar from '../../components/ui/Avatar';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { createProject, updateProject, getProject, getAllUsers } from '../../lib/firestore';
+import { createProject, updateProject, getProject, getAllUsers, syncProjectChannel } from '../../lib/firestore';
 import { AppUser, Project, ProjectStatus } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -97,10 +97,13 @@ const CreateProjectPage: React.FC = () => {
 
       if (isEdit && projectId) {
         await updateProject(projectId, data);
+        // Keep the project chat membership in sync with the project members.
+        await syncProjectChannel(projectId, data.name, data.memberIds, data.managerId).catch(() => {});
         toast.success('Project updated');
         navigate(`/app/projects/${projectId}`);
       } else {
         const id = await createProject(data);
+        await syncProjectChannel(id, data.name, data.memberIds, data.managerId).catch(() => {});
         toast.success('Project created');
         navigate(`/app/projects/${id}`);
       }
