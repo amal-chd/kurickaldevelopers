@@ -86,7 +86,7 @@ const ReportsPage: React.FC = () => {
 
   // Tasks per member (filtered)
   const memberProductivity = users.map((u) => ({
-    name: u.name.split(' ')[0],
+    name: (u.name || u.email || 'User').split(' ')[0],
     tasks: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id)).length,
     done: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id) && t.status === 'done').length,
   })).filter((m) => m.tasks > 0).sort((a, b) => b.tasks - a.tasks).slice(0, 10);

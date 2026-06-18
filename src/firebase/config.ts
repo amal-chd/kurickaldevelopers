@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -19,5 +19,17 @@ const firebaseConfig = {
 // "Firebase App ... already deleted/exists" errors).
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// ignoreUndefinedProperties lets writes omit `undefined` fields instead of
+// throwing "Unsupported field value: undefined" — e.g. a chat message with no
+// reply, or a task with no due date. initializeFirestore must run once before
+// any other Firestore use; fall back to getFirestore on HMR re-import.
+export const db = (() => {
+  try {
+    return initializeFirestore(app, { ignoreUndefinedProperties: true });
+  } catch {
+    return getFirestore(app);
+  }
+})();
+
 export const storage = getStorage(app);

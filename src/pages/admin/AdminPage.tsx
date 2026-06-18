@@ -25,11 +25,14 @@ const AdminPage: React.FC = () => {
   const [newInquiries, setNewInquiries] = useState(0);
 
   useEffect(() => {
+    // Runs once on mount. Permissions are guaranteed loaded here because
+    // ProtectedRoute blocks rendering until auth finishes initialising.
     if (can('contact_view') || can('contact_manage')) {
       getContactInquiries()
         .then((list) => setNewInquiries(list.filter((q) => q.status === 'new').length))
         .catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasAnyAccess =

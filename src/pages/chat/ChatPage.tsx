@@ -663,7 +663,8 @@ const ChatPage: React.FC = () => {
       const isImage = file.type.startsWith('image/');
       await send({
         senderId: appUser.id,
-        text: file.name,
+        // Used as the channel-list preview; the bubble renders the image/chip.
+        text: isImage ? '📷 Photo' : `📎 ${file.name}`,
         type: isImage ? 'image' : 'file',
         reactions: {},
         mentionedUserIds: [],
