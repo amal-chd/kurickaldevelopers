@@ -92,7 +92,11 @@ const CreateProjectPage: React.FC = () => {
         ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate)) } : {}),
         budget: Number(form.budget) || 0,
         managerId: form.managerId || appUser.id,
-        memberIds: form.memberIds,
+        // Always keep the manager (and creator) in the member list so they
+        // retain access — membership is the canonical access signal.
+        memberIds: Array.from(
+          new Set([...form.memberIds, form.managerId || appUser.id, appUser.id].filter(Boolean)),
+        ),
       };
 
       if (isEdit && projectId) {
