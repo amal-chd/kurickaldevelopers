@@ -16,6 +16,7 @@ export interface Permissions {
   docs_approve?: boolean;
   team_view?: boolean;
   team_manage?: boolean;
+  team_delete?: boolean;
   reports_view?: boolean;
   reports_export?: boolean;
   time_log?: boolean;
