@@ -117,8 +117,8 @@ const NotificationAdminPage: React.FC = () => {
   };
 
   const filteredUsers = users.filter((u) =>
-    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.email.toLowerCase().includes(userSearch.toLowerCase())
+    (u.name || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(userSearch.toLowerCase())
   );
 
   const formatTime = (ts: any) => {

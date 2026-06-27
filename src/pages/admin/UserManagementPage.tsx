@@ -63,7 +63,7 @@ const UserManagementPage: React.FC = () => {
   }
 
   const filtered = users.filter((u) =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
+    (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase()) ||
     u.phone?.includes(search)
   );
@@ -72,8 +72,8 @@ const UserManagementPage: React.FC = () => {
 
   const openEdit = (user: AppUser) => {
     setEditUser(user);
-    setEditName(user.name);
-    setEditEmail(user.email);
+    setEditName(user.name || '');
+    setEditEmail(user.email || '');
     setEditRole(user.roleId);
     setEditModal(true);
   };
@@ -163,9 +163,9 @@ const UserManagementPage: React.FC = () => {
               <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
-                    <Avatar name={user.name} src={user.avatarUrl} size="sm" />
+                    <Avatar name={user.name || user.email || '?'} src={user.avatarUrl} size="sm" />
                     <div>
-                      <p className="font-semibold text-gray-900">{user.name}</p>
+                      <p className="font-semibold text-gray-900">{user.name || user.email || 'Unknown'}</p>
                       <p className="text-xs text-gray-400 md:hidden">{user.email || user.phone}</p>
                     </div>
                   </div>

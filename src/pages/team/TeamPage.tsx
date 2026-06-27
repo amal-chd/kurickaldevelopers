@@ -47,7 +47,7 @@ const TeamPage: React.FC = () => {
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    if (q && !u.name.toLowerCase().includes(q) && !u.email?.toLowerCase().includes(q) && !u.phone?.includes(q)) return false;
+    if (q && !(u.name || '').toLowerCase().includes(q) && !u.email?.toLowerCase().includes(q) && !u.phone?.includes(q)) return false;
     if (roleFilter && u.roleId !== roleFilter) return false;
     return true;
   });
@@ -113,14 +113,14 @@ const TeamPage: React.FC = () => {
                     className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2"
                   >
                     <div className={`ring-4 ring-white rounded-full ${!user.isActive ? 'opacity-60' : ''}`}>
-                      <Avatar name={user.name} src={user.avatarUrl} size="lg" />
+                      <Avatar name={user.name || user.email || '?'} src={user.avatarUrl} size="lg" />
                     </div>
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="pt-10 pb-5 px-4 text-center">
-                  <h3 className="font-semibold text-gray-900 truncate">{user.name || user.email}</h3>
+                  <h3 className="font-semibold text-gray-900 truncate">{user.name || user.email || 'Unknown'}</h3>
                   {role && (
                     <span
                       className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
