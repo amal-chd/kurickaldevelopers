@@ -205,10 +205,10 @@ const AttendanceDashboardPage: React.FC = () => {
     return () => unsub();
   }, [date]);
 
-  if (!can('attendance_view_all')) {
+  if (!can('attendance_view_all') && !can('team_manage')) {
     return (
       <div className="flex items-center justify-center h-64">
-        <EmptyState icon={<Shield className="w-8 h-8" />} title="Access Denied" description="You need 'attendance_view_all' permission." />
+        <EmptyState icon={<Shield className="w-8 h-8" />} title="Access Denied" description="You don't have permission to view staff attendance." />
       </div>
     );
   }

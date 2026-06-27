@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   subscribeChannels,
   subscribeMessages,
@@ -75,20 +75,31 @@ export function useMessages(channelId: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const { firebaseUser } = useAuthStore();
+  const prevChannelRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!channelId) return;
-    setLoading(true);
+    if (!channelId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
+    // Only show full loading spinner when switching to a *different* channel.
+    // When re-subscribing to the same channel (e.g. HMR), keep messages visible.
+    if (prevChannelRef.current !== channelId) {
+      setMessages([]);
+      setLoading(true);
+      prevChannelRef.current = channelId;
+    }
+
     const unsub = subscribeMessages(channelId, (msgs) => {
       setMessages(msgs);
       setLoading(false);
-    });
+    }, 50);
     return unsub;
   }, [channelId]);
 
   // Mark channel as read once on channel-switch and again when the tab regains focus.
-  // Previously this re-ran on every `messages.length` change, writing to Firestore
-  // for every incoming message — wasteful and noisy.
   useEffect(() => {
     if (!channelId || !firebaseUser) return;
     markChannelRead(channelId, firebaseUser.uid).catch(console.error);

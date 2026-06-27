@@ -39,7 +39,6 @@ const NAV_GROUPS = [
   {
     label: 'Account',
     items: [
-      { to: '/app/notifications', label: 'Notifications', icon: Bell, always: true, isNotifBadge: true },
       // Admin is visible to anyone with any admin sub-permission, not just settings_manage.
       {
         to: '/app/admin',
@@ -55,7 +54,6 @@ const NAV_GROUPS = [
           'contact_manage',
         ] as const,
       },
-      { to: '/app/profile', label: 'Profile', icon: User, always: true },
     ],
   },
 ];
