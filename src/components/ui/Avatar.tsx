@@ -10,6 +10,8 @@ interface AvatarProps {
 }
 
 const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'md', className, online }) => {
+  const safeName = name || '?';
+
   const sizes = {
     xs: 'w-6 h-6 text-xs',
     sm: 'w-8 h-8 text-xs',
@@ -23,7 +25,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'md', className, onli
     'bg-red-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
   ];
 
-  const colorIndex = name.charCodeAt(0) % colors.length;
+  const colorIndex = safeName.charCodeAt(0) % colors.length;
   const bgColor = colors[colorIndex];
 
   return (
@@ -31,7 +33,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'md', className, onli
       {src ? (
         <img
           src={src}
-          alt={name}
+          alt={safeName}
           className={cn('rounded-full object-cover', sizes[size])}
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = 'none';
@@ -45,7 +47,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'md', className, onli
             bgColor
           )}
         >
-          {getInitials(name)}
+          {getInitials(safeName)}
         </div>
       )}
       {online !== undefined && (
