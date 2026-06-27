@@ -12,7 +12,7 @@ let _registered = false;
 
 /**
  * Registers this browser for FCM push and stores its token on the user doc so
- * the serverless sender (api/send-push) can reach it. Safe to call on every
+ * the serverless sender (Supabase Edge Function) can reach it. Safe to call on every
  * login — it no-ops when unsupported, unconfigured, or permission is denied.
  */
 export async function registerFcm(uid: string): Promise<void> {

@@ -25,57 +25,7 @@ const STATS = [
   { label: 'Years Active',     value: '7+' },
 ];
 
-// ─── Quick-login panel (dev only — never shown in production) ─────────────────
 
-const DEMO = [
-  { role: 'Director / Owner', email: 'thomas@kurickaldevelopers.com', color: '#1A3A5C' },
-  { role: 'Project Manager',  email: 'ravi@kurickaldevelopers.com',   color: '#2196F3' },
-  { role: 'Site Engineer',    email: 'arjun@kurickaldevelopers.com',  color: '#009688' },
-  { role: 'Site Engineer 2',  email: 'priya@kurickaldevelopers.com',  color: '#009688' },
-  { role: 'Foreman',          email: 'suresh@kurickaldevelopers.com', color: '#F59E0B' },
-  { role: 'Labour',           email: 'biju@kurickaldevelopers.com',   color: '#9E9E9E' },
-  { role: 'Admin',            email: 'meena@kurickaldevelopers.com',  color: '#9C27B0' },
-  { role: 'Accounts',         email: 'anitha@kurickaldevelopers.com', color: '#4CAF50' },
-];
-const DEMO_PASSWORD = 'Kurickal@2024';
-
-const DemoPanel: React.FC<{ onSelect: (email: string, pass: string) => void }> = ({ onSelect }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/60 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-amber-100/60 transition-colors"
-      >
-        <span className="text-sm font-semibold text-amber-700 flex-1">Quick Sign-In (Demo)</span>
-        {open ? <ChevronUp className="w-4 h-4 text-amber-500" /> : <ChevronDown className="w-4 h-4 text-amber-500" />}
-      </button>
-      {open && (
-        <div className="border-t border-amber-200 divide-y divide-amber-100">
-          {DEMO.map((d) => (
-            <button
-              key={d.email}
-              type="button"
-              onClick={() => onSelect(d.email, DEMO_PASSWORD)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-amber-100/60 transition-colors text-left group"
-            >
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-700">{d.role}</p>
-                <p className="text-xs text-gray-400 truncate">{d.email}</p>
-              </div>
-              <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-amber-600 transition-colors shrink-0" />
-            </button>
-          ))}
-          <p className="px-4 py-2 text-xs text-amber-600 bg-amber-50">
-            Password: <span className="font-mono font-bold">{DEMO_PASSWORD}</span>
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ─── Main — sign-in only (mirrors the mobile app: no sign-up, no onboarding) ──
 
@@ -147,11 +97,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // ── Quick demo fill (dev only) ────────────────────────────────────────────────
-  const handleDemoSelect = (e: string, p: string) => {
-    setEmail(e);
-    setPassword(p);
-  };
+
 
   // ─── UI ────────────────────────────────────────────────────────────────────
   return (
@@ -276,8 +222,7 @@ const LoginPage: React.FC = () => {
               Continue with Google
             </button>
 
-            {/* Demo panel — dev only, never in production builds */}
-            {import.meta.env.DEV && <DemoPanel onSelect={handleDemoSelect} />}
+
           </div>
 
           <p className="text-center text-gray-400 text-xs mt-6">

@@ -535,7 +535,9 @@ const ChatPage: React.FC = () => {
     .filter((ch) => !ch.isArchived)
     // Hide conversations with no real content — last message deleted or never
     // sent. Keeps "Message deleted" / empty rows out of the chat list.
+    // Direct message channels are always shown if started (document exists).
     .filter((ch) => {
+      if (ch.type === 'direct') return true;
       const t = (ch.lastMessageText ?? '').trim().toLowerCase();
       return t !== '' && t !== 'message deleted' && t !== 'this message was deleted';
     })

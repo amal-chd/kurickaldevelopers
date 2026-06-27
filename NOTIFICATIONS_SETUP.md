@@ -2,10 +2,10 @@
 
 Task Pilot has **two** notification layers. The first works out of the box on
 the **free Spark plan**; the second (OS push) is optional and also Spark-safe
-because it runs on Vercel, **not** Firebase Cloud Functions.
+because it runs on Supabase, **not** Firebase Cloud Functions.
 
 > ⚠️ Do **not** deploy `functions/index.js` senders — Cloud Functions require
-> Blaze. All push sending goes through the Vercel function `api/send-push.ts`.
+> Blaze. All push sending goes through the Supabase Edge Function `/functions/v1/send-push`.
 
 ---
 
@@ -36,29 +36,34 @@ Nothing to configure — this is live.
 
 ## 2. Push notifications (OS alerts) — optional, Spark-safe
 
-Push is sent by the Vercel serverless function `api/send-push.ts`, which the
+Push is sent by the Supabase Edge Function `/functions/v1/send-push`, which the
 web (`notifyPush`) and mobile (`PushSender`) call. It verifies the caller's
 Firebase token and reconstructs recipients server-side.
 
-### a) Vercel — service account (required for ANY push)
+### a) Supabase — service account (required for ANY push)
 
 Firebase Console → Project Settings → **Service accounts** → *Generate new
-private key*. In Vercel → Project → Settings → **Environment Variables**, add:
+private key*. In Supabase CLI or Dashboard, set the secret:
 
+```bash
+npx supabase secrets set FIREBASE_SERVICE_ACCOUNT='<paste the entire service-account JSON>' --project-ref ximaqbhnykyxxgiqbwoh
 ```
-FIREBASE_SERVICE_ACCOUNT = <paste the entire service-account JSON>
+
+Then deploy the function:
+```bash
+npx supabase functions deploy send-push --project-ref ximaqbhnykyxxgiqbwoh --no-verify-jwt --use-api
 ```
 
-Redeploy. (Without this, `/api/send-push` returns "Server misconfigured".)
+(Without this, the function returns "Server misconfigured".)
 
-### b) Mobile — point it at your Vercel function
+### b) Mobile — point it at your Supabase function
 
 The app sends push by POSTing to your deployed function. Set the endpoint —
 either edit `kurickal_tms/lib/core/config/push_config.dart`, or build with:
 
-```
+```bash
 flutter run \
-  --dart-define=PUSH_ENDPOINT=https://YOUR-APP.vercel.app/api/send-push
+  --dart-define=PUSH_ENDPOINT=https://ximaqbhnykyxxgiqbwoh.supabase.co/functions/v1/send-push
 ```
 
 Mobile devices already register their FCM token on login, so they **receive**
@@ -68,7 +73,7 @@ push as soon as a sender is configured.
 
 Web push needs a VAPID key: Firebase Console → Project Settings → **Cloud
 Messaging** → *Web Push certificates* → **Generate key pair**. Then in the web
-`.env` (and Vercel env):
+`.env`:
 
 ```
 VITE_FIREBASE_VAPID_KEY = <the key pair value>
@@ -76,7 +81,7 @@ VITE_FIREBASE_VAPID_KEY = <the key pair value>
 
 On the next login the browser asks for notification permission and registers
 its token (`public/firebase-messaging-sw.js` handles background messages).
-Web push requires HTTPS — Vercel provides this automatically.
+Web push requires HTTPS.
 
 ---
 
@@ -94,5 +99,5 @@ Web push requires HTTPS — Vercel provides this automatically.
 | In-app notifications (bell) | nothing | ✅ now |
 | Mobile **receives** push | §2a (service account) + a sender | ✅ |
 | Mobile **sends** push | §2b (PUSH_ENDPOINT) | ✅ |
-| Web **sends** push | §2a (relative `/api/send-push`) | ✅ |
+| Web **sends** push | §2a (Supabase Endpoint URL) | ✅ |
 | Web **receives** push | §2c (VAPID key) | ✅ |

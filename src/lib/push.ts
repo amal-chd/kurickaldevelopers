@@ -15,7 +15,7 @@ export async function notifyPush(payload: PushPayload): Promise<void> {
     const user = auth.currentUser;
     if (!user) return;
     const token = await user.getIdToken();
-    await fetch('/api/send-push', {
+    await fetch('https://ximaqbhnykyxxgiqbwoh.supabase.co/functions/v1/send-push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
