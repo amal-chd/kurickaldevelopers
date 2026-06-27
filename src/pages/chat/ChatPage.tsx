@@ -73,14 +73,14 @@ const ChannelItem: React.FC<{
       : null;
   const otherUser = otherUserId ? users.find((u) => u.id === otherUserId) : null;
   const displayName =
-    channel.type === 'direct' && otherUser ? otherUser.name : channel.name;
+    channel.type === 'direct' && otherUser ? (otherUser.name || otherUser.email || 'Direct Message') : channel.name;
 
   const iconByType: Record<ChannelType, React.ReactNode> = {
     announcement: <Megaphone className="w-4 h-4 text-amber-500" />,
     project: <Hash className="w-4 h-4 text-blue-500" />,
     group: <Users className="w-4 h-4 text-violet-500" />,
     direct: otherUser ? (
-      <Avatar name={otherUser.name} src={otherUser.avatarUrl} size="sm" />
+      <Avatar name={otherUser.name || otherUser.email || '?'} src={otherUser.avatarUrl} size="sm" />
     ) : (
       <User className="w-4 h-4 text-gray-400" />
     ),
@@ -543,12 +543,8 @@ const ChatPage: React.FC = () => {
     })
     .filter((ch) => {
       if (!search) return true;
-      const name =
-        ch.type === 'direct'
-          ? getUserById(
-              ch.memberIds.find((id) => id !== appUser?.id) ?? ''
-            )?.name ?? ''
-          : ch.name;
+      const otherUser = ch.type === 'direct' ? getUserById(ch.memberIds.find((id) => id !== appUser?.id) ?? '') : null;
+      const name = ch.type === 'direct' ? (otherUser?.name || otherUser?.email || '') : ch.name;
       return name.toLowerCase().includes(search.toLowerCase());
     })
     .sort((a, b) => {
@@ -590,7 +586,7 @@ const ChatPage: React.FC = () => {
 
   const insertMention = (user: AppUser) => {
     const lastAt = text.lastIndexOf('@');
-    setText(text.slice(0, lastAt) + `@${user.name} `);
+    setText(text.slice(0, lastAt) + `@${user.name || user.email || 'User'} `);
     setShowMention(false);
     textareaRef.current?.focus();
   };
@@ -615,7 +611,7 @@ const ChatPage: React.FC = () => {
     }
 
     const mentionedUserIds = users
-      .filter((u) => msgText.includes(`@${u.name}`))
+      .filter((u) => msgText.includes(`@${u.name || u.email || 'User'}`))
       .map((u) => u.id);
 
     setReplyTo(null);
@@ -626,7 +622,7 @@ const ChatPage: React.FC = () => {
       replyToId: replyTo?.id,
       replyToText: replyTo?.text,
       replyToSenderName: replyTo
-        ? (getUserById(replyTo.senderId)?.name ?? 'Unknown')
+        ? (getUserById(replyTo.senderId)?.name || getUserById(replyTo.senderId)?.email || 'Unknown')
         : undefined,
       reactions: {},
       mentionedUserIds,
@@ -807,7 +803,7 @@ const ChatPage: React.FC = () => {
   });
 
   const mentionUsers = users
-    .filter((u) => u.name.toLowerCase().includes(mentionQuery.toLowerCase()))
+    .filter((u) => (u.name || u.email || '').toLowerCase().includes(mentionQuery.toLowerCase()))
     .slice(0, 6);
 
   // Header info for current channel
@@ -818,7 +814,7 @@ const ChatPage: React.FC = () => {
   const otherUser = otherUid ? getUserById(otherUid) : null;
   const channelDisplayName =
     currentChannel?.type === 'direct'
-      ? otherUser?.name ?? 'Direct Message'
+      ? otherUser?.name || otherUser?.email || 'Direct Message'
       : currentChannel?.name ?? '';
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -938,7 +934,7 @@ const ChatPage: React.FC = () => {
                 {currentChannel.type === 'direct' ? (
                   otherUser ? (
                     <Avatar
-                      name={otherUser.name}
+                      name={otherUser.name || otherUser.email || '?'}
                       src={otherUser.avatarUrl}
                       size="sm"
                     />
@@ -1046,7 +1042,7 @@ const ChatPage: React.FC = () => {
                       key={msg.id}
                       message={msg}
                       isOwn={isOwn}
-                      senderName={sender?.name ?? 'Unknown'}
+                      senderName={sender?.name || sender?.email || 'Unknown'}
                       senderAvatar={sender?.avatarUrl}
                       showAvatar={!!showAvatar}
                       canModerate={chatModerate}
@@ -1123,9 +1119,9 @@ const ChatPage: React.FC = () => {
                       className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left"
                       onClick={() => insertMention(u)}
                     >
-                      <Avatar name={u.name} src={u.avatarUrl} size="xs" />
+                      <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="xs" />
                       <span className="text-sm font-medium text-gray-700">
-                        {u.name}
+                        {u.name || u.email || 'Unknown'}
                       </span>
                     </button>
                   ))}
@@ -1256,7 +1252,7 @@ const ChatPage: React.FC = () => {
             <div className="space-y-1 max-h-52 overflow-y-auto">
               {activeOtherUsers
                 .filter((u) =>
-                  u.name.toLowerCase().includes(groupSearch.toLowerCase())
+                  (u.name || u.email || '').toLowerCase().includes(groupSearch.toLowerCase())
                 )
                 .map((u) => (
                   <label
@@ -1275,8 +1271,8 @@ const ChatPage: React.FC = () => {
                       }
                       className="rounded border-gray-300 text-primary focus:ring-primary/40"
                     />
-                    <Avatar name={u.name} src={u.avatarUrl} size="xs" />
-                    <span className="text-sm text-gray-700">{u.name}</span>
+                    <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="xs" />
+                    <span className="text-sm text-gray-700">{u.name || u.email || 'Unknown'}</span>
                   </label>
                 ))}
             </div>
@@ -1303,7 +1299,7 @@ const ChatPage: React.FC = () => {
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {activeOtherUsers
               .filter((u) =>
-                u.name.toLowerCase().includes(dmSearch.toLowerCase())
+                (u.name || u.email || '').toLowerCase().includes(dmSearch.toLowerCase())
               )
               .map((u) => (
                 <button
@@ -1311,17 +1307,17 @@ const ChatPage: React.FC = () => {
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-left transition-colors"
                   onClick={() => startDm(u.id)}
                 >
-                  <Avatar name={u.name} src={u.avatarUrl} size="sm" />
+                  <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800">
-                      {u.name}
+                      {u.name || u.email || 'Unknown'}
                     </p>
                     <p className="text-xs text-gray-500 truncate">{u.email}</p>
                   </div>
                 </button>
               ))}
             {activeOtherUsers.filter((u) =>
-              u.name.toLowerCase().includes(dmSearch.toLowerCase())
+              (u.name || u.email || '').toLowerCase().includes(dmSearch.toLowerCase())
             ).length === 0 && (
               <p className="text-sm text-gray-400 text-center py-4">
                 No users found
@@ -1361,9 +1357,9 @@ const ChatPage: React.FC = () => {
                   >
                     {u ? (
                       <>
-                        <Avatar name={u.name} src={u.avatarUrl} size="sm" />
+                        <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="sm" />
                         <span className="flex-1 text-sm text-gray-800">
-                          {u.name}
+                          {u.name || u.email || 'Unknown'}
                         </span>
                         {isAdmin && (
                           <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
