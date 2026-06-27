@@ -9,9 +9,9 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig, createNotification } from '../../lib/firestore';
+import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig, createNotification, getAllRoles } from '../../lib/firestore';
 import { notifyPush } from '../../lib/push';
-import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig } from '../../types';
+import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig, Role } from '../../types';
 import toast from 'react-hot-toast';
 import Avatar from '../../components/ui/Avatar';
 
@@ -19,7 +19,7 @@ const CreateTaskPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const isEdit = !!taskId;
   const navigate = useNavigate();
-  const { appUser } = useAuthStore();
+  const { appUser, role } = useAuthStore();
   const { can } = usePermissions();
 
   // Edit needs tasks_edit; create needs tasks_create.
@@ -27,6 +27,7 @@ const CreateTaskPage: React.FC = () => {
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [assignConfig, setAssignConfig] = useState<TaskAssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,18 +41,21 @@ const CreateTaskPage: React.FC = () => {
     estimatedHours: '',
     tags: '',
     assigneeIds: [] as string[],
+    assignedRoleId: '',
   });
 
   useEffect(() => {
     const load = async () => {
-      const [u, p, cfg] = await Promise.all([
+      const [u, p, cfg, r] = await Promise.all([
         getAllUsers(),
         getProjects(),
         getTaskAssignmentConfig(),
+        getAllRoles(),
       ]);
       setUsers(u);
       setProjects(p);
       setAssignConfig(cfg);
+      setRoles(r);
 
       if (isEdit && taskId) {
         const task = await getTask(taskId);
@@ -66,6 +70,7 @@ const CreateTaskPage: React.FC = () => {
             estimatedHours: String(task.estimatedHours ?? ''),
             tags: task.tags?.join(', ') ?? '',
             assigneeIds: task.assigneeIds ?? [],
+            assignedRoleId: task.assignedRoleId ?? '',
           });
         }
       }
@@ -85,6 +90,21 @@ const CreateTaskPage: React.FC = () => {
     return users.filter(
       (u) => allowed.includes(u.roleId) || form.assigneeIds.includes(u.id),
     );
+  })();
+
+  // Which roles the current user is allowed to assign this task to.
+  const assignableRoles = (() => {
+    if (!assignConfig || !assignConfig.enabled) {
+      const myLevel = role?.level ?? 0;
+      return roles.filter((r) => r.level < myLevel);
+    }
+    const myRole = appUser?.roleId ?? '';
+    const allowed = assignConfig.matrix?.[myRole];
+    if (!allowed) {
+      const myLevel = role?.level ?? 0;
+      return roles.filter((r) => r.level < myLevel);
+    }
+    return roles.filter((r) => allowed.includes(r.id));
   })();
 
   const assignmentRestricted =
@@ -121,6 +141,7 @@ const CreateTaskPage: React.FC = () => {
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
+        assignedRoleId: form.assignedRoleId || undefined,
         createdBy: appUser.id,
         approvalStatus: 'none' as const,
       };
@@ -128,6 +149,27 @@ const CreateTaskPage: React.FC = () => {
       if (isEdit && taskId) {
         await updateTask(taskId, data);
         if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId, kind: 'assigned' });
+        
+        // Notify role members if assignedRoleId is newly set or changed
+        getTask(taskId).then((oldTask) => {
+          if (oldTask && form.assignedRoleId && form.assignedRoleId !== oldTask.assignedRoleId) {
+            getAllUsers().then((allUsers) => {
+              allUsers
+                .filter((u) => u.roleId === form.assignedRoleId && u.id !== appUser.id && u.isActive)
+                .forEach((u) => {
+                  createNotification({
+                    title: 'New Role Task Assigned',
+                    body: `A task has been assigned to your role: ${form.title.trim()}`,
+                    userId: u.id,
+                    type: 'task_assigned',
+                    isRead: {},
+                    createdAt: null as any,
+                  }).catch(() => {});
+                });
+            });
+          }
+        });
+
         toast.success('Task updated');
       } else {
         const id = await createTask(data);
@@ -146,6 +188,22 @@ const CreateTaskPage: React.FC = () => {
                 createdAt: null as any,
               }).catch(() => {}),
             );
+        }
+        if (form.assignedRoleId) {
+          getAllUsers().then((allUsers) => {
+            allUsers
+              .filter((u) => u.roleId === form.assignedRoleId && u.id !== appUser.id && u.isActive)
+              .forEach((u) => {
+                createNotification({
+                  title: 'New Role Task Assigned',
+                  body: `A task has been assigned to your role: ${form.title.trim()}`,
+                  userId: u.id,
+                  type: 'task_assigned',
+                  isRead: {},
+                  createdAt: null as any,
+                }).catch(() => {});
+              });
+          });
         }
         toast.success('Task created');
         navigate(`/app/tasks/${id}`);
@@ -251,6 +309,20 @@ const CreateTaskPage: React.FC = () => {
               onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
             />
           </div>
+        </Card>
+
+        <Card>
+          <h3 className="font-semibold text-gray-900 mb-3">Assign to Role</h3>
+          <Select
+            label="Assigned Role (optional)"
+            value={form.assignedRoleId}
+            onChange={(e) => setForm((p) => ({ ...p, assignedRoleId: e.target.value }))}
+            options={[
+              { value: '', label: 'None' },
+              ...assignableRoles.map((r) => ({ value: r.id, label: r.name })),
+            ]}
+            placeholder="Select a role"
+          />
         </Card>
 
         <Card>

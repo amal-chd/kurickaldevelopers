@@ -28,3 +28,29 @@ export async function notifyPush(payload: PushPayload): Promise<void> {
     console.warn('notifyPush failed:', err);
   }
 }
+
+export async function deleteUserAccount(targetUid: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  const token = await user.getIdToken();
+  const res = await fetch('https://ximaqbhnykyxxgiqbwoh.supabase.co/functions/v1/send-push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      event: 'delete_user',
+      targetUid,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      throw new Error(data.error || 'Failed to delete user account');
+    } catch {
+      throw new Error(`Failed to delete user account (${res.status})`);
+    }
+  }
+}

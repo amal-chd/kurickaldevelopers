@@ -59,6 +59,10 @@ export const createUser = async (uid: string, data: Omit<AppUser, 'id'>): Promis
   await setDoc(doc(db, 'users', uid), { ...data, createdAt: serverTimestamp() });
 };
 
+export const deleteUser = async (uid: string): Promise<void> => {
+  await deleteDoc(doc(db, 'users', uid));
+};
+
 export const subscribeUsers = (cb: (users: AppUser[]) => void) => {
   return onSnapshot(collection(db, 'users'), (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser)));
@@ -189,8 +193,9 @@ export const subscribeProjects = (cb: (projects: Project[]) => void) => {
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Task[]> => {
   try {
-    const { firebaseUser, permissions } = useAuthStore.getState();
+    const { firebaseUser, appUser, permissions } = useAuthStore.getState();
     const uid = firebaseUser?.uid;
+    const roleId = appUser?.roleId;
 
     if (!uid) return [];
 
@@ -226,6 +231,18 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
       });
     } catch (err: any) {
       console.warn('Gracefully handled assignee tasks fetch error:', err);
+    }
+
+    if (roleId) {
+      try {
+        const qRole = query(collection(db, 'tasks'), where('assignedRoleId', '==', roleId));
+        const roleSnap = await getDocs(qRole);
+        roleSnap.docs.forEach((d) => {
+          tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
+        });
+      } catch (err: any) {
+        console.warn('Gracefully handled role tasks fetch error:', err);
+      }
     }
 
     try {
@@ -305,8 +322,9 @@ export const deleteTask = async (id: string): Promise<void> => {
 };
 
 export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryConstraint[] = []) => {
-  const { firebaseUser, permissions } = useAuthStore.getState();
+  const { firebaseUser, appUser, permissions } = useAuthStore.getState();
   const uid = firebaseUser?.uid;
+  const roleId = appUser?.roleId;
 
   if (!uid) {
     cb([]);
@@ -333,6 +351,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
   }
 
   let assigneeTasks: Task[] = [];
+  let roleTasks: Task[] = [];
   let createdTasks: Task[] = [];
   const projectTasksMap = new Map<string, Task[]>();
   let projectUnsubs: (() => void)[] = [];
@@ -340,6 +359,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
   const emit = () => {
     const mergedMap = new Map<string, Task>();
     assigneeTasks.forEach((t) => mergedMap.set(t.id, t));
+    roleTasks.forEach((t) => mergedMap.set(t.id, t));
     createdTasks.forEach((t) => mergedMap.set(t.id, t));
     projectTasksMap.forEach((tasksList) => {
       tasksList.forEach((t) => mergedMap.set(t.id, t));
@@ -362,6 +382,18 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
     },
     (err) => console.warn('Assignee tasks sub error:', err)
   );
+
+  let unsubRole = () => {};
+  if (roleId) {
+    unsubRole = onSnapshot(
+      query(collection(db, 'tasks'), where('assignedRoleId', '==', roleId)),
+      (snap) => {
+        roleTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+        emit();
+      },
+      (err) => console.warn('Role tasks sub error:', err)
+    );
+  }
 
   const unsubCreated = onSnapshot(
     query(collection(db, 'tasks'), where('createdBy', '==', uid)),
@@ -407,6 +439,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
 
   return () => {
     unsubAssignee();
+    unsubRole();
     unsubCreated();
     unsubProjects();
     projectUnsubs.forEach((unsub) => unsub());

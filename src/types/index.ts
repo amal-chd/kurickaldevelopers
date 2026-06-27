@@ -98,6 +98,7 @@ export interface Task {
   description: string;
   projectId: string;
   assigneeIds: string[];
+  assignedRoleId?: string;
   createdBy: string;
   status: TaskStatus;
   priority: TaskPriority;

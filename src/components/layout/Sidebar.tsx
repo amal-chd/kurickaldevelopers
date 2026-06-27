@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CheckSquare, FolderOpen, Users, FileText,
-  MessageSquare, BookOpen, BarChart2, Bell, Shield, User, LogOut, X,
+  MessageSquare, BookOpen, BarChart2, Shield, LogOut, X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';

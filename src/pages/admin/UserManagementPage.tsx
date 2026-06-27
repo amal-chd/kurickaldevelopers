@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield } from 'lucide-react';
+import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -10,7 +10,8 @@ import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
-import { getAllUsers, getAllRoles, updateUser, addAuditLog } from '../../lib/firestore';
+import { getAllUsers, getAllRoles, updateUser, deleteUser, addAuditLog } from '../../lib/firestore';
+import { deleteUserAccount } from '../../lib/push';
 import { AppUser, Role } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -122,6 +123,32 @@ const UserManagementPage: React.FC = () => {
     toast.success(`User ${user.isActive ? 'deactivated' : 'activated'}`);
   };
 
+  const handleDelete = async (user: AppUser) => {
+    if (!appUser) return;
+    if (!window.confirm(`Permanently delete ${user.name || user.email}? This will remove all their data from the database and cannot be undone.`)) return;
+    try {
+      // 1. Delete authentication account and subcollections (attendance, notifications, private)
+      await deleteUserAccount(user.id);
+      // 2. Delete Firestore user document
+      await deleteUser(user.id);
+      
+      await addAuditLog({
+        action: 'user_deleted',
+        userId: appUser.id,
+        userName: appUser.name,
+        targetId: user.id,
+        targetType: 'user',
+        details: `Permanently deleted user ${user.name} (${user.email})`,
+        createdAt: serverTimestamp() as any,
+      });
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      toast.success('User permanently deleted');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete user');
+    }
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
   return (
@@ -191,6 +218,15 @@ const UserManagementPage: React.FC = () => {
                     >
                       {user.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                     </button>
+                    {can('team_delete') && (
+                      <button
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        onClick={() => handleDelete(user)}
+                        title="Delete permanently"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

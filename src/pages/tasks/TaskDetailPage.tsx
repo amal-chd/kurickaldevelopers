@@ -16,9 +16,9 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   getTask, getAllUsers, getSubtasks, addSubtask, updateSubtask, deleteSubtask,
   updateTask, deleteTask, getProject, sendMessage, getChannel, createChannelWithId,
-  createNotification,
+  createNotification, getRole,
 } from '../../lib/firestore';
-import { Task, Subtask, AppUser, Project, TaskStatus } from '../../types';
+import { Task, Subtask, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
 import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -42,6 +42,7 @@ const TaskDetailPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [assignedRole, setAssignedRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
@@ -58,6 +59,10 @@ const TaskDetailPage: React.FC = () => {
         if (t?.projectId) {
           const p = await getProject(t.projectId);
           setProject(p);
+        }
+        if (t?.assignedRoleId) {
+          const r = await getRole(t.assignedRoleId);
+          setAssignedRole(r);
         }
         const st = await getSubtasks(taskId);
         setSubtasks(st);
@@ -370,6 +375,25 @@ const TaskDetailPage: React.FC = () => {
               )}
             </div>
           </Card>
+
+          {task.assignedRoleId && (
+            <Card>
+              <h3 className="font-semibold text-gray-900 mb-3">Assigned Role</h3>
+              {assignedRole ? (
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: assignedRole.color }}
+                  />
+                  <span className="text-sm font-semibold" style={{ color: assignedRole.color }}>
+                    {assignedRole.name}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">Loading role info...</p>
+              )}
+            </Card>
+          )}
 
           {/* Actions */}
           <div className="space-y-2">
