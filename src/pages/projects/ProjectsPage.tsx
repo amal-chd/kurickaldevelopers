@@ -24,7 +24,7 @@ const STATUS_FILTERS = ['all', 'active', 'planning', 'on_hold', 'completed', 'ca
 
 const ProjectsPage: React.FC = () => {
   const { can } = usePermissions();
-  const { appUser } = useAuthStore();
+  const { appUser, firebaseUser } = useAuthStore();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -34,13 +34,17 @@ const ProjectsPage: React.FC = () => {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    setLoading(true);
     (async () => {
       try {
         const [p, t, u] = await Promise.all([getProjects(), getTasks(), getAllUsers()]);
         setProjects(p); setTasks(t); setUsers(u);
       } finally { setLoading(false); }
     })();
-  }, []);
+  }, [firebaseUser?.uid, appUser?.id]);
 
   if (!can('projects_view')) {
     return (

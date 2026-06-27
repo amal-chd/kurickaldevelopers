@@ -31,7 +31,7 @@ const TAB_LABELS: Record<TabFilter, string> = {
 };
 
 const TasksPage: React.FC = () => {
-  const { appUser } = useAuthStore();
+  const { appUser, firebaseUser } = useAuthStore();
   const { can } = usePermissions();
   const navigate = useNavigate();
 
@@ -49,6 +49,10 @@ const TasksPage: React.FC = () => {
   const isManager = can('tasks_approve');
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    setLoading(true);
     (async () => {
       const [tRes, uRes, pRes] = await Promise.allSettled([
         getTasks(),
@@ -60,8 +64,7 @@ const TasksPage: React.FC = () => {
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
       setLoading(false);
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [firebaseUser?.uid, appUser?.id]);
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
   const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done');

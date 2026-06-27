@@ -17,7 +17,7 @@ import { formatDate, projectStatusColor, projectStatusLabel } from '../../lib/ut
 import { isAfter } from 'date-fns';
 
 const DashboardPage: React.FC = () => {
-  const { appUser } = useAuthStore();
+  const { appUser, firebaseUser } = useAuthStore();
   const { can } = usePermissions();
   const navigate = useNavigate();
 
@@ -34,6 +34,12 @@ const DashboardPage: React.FC = () => {
   const loading = !ready.projects || !ready.tasks || !ready.users;
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    // Reset ready state when changing user
+    setReady({ projects: false, tasks: false, users: false });
+
     // onSnapshot subscriptions automatically re-run when the auth token
     // refreshes, so they recover from the initial permission-denied race
     // without any manual "Try again" click.
@@ -59,8 +65,7 @@ const DashboardPage: React.FC = () => {
       unsubUsers();
       clearTimeout(timer);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [firebaseUser?.uid, appUser?.id]);
 
   if (loading) {
     return (

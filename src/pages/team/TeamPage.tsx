@@ -8,11 +8,13 @@ import EmptyState from '../../components/ui/EmptyState';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 import { getAllUsers, getAllRoles } from '../../lib/firestore';
 import { AppUser, Role } from '../../types';
 
 const TeamPage: React.FC = () => {
   const { can } = usePermissions();
+  const { firebaseUser } = useAuthStore();
   const navigate = useNavigate();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -21,11 +23,15 @@ const TeamPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('');
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    setLoading(true);
     (async () => {
       const [u, r] = await Promise.all([getAllUsers(), getAllRoles()]);
       setUsers(u); setRoles(r); setLoading(false);
     })();
-  }, []);
+  }, [firebaseUser?.uid]);
 
   if (!can('team_view')) {
     return (

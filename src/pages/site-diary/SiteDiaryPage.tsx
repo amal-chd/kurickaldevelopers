@@ -19,7 +19,7 @@ import toast from 'react-hot-toast';
 const WEATHER_OPTIONS = ['Sunny', 'Cloudy', 'Partly Cloudy', 'Rainy', 'Stormy', 'Foggy', 'Windy'];
 
 const SiteDiaryPage: React.FC = () => {
-  const { appUser } = useAuthStore();
+  const { appUser, firebaseUser } = useAuthStore();
   const [entries, setEntries] = useState<SiteDiaryEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +41,10 @@ const SiteDiaryPage: React.FC = () => {
   });
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    setLoading(true);
     const load = async () => {
       const [e, p] = await Promise.all([getSiteDiary(), getProjects()]);
       setEntries(e);
@@ -48,7 +52,7 @@ const SiteDiaryPage: React.FC = () => {
       setLoading(false);
     };
     load();
-  }, []);
+  }, [firebaseUser?.uid, appUser?.id]);
 
   const resetForm = () => {
     setForm({

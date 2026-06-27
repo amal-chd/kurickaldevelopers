@@ -19,7 +19,7 @@ import { formatDate, formatFileSize, getMimeIcon } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 const DocumentsPage: React.FC = () => {
-  const { appUser } = useAuthStore();
+  const { appUser, firebaseUser } = useAuthStore();
   const { can } = usePermissions();
   const [documents, setDocuments] = useState<TDocument[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -35,6 +35,10 @@ const DocumentsPage: React.FC = () => {
   const [previewDoc, setPreviewDoc] = useState<TDocument | null>(null);
 
   useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) return;
+
+    setLoading(true);
     const load = async () => {
       try {
         const [dRes, pRes, uRes] = await Promise.allSettled([
@@ -53,7 +57,7 @@ const DocumentsPage: React.FC = () => {
       }
     };
     load();
-  }, []);
+  }, [firebaseUser?.uid, appUser?.id]);
 
   if (!can('docs_view')) {
     return (
