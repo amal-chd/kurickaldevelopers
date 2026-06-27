@@ -12,7 +12,6 @@ const BASE_ADMIN_ITEMS = [
   { to: '/app/admin/users',        label: 'User Management',      desc: 'Add, edit, and manage users',                  icon: Users,   perm: 'settings_manage' as const },
   { to: '/app/admin/roles',        label: 'Role Management',       desc: 'Create roles and assign permissions',           icon: Shield,  perm: 'roles_manage' as const },
   { to: '/app/admin/task-assignment', label: 'Task Assignment Rules', desc: 'Decide who can assign tasks to whom',         icon: UserCheck, perm: 'roles_manage' as const },
-  { to: '/app/admin/org-settings', label: 'Org Settings',          desc: 'Company info, working hours, geofence',         icon: Settings,perm: 'settings_manage' as const },
   { to: '/app/admin/audit-log',    label: 'Audit Log',             desc: 'Track admin actions and system events',         icon: FileText,perm: 'roles_manage' as const },
   { to: '/app/admin/notifications',label: 'Notification Center',   desc: 'Send broadcasts to all users',                 icon: Bell,    perm: 'notifications_manage' as const },
   { to: '/app/admin/attendance',   label: 'Attendance Dashboard',  desc: 'View staff check-in/out records',              icon: Clock,   perm: 'attendance_view_all' as const },
