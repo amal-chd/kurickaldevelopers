@@ -30,7 +30,6 @@ import AdminPage from './pages/admin/AdminPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import RoleManagementPage from './pages/admin/RoleManagementPage';
 import TaskAssignmentSettingsPage from './pages/admin/TaskAssignmentSettingsPage';
-import OrgSettingsPage from './pages/admin/OrgSettingsPage';
 import AuditLogPage from './pages/admin/AuditLogPage';
 import NotificationAdminPage from './pages/admin/NotificationAdminPage';
 import AttendanceDashboardPage from './pages/admin/AttendanceDashboardPage';
@@ -128,7 +127,6 @@ function App() {
             <Route path="admin/users" element={<UserManagementPage />} />
             <Route path="admin/roles" element={<RoleManagementPage />} />
             <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
-            <Route path="admin/org-settings" element={<OrgSettingsPage />} />
             <Route path="admin/audit-log" element={<AuditLogPage />} />
             <Route path="admin/notifications" element={<NotificationAdminPage />} />
             <Route path="admin/attendance" element={<AttendanceDashboardPage />} />

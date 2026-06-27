@@ -820,7 +820,7 @@ const ChatPage: React.FC = () => {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <div
         className={`flex-shrink-0 flex flex-col border-r border-gray-100 bg-white transition-all duration-300 ${
@@ -963,12 +963,6 @@ const ChatPage: React.FC = () => {
                     {currentChannel.type === 'announcement' && (
                       <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">
                         Announcement
-                      </span>
-                    )}
-                    {chatModerate && (
-                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1 flex-shrink-0">
-                        <Shield className="w-3 h-3" />
-                        Mod
                       </span>
                     )}
                   </div>

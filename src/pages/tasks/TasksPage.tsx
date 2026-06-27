@@ -10,8 +10,8 @@ import Avatar from '../../components/ui/Avatar';
 import Input from '../../components/ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { getTasks, getAllUsers, getProjects } from '../../lib/firestore';
-import { Task, AppUser, Project, TaskStatus } from '../../types';
+import { getTasks, getAllUsers, getProjects, getAllRoles } from '../../lib/firestore';
+import { Task, AppUser, Project, TaskStatus, Role } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
@@ -38,6 +38,7 @@ const TasksPage: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('kanban');
   const [tab, setTab] = useState<TabFilter>('all');
@@ -54,23 +55,27 @@ const TasksPage: React.FC = () => {
 
     setLoading(true);
     (async () => {
-      const [tRes, uRes, pRes] = await Promise.allSettled([
+      const [tRes, uRes, pRes, rRes] = await Promise.allSettled([
         getTasks(),
         getAllUsers(),
         getProjects(),
+        getAllRoles(),
       ]);
       if (tRes.status === 'fulfilled') setTasks(tRes.value);
       if (uRes.status === 'fulfilled') setUsers(uRes.value);
       if (pRes.status === 'fulfilled') setProjects(pRes.value);
+      if (rRes.status === 'fulfilled') setRoles(rRes.value);
       setLoading(false);
     })();
   }, [firebaseUser?.uid, appUser?.id]);
+
+  const getRole = (rid: string) => roles.find((r) => r.id === rid);
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
   const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done');
 
   const filteredTasks = tasks.filter((t) => {
-    if (!isManager && !t.assigneeIds?.includes(appUser?.id ?? '')) return false;
+    if (!isManager && !t.assigneeIds?.includes(appUser?.id ?? '') && !(t.assignedRoleId && t.assignedRoleId === appUser?.roleId)) return false;
     if (projectFilter && t.projectId !== projectFilter) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     if (tab === 'all') return true;
@@ -114,12 +119,30 @@ const TasksPage: React.FC = () => {
         <p className="text-sm font-semibold text-gray-900 leading-snug mb-2 line-clamp-2">{task.title}</p>
         {project && <p className="text-xs text-primary/70 font-medium mb-3 truncate">{project.name}</p>}
         <div className="flex items-center justify-between">
-          <div className="flex -space-x-1.5">
-            {assignees.map((u) => (
-              <div key={u.id} className="ring-2 ring-white rounded-full">
-                <Avatar name={u.name} src={u.avatarUrl} size="xs" />
-              </div>
-            ))}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex -space-x-1.5">
+              {assignees.map((u) => (
+                <div key={u.id} className="ring-2 ring-white rounded-full">
+                  <Avatar name={u.name} src={u.avatarUrl} size="xs" />
+                </div>
+              ))}
+            </div>
+            {task.assignedRoleId && (() => {
+              const r = getRole(task.assignedRoleId);
+              if (!r) return null;
+              return (
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+                  style={{
+                    color: r.color,
+                    borderColor: `${r.color}30`,
+                    backgroundColor: `${r.color}08`,
+                  }}
+                >
+                  {r.name}
+                </span>
+              );
+            })()}
           </div>
           {task.dueDate && (
             <span className={`flex items-center gap-1 text-xs font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
@@ -273,11 +296,29 @@ const TasksPage: React.FC = () => {
                           {formatDate(task.dueDate)}
                         </td>
                         <td className="px-4 py-3.5 hidden lg:table-cell">
-                          <div className="flex -space-x-1.5">
-                            {(task.assigneeIds ?? []).slice(0, 3).map((uid) => {
-                              const u = getUser(uid);
-                              return u ? <Avatar key={uid} name={u.name} src={u.avatarUrl} size="xs" /> : null;
-                            })}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex -space-x-1.5">
+                              {(task.assigneeIds ?? []).slice(0, 3).map((uid) => {
+                                const u = getUser(uid);
+                                return u ? <Avatar key={uid} name={u.name} src={u.avatarUrl} size="xs" /> : null;
+                              })}
+                            </div>
+                            {task.assignedRoleId && (() => {
+                              const r = getRole(task.assignedRoleId);
+                              if (!r) return null;
+                              return (
+                                <span
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+                                  style={{
+                                    color: r.color,
+                                    borderColor: `${r.color}30`,
+                                    backgroundColor: `${r.color}08`,
+                                  }}
+                                >
+                                  {r.name}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>

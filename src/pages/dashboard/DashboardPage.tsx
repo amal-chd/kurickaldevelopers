@@ -80,10 +80,10 @@ const DashboardPage: React.FC = () => {
   const userId      = appUser?.id ?? '';
   const isManager   = can('tasks_approve');
 
-  // Managers see all tasks; others see only their own
+  // Managers see all tasks; others see only their own or their role's
   const myTasks     = isManager
     ? allTasks
-    : allTasks.filter((t) => t.assigneeIds?.includes(userId));
+    : allTasks.filter((t) => t.assigneeIds?.includes(userId) || (t.assignedRoleId && t.assignedRoleId === appUser?.roleId));
 
   const activeProjects   = projects.filter((p) => p.status === 'active');
   const inProgressTasks  = allTasks.filter((t) => t.status === 'in_progress');

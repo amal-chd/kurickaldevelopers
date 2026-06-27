@@ -7,9 +7,9 @@ import EmptyState from '../../components/ui/EmptyState';
 import Avatar from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
-import { createNotification, getAllUsers } from '../../lib/firestore';
+import { createNotification, getAllUsers, getAllRoles } from '../../lib/firestore';
 import { notifyPush } from '../../lib/push';
-import { AppUser, AppNotification } from '../../types';
+import { AppUser, AppNotification, Role } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
@@ -26,6 +26,7 @@ const NotificationAdminPage: React.FC = () => {
   const { can } = usePermissions();
   const { appUser } = useAuthStore();
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [recentNotifs, setRecentNotifs] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -33,12 +34,14 @@ const NotificationAdminPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [type, setType] = useState('announcement');
-  const [targetMode, setTargetMode] = useState<'broadcast' | 'specific'>('broadcast');
+  const [targetMode, setTargetMode] = useState<'broadcast' | 'role' | 'specific'>('broadcast');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [userSearch, setUserSearch] = useState('');
 
   useEffect(() => {
     getAllUsers().then(setUsers);
+    getAllRoles().then(setRoles);
 
     // Subscribe to recent broadcast notifications only.
     // Firestore rules require resource.data.userId == '' || == auth.uid, so an
@@ -78,10 +81,29 @@ const NotificationAdminPage: React.FC = () => {
       toast.error('Select at least one recipient');
       return;
     }
+    if (targetMode === 'role' && !selectedRoleId) {
+      toast.error('Select a target role');
+      return;
+    }
 
     setLoading(true);
     try {
-      const targets = targetMode === 'broadcast' ? [''] : selectedUserIds;
+      let targets: string[] = [];
+      if (targetMode === 'broadcast') {
+        targets = [''];
+      } else if (targetMode === 'role') {
+        targets = users
+          .filter((u) => u.roleId === selectedRoleId && u.isActive)
+          .map((u) => u.id);
+        if (targets.length === 0) {
+          toast.error('No active users found with the selected role');
+          setLoading(false);
+          return;
+        }
+      } else {
+        targets = selectedUserIds;
+      }
+
       await Promise.all(
         targets.map((uid) =>
           createNotification({
@@ -98,16 +120,20 @@ const NotificationAdminPage: React.FC = () => {
       notifyPush(
         targetMode === 'broadcast'
           ? { event: 'broadcast', title: title.trim(), body: body.trim() }
-          : { event: 'broadcast', title: title.trim(), body: body.trim(), userIds: selectedUserIds }
+          : { event: 'broadcast', title: title.trim(), body: body.trim(), userIds: targets }
       );
+      const targetRoleName = targetMode === 'role' ? roles.find((r) => r.id === selectedRoleId)?.name : '';
       toast.success(
         targetMode === 'broadcast'
           ? 'Broadcast sent to all users!'
+          : targetMode === 'role'
+          ? `Sent to members of the ${targetRoleName} role!`
           : `Sent to ${selectedUserIds.length} user(s)!`
       );
       setTitle('');
       setBody('');
       setSelectedUserIds([]);
+      setSelectedRoleId('');
       setTargetMode('broadcast');
     } catch {
       toast.error('Failed to send notification');
@@ -202,6 +228,15 @@ const NotificationAdminPage: React.FC = () => {
                   All Users
                 </button>
                 <button
+                  onClick={() => setTargetMode('role')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium flex-1 justify-center transition-all ${
+                    targetMode === 'role' ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  By Role
+                </button>
+                <button
                   onClick={() => setTargetMode('specific')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium flex-1 justify-center transition-all ${
                     targetMode === 'specific' ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -211,6 +246,29 @@ const NotificationAdminPage: React.FC = () => {
                   Specific
                 </button>
               </div>
+
+              {targetMode === 'role' && (
+                <div className="space-y-2 mb-3">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Target Role</label>
+                  <select
+                    value={selectedRoleId}
+                    onChange={(e) => setSelectedRoleId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary bg-white"
+                  >
+                    <option value="">Select a role...</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedRoleId && (
+                    <p className="text-xs text-gray-500">
+                      This will notify the {users.filter((u) => u.roleId === selectedRoleId && u.isActive).length} active member(s) of this role.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {targetMode === 'specific' && (
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -271,7 +329,11 @@ const NotificationAdminPage: React.FC = () => {
               leftIcon={<Send className="w-4 h-4" />}
               className="w-full justify-center"
             >
-              {targetMode === 'broadcast' ? 'Broadcast to All' : `Send to ${selectedUserIds.length || 0} User(s)`}
+              {targetMode === 'broadcast'
+                ? 'Broadcast to All'
+                : targetMode === 'role'
+                ? 'Send to Role Members'
+                : `Send to ${selectedUserIds.length || 0} User(s)`}
             </Button>
           </Card>
         </div>
