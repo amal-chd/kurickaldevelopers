@@ -197,27 +197,20 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
 
-  // Derive the best available name: auth profile > email prefix > 'User'
   const derivedName = displayName?.trim() || email.split('@')[0] || 'User';
   const roleId = EMAIL_ROLE_MAP[email] ?? '';
 
   if (snap.exists()) {
-    // Patch empty name or missing roleId on existing docs
     const data = snap.data();
-    const needsPatch =
-      (!data.name || data.name === '') ||
-      (roleId && !data.roleId);
-    if (needsPatch) {
-      await setDoc(ref, {
-        ...data,
-        name: data.name || derivedName,
-        roleId: data.roleId || roleId,
-      }, { merge: true });
-    }
+    await setDoc(ref, {
+      ...data,
+      name: data.name || derivedName,
+      roleId: data.roleId || roleId,
+      lastLoginAt: serverTimestamp(),
+    }, { merge: true });
     return;
   }
 
-  // Only auto-create if this email is mapped to a predefined role
   if (roleId) {
     await setDoc(ref, {
       name: derivedName,
@@ -228,6 +221,7 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
       isActive: true,
       orgId: 'main',
       createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
     });
   }
 }
@@ -239,77 +233,74 @@ export function useAuthInit() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
+      const currentStore = useAuthStore.getState();
+      const isSameUser = currentStore.firebaseUser?.uid === firebaseUser?.uid;
+
+      // Update the firebase user reference
       setFirebaseUser(firebaseUser);
 
       if (firebaseUser) {
-        try {
-          // Force a fresh ID token so Firestore auth validation is ready.
-          // This prevents "Missing or insufficient permissions" on first login.
-          await firebaseUser.getIdToken(true);
+        // Skip setup steps if it's a transient token refresh of an already initialized user session
+        if (!isSameUser || !currentStore.appUser) {
+          setLoading(true);
+          try {
+            // Force a fresh ID token so Firestore auth validation is ready.
+            await firebaseUser.getIdToken(true);
+            await new Promise((r) => setTimeout(r, 300));
 
-          // Small delay to let the Firestore SDK pick up the new token before
-          // any collection reads begin. Without this, the first getDocs/onSnapshot
-          // can fire with the old (unauthenticated) token and get permission-denied.
-          await new Promise((r) => setTimeout(r, 300));
+            // Seed roles on first use
+            await seedRolesIfNeeded();
 
-          // 1. Seed roles on very first use (silently ignores permission errors —
-          //    roles may already exist from a prior run or from the Flutter app)
-          await seedRolesIfNeeded();
+            // Auto-create/patch user doc (updates lastLoginAt)
+            await ensureUserDoc(
+              firebaseUser.uid,
+              firebaseUser.email ?? '',
+              firebaseUser.displayName,
+            );
+          } catch (err) {
+            console.warn('Auth init setup step failed (non-fatal):', err);
+          }
 
-          // 2. Auto-create user doc if this is their first login
-          await ensureUserDoc(
-            firebaseUser.uid,
-            firebaseUser.email ?? '',
-            firebaseUser.displayName,
-          );
-        } catch (err) {
-          // Non-fatal — the user doc might already exist or rules block seeding.
-          // We still proceed to read whatever is in Firestore.
-          console.warn('Auth init setup step failed (non-fatal):', err);
-        }
+          // Load app user + role from Firestore
+          try {
+            const appUser = await getUser(firebaseUser.uid);
+            setAppUser(appUser);
 
-        // 3. Load app user + role — always attempt even if setup steps failed
-        try {
-          const appUser = await getUser(firebaseUser.uid);
-          setAppUser(appUser);
+            if (appUser) registerFcm(appUser.id);
 
-          // Register this browser for push (no-op until a VAPID key is set).
-          if (appUser) registerFcm(appUser.id);
-
-          if (appUser?.roleId) {
-            // Try Firestore first; fall back to built-in defaults so the app
-            // works even when roles haven't been seeded to Firestore yet.
-            let role = await getRole(appUser.roleId);
-            if (!role) {
-              const builtin = DEFAULT_ROLES.find((r) => r.id === appUser.roleId);
-              if (builtin) {
-                role = {
-                  id: builtin.id,
-                  name: builtin.name,
-                  description: builtin.description,
-                  color: builtin.color,
-                  level: builtin.level,
-                  permissions: builtin.permissions,
-                  createdBy: 'system',
-                };
+            if (appUser?.roleId) {
+              let role = await getRole(appUser.roleId);
+              if (!role) {
+                const builtin = DEFAULT_ROLES.find((r) => r.id === appUser.roleId);
+                if (builtin) {
+                  role = {
+                    id: builtin.id,
+                    name: builtin.name,
+                    description: builtin.description,
+                    color: builtin.color,
+                    level: builtin.level,
+                    permissions: builtin.permissions,
+                    createdBy: 'system',
+                  };
+                }
               }
+              setRole(role);
+            } else {
+              setRole(null);
             }
-            setRole(role);
-          } else {
+          } catch (err) {
+            console.error('Failed to load user/role from Firestore:', err);
+            setAppUser(null);
             setRole(null);
           }
-        } catch (err) {
-          console.error('Failed to load user/role from Firestore:', err);
-          setAppUser(null);
-          setRole(null);
+          setLoading(false);
         }
       } else {
         setAppUser(null);
         setRole(null);
+        setLoading(false);
       }
 
-      setLoading(false);
       setInitialized(true);
     });
 

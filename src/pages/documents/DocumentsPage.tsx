@@ -17,6 +17,8 @@ import { uploadToSupabase, deleteFromSupabase, STORAGE_BUCKETS } from '../../lib
 import { Document as TDocument, Project, AppUser } from '../../types';
 import { formatDate, formatFileSize, getMimeIcon } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { DocumentViewer } from './DocumentViewer';
+
 
 const DocumentsPage: React.FC = () => {
   const { appUser, firebaseUser } = useAuthStore();
@@ -306,36 +308,19 @@ const DocumentsPage: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Preview Modal */}
-      <Modal
-        open={!!previewDoc}
-        onClose={() => setPreviewDoc(null)}
-        title={previewDoc?.name}
-        size="2xl"
-      >
-        {previewDoc && (
-          <div className="text-center">
-            {previewDoc.mimeType.startsWith('image/') ? (
-              <img src={previewDoc.url} alt={previewDoc.name} className="max-w-full max-h-96 object-contain mx-auto rounded-lg" />
-            ) : previewDoc.mimeType === 'application/pdf' ? (
-              <iframe src={previewDoc.url} className="w-full h-96 rounded-lg border" title={previewDoc.name} />
-            ) : (
-              <div className="py-12">
-                <span className="text-6xl">{getMimeIcon(previewDoc.mimeType)}</span>
-                <p className="mt-4 text-gray-600">{previewDoc.name}</p>
-                <a
-                  href={previewDoc.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex items-center gap-2 text-primary hover:underline"
-                >
-                  <Download className="w-4 h-4" /> Download to view
-                </a>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      {/* Preview Modal / In-app document viewer */}
+      {previewDoc && (
+        <DocumentViewer
+          doc={{
+            id: previewDoc.id,
+            name: previewDoc.name,
+            url: previewDoc.url,
+            mimeType: previewDoc.mimeType,
+            size: previewDoc.size,
+          }}
+          onClose={() => setPreviewDoc(null)}
+        />
+      )}
     </div>
   );
 };

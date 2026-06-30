@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { subscribeNotifications, markNotificationRead, markAllNotificationsRead } from '../../lib/firestore';
 import { AppNotification } from '../../types';
 import { formatTimeAgo } from '../../lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; border: string }> = {
   task:         { icon: <CheckCheck className="w-4 h-4 text-blue-600" />,    bg: 'bg-blue-50',   border: 'border-blue-100' },
@@ -22,6 +23,7 @@ const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!appUser) { setLoading(false); return; }
@@ -44,6 +46,24 @@ const NotificationsPage: React.FC = () => {
   const handleMarkAll = async () => {
     if (!appUser || unreadList.length === 0) return;
     await markAllNotificationsRead(unreadList.map((n) => n.id), appUser.id);
+  };
+
+  const handleNotifClick = async (n: AppNotification) => {
+    if (!appUser) return;
+    if (!isRead(n)) {
+      await markNotificationRead(n.id, appUser.id);
+    }
+    if (n.type === 'announcement' || n.type === 'chat_message' || n.type === 'chat') {
+      if (n.relatedId) navigate(`/app/chat/${n.relatedId}`);
+    } else if (n.type === 'task' || n.type === 'task_assigned' || n.type === 'task_updated') {
+      if (n.relatedId) navigate(`/app/tasks/${n.relatedId}`);
+    } else if (n.type === 'projectUpdate' || n.type === 'project') {
+      if (n.relatedId) navigate(`/app/projects/${n.relatedId}`);
+    } else if (n.type === 'diaryEntry') {
+      navigate('/app/site-diary');
+    } else if (n.type === 'documentUploaded') {
+      navigate('/app/documents');
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
@@ -95,7 +115,8 @@ const NotificationsPage: React.FC = () => {
             return (
               <div
                 key={n.id}
-                className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all ${
+                onClick={() => handleNotifClick(n)}
+                className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer hover:bg-gray-50/50 hover:border-gray-200 ${
                   !read
                     ? 'bg-primary/[0.03] border-primary/15 shadow-sm'
                     : 'bg-white border-gray-100'
@@ -123,7 +144,10 @@ const NotificationsPage: React.FC = () => {
                 {/* Actions */}
                 {!read && (
                   <button
-                    onClick={() => handleMarkRead(n.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkRead(n.id);
+                    }}
                     className="flex-shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Mark as read"
                   >

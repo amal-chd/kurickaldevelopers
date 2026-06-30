@@ -41,7 +41,7 @@ const CreateTaskPage: React.FC = () => {
     estimatedHours: '',
     tags: '',
     assigneeIds: [] as string[],
-    assignedRoleId: '',
+    assignedRoleIds: [] as string[],
   });
 
   useEffect(() => {
@@ -70,7 +70,7 @@ const CreateTaskPage: React.FC = () => {
             estimatedHours: String(task.estimatedHours ?? ''),
             tags: task.tags?.join(', ') ?? '',
             assigneeIds: task.assigneeIds ?? [],
-            assignedRoleId: task.assignedRoleId ?? '',
+            assignedRoleIds: task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []),
           });
         }
       }
@@ -119,6 +119,15 @@ const CreateTaskPage: React.FC = () => {
     }));
   };
 
+  const toggleAssignedRole = (rid: string) => {
+    setForm((prev) => ({
+      ...prev,
+      assignedRoleIds: prev.assignedRoleIds.includes(rid)
+        ? prev.assignedRoleIds.filter((id) => id !== rid)
+        : [...prev.assignedRoleIds, rid],
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appUser || !form.title.trim()) return;
@@ -141,7 +150,7 @@ const CreateTaskPage: React.FC = () => {
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
-        assignedRoleId: form.assignedRoleId || undefined,
+        assignedRoleIds: form.assignedRoleIds,
         createdBy: appUser.id,
         approvalStatus: 'none' as const,
       };
@@ -150,23 +159,28 @@ const CreateTaskPage: React.FC = () => {
         await updateTask(taskId, data);
         if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId, kind: 'assigned' });
         
-        // Notify role members if assignedRoleId is newly set or changed
+        // Notify role members if assignedRoleIds are newly set or changed
         getTask(taskId).then((oldTask) => {
-          if (oldTask && form.assignedRoleId && form.assignedRoleId !== oldTask.assignedRoleId) {
-            getAllUsers().then((allUsers) => {
-              allUsers
-                .filter((u) => u.roleId === form.assignedRoleId && u.id !== appUser.id && u.isActive)
-                .forEach((u) => {
-                  createNotification({
-                    title: 'New Role Task Assigned',
-                    body: `A task has been assigned to your role: ${form.title.trim()}`,
-                    userId: u.id,
-                    type: 'task_assigned',
-                    isRead: {},
-                    createdAt: null as any,
-                  }).catch(() => {});
-                });
-            });
+          if (oldTask) {
+            const oldRoles = oldTask.assignedRoleIds ?? (oldTask.assignedRoleId ? [oldTask.assignedRoleId] : []);
+            const newRoles = form.assignedRoleIds;
+            const newlyAddedRoles = newRoles.filter((r) => !oldRoles.includes(r));
+            if (newlyAddedRoles.length > 0) {
+              getAllUsers().then((allUsers) => {
+                allUsers
+                  .filter((u) => newlyAddedRoles.includes(u.roleId) && u.id !== appUser.id && u.isActive)
+                  .forEach((u) => {
+                    createNotification({
+                      title: 'New Role Task Assigned',
+                      body: `A task has been assigned to your role: ${form.title.trim()}`,
+                      userId: u.id,
+                      type: 'task_assigned',
+                      isRead: {},
+                      createdAt: null as any,
+                    }).catch(() => {});
+                  });
+              });
+            }
           }
         });
 
@@ -175,7 +189,6 @@ const CreateTaskPage: React.FC = () => {
         const id = await createTask(data);
         if (form.assigneeIds.length > 0) {
           notifyPush({ event: 'task', taskId: id, kind: 'assigned' });
-          // In-app notification for each assignee (works on the free plan).
           form.assigneeIds
             .filter((uid) => uid !== appUser.id)
             .forEach((uid) =>
@@ -189,10 +202,10 @@ const CreateTaskPage: React.FC = () => {
               }).catch(() => {}),
             );
         }
-        if (form.assignedRoleId) {
+        if (form.assignedRoleIds.length > 0) {
           getAllUsers().then((allUsers) => {
             allUsers
-              .filter((u) => u.roleId === form.assignedRoleId && u.id !== appUser.id && u.isActive)
+              .filter((u) => form.assignedRoleIds.includes(u.roleId) && u.id !== appUser.id && u.isActive)
               .forEach((u) => {
                 createNotification({
                   title: 'New Role Task Assigned',
@@ -312,17 +325,27 @@ const CreateTaskPage: React.FC = () => {
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Assign to Role</h3>
-          <Select
-            label="Assigned Role (optional)"
-            value={form.assignedRoleId}
-            onChange={(e) => setForm((p) => ({ ...p, assignedRoleId: e.target.value }))}
-            options={[
-              { value: '', label: 'None' },
-              ...assignableRoles.map((r) => ({ value: r.id, label: r.name })),
-            ]}
-            placeholder="Select a role"
-          />
+          <h3 className="font-semibold text-gray-900 mb-3">Assign to Roles / Departments / Teams</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+            {assignableRoles.map((roleItem) => {
+              const selected = form.assignedRoleIds.includes(roleItem.id);
+              return (
+                <button
+                  key={roleItem.id}
+                  type="button"
+                  onClick={() => toggleAssignedRole(roleItem.id)}
+                  className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
+                    selected
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" style={{ color: roleItem.color || '#1A3A5C' }} />
+                  <span className="text-xs font-medium truncate">{roleItem.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </Card>
 
         <Card>

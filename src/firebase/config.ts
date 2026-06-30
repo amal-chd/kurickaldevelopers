@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -19,6 +19,11 @@ const firebaseConfig = {
 // "Firebase App ... already deleted/exists" errors).
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Configure local persistence to survive browser close/refresh
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.error('Failed to set auth persistence:', err);
+});
 
 // ignoreUndefinedProperties lets writes omit `undefined` fields instead of
 // throwing "Unsupported field value: undefined" — e.g. a chat message with no

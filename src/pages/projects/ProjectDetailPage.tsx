@@ -11,6 +11,7 @@ import Avatar from '../../components/ui/Avatar';
 import { TaskStatusChip } from '../../components/ui/StatusChip';
 import Badge from '../../components/ui/Badge';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 import {
   getProject, getTasks, getAllUsers, getDocuments, getSiteDiary,
   deleteProject,
@@ -26,6 +27,7 @@ const ProjectDetailPage: React.FC = () => {
   const { id: projectId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { can } = usePermissions();
+  const { appUser } = useAuthStore();
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -80,12 +82,18 @@ const ProjectDetailPage: React.FC = () => {
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (!project) return <div className="text-center py-16 text-gray-500">Project not found</div>;
 
+  const isManager = can('tasks_approve');
+  const getTaskStatus = (t: Task) => {
+    if (isManager || !appUser) return t.status;
+    return t.memberProgress?.[appUser.id]?.status ?? t.status;
+  };
+
   const members = users.filter((u) => project.memberIds?.includes(u.id));
   const manager = users.find((u) => u.id === project.managerId);
   const tasksByStatus = {
-    in_progress: tasks.filter((t) => t.status === 'in_progress').length,
-    approved: tasks.filter((t) => t.status === 'approved').length,
-    done: tasks.filter((t) => t.status === 'done').length,
+    in_progress: tasks.filter((t) => getTaskStatus(t) === 'in_progress').length,
+    approved: tasks.filter((t) => getTaskStatus(t) === 'approved').length,
+    done: tasks.filter((t) => getTaskStatus(t) === 'done').length,
   };
   const progress = tasks.length > 0
     ? Math.round((tasksByStatus.done / tasks.length) * 100)
@@ -108,14 +116,12 @@ const ProjectDetailPage: React.FC = () => {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-            <span className={`text-xs font-medium px-2 py-1 rounded-full ${projectStatusColor(project.status)}`}>
-              {projectStatusLabel(project.status)}
+            <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
+            <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 capitalize">
+              ● {project.status.replace('_', ' ')}
             </span>
           </div>
-          {project.description && (
-            <p className="text-sm text-gray-500 mt-1">{project.description}</p>
-          )}
+          <p className="text-xs text-gray-400 mt-1">Manager: {manager?.name ?? '—'}</p>
         </div>
         <div className="flex gap-2">
           {can('projects_edit') && (
@@ -241,7 +247,7 @@ const ProjectDetailPage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-900">{task.title}</p>
                   <p className="text-xs text-gray-500">Due {formatDate(task.dueDate)}</p>
                 </div>
-                <TaskStatusChip status={task.status} />
+                <TaskStatusChip status={getTaskStatus(task)} />
               </div>
             ))}
             {tasks.length === 0 && (

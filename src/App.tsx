@@ -26,6 +26,7 @@ import ChatPage from './pages/chat/ChatPage';
 import SiteDiaryPage from './pages/site-diary/SiteDiaryPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import NotificationsPage from './pages/notifications/NotificationsPage';
+import PerformancePage from './pages/performance/PerformancePage';
 import AdminPage from './pages/admin/AdminPage';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import RoleManagementPage from './pages/admin/RoleManagementPage';
@@ -121,6 +122,7 @@ function App() {
             <Route path="site-diary" element={<SiteDiaryPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="performance" element={<PerformancePage />} />
 
             {/* Admin */}
             <Route path="admin" element={<AdminPage />} />

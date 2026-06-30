@@ -72,29 +72,28 @@ const TasksPage: React.FC = () => {
   const getRole = (rid: string) => roles.find((r) => r.id === rid);
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
-  const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done');
+  const getTaskStatus = (t: Task) => {
+    if (isManager || !appUser) return t.status;
+    return t.memberProgress?.[appUser.id]?.status ?? t.status;
+  };
+  const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && getTaskStatus(t) !== 'done');
 
   const filteredTasks = tasks.filter((t) => {
-    if (!isManager && !t.assigneeIds?.includes(appUser?.id ?? '') && !(t.assignedRoleId && t.assignedRoleId === appUser?.roleId)) return false;
+    if (!isManager && !t.assigneeIds?.includes(appUser?.id ?? '') && !t.assignedRoleIds?.includes(appUser?.roleId ?? '')) return false;
     if (projectFilter && t.projectId !== projectFilter) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    
+    const status = getTaskStatus(t);
     if (tab === 'all') return true;
     if (tab === 'overdue') return isOverdue(t);
-    return t.status === tab;
+    return status === tab;
   });
 
   const tasksByStatus = STATUSES.reduce((acc, s) => {
-    acc[s] = filteredTasks.filter((t) => t.status === s);
+    acc[s] = filteredTasks.filter((t) => getTaskStatus(t) === s);
     return acc;
   }, {} as Record<TaskStatus, Task[]>);
 
-  if (!can('tasks_view')) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <EmptyState icon={<AlertCircle className="w-8 h-8" />} title="Access Denied" description="You don't have permission to view tasks." />
-      </div>
-    );
-  }
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
@@ -291,7 +290,7 @@ const TasksPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell text-gray-400 text-xs">{project?.name ?? '—'}</td>
                         <td className="px-4 py-3.5 hidden sm:table-cell"><PriorityChip priority={task.priority} /></td>
-                        <td className="px-4 py-3.5"><TaskStatusChip status={task.status} /></td>
+                        <td className="px-4 py-3.5"><TaskStatusChip status={getTaskStatus(task)} /></td>
                         <td className={`px-4 py-3.5 hidden lg:table-cell text-xs font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
                           {formatDate(task.dueDate)}
                         </td>
@@ -303,21 +302,25 @@ const TasksPage: React.FC = () => {
                                 return u ? <Avatar key={uid} name={u.name} src={u.avatarUrl} size="xs" /> : null;
                               })}
                             </div>
-                            {task.assignedRoleId && (() => {
-                              const r = getRole(task.assignedRoleId);
-                              if (!r) return null;
-                              return (
-                                <span
-                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
-                                  style={{
-                                    color: r.color,
-                                    borderColor: `${r.color}30`,
-                                    backgroundColor: `${r.color}08`,
-                                  }}
-                                >
-                                  {r.name}
-                                </span>
-                              );
+                            {(() => {
+                              const rolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+                              return rolesList.map((rid) => {
+                                const r = getRole(rid);
+                                if (!r) return null;
+                                return (
+                                  <span
+                                    key={rid}
+                                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+                                    style={{
+                                      color: r.color,
+                                      borderColor: `${r.color}30`,
+                                      backgroundColor: `${r.color}08`,
+                                    }}
+                                  >
+                                    {r.name}
+                                  </span>
+                                );
+                              });
                             })()}
                           </div>
                         </td>

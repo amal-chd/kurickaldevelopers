@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare, FolderOpen, Users, Clock, Plus, ArrowRight,
-  TrendingUp, AlertCircle, Zap, Calendar, RefreshCw,
+  TrendingUp, AlertCircle, Zap, Calendar, RefreshCw, Trophy,
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -11,8 +11,8 @@ import { TaskStatusChip, PriorityChip } from '../../components/ui/StatusChip';
 import Spinner from '../../components/ui/Spinner';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { subscribeProjects, subscribeTasks, subscribeUsers } from '../../lib/firestore';
-import { Task, Project, AppUser } from '../../types';
+import { subscribeProjects, subscribeTasks, subscribeUsers, getPerformanceScore } from '../../lib/firestore';
+import { Task, Project, AppUser, PerformanceScore } from '../../types';
 import { formatDate, projectStatusColor, projectStatusLabel } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
@@ -24,6 +24,7 @@ const DashboardPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [users, setUsers]       = useState<AppUser[]>([]);
+  const [perfScore, setPerfScore] = useState<PerformanceScore | null>(null);
 
   // Track which of the three subscriptions have fired at least once
   const [ready, setReady] = useState({ projects: false, tasks: false, users: false });
@@ -56,6 +57,10 @@ const DashboardPage: React.FC = () => {
       markReady('users');
     });
 
+    getPerformanceScore(uid).then(score => {
+      setPerfScore(score);
+    }).catch(err => console.warn('Error loading dashboard performance score:', err));
+
     // Safety net: if any subscription never fires (e.g. offline), unblock after 7 s
     const timer = setTimeout(() => setReady({ projects: true, tasks: true, users: true }), 7000);
 
@@ -83,7 +88,12 @@ const DashboardPage: React.FC = () => {
   // Managers see all tasks; others see only their own or their role's
   const myTasks     = isManager
     ? allTasks
-    : allTasks.filter((t) => t.assigneeIds?.includes(userId) || (t.assignedRoleId && t.assignedRoleId === appUser?.roleId));
+    : allTasks.filter(
+        (t) =>
+          t.assigneeIds?.includes(userId) ||
+          t.assignedRoleIds?.includes(appUser?.roleId ?? '') ||
+          (t.assignedRoleId && t.assignedRoleId === appUser?.roleId)
+      );
 
   const activeProjects   = projects.filter((p) => p.status === 'active');
   const inProgressTasks  = allTasks.filter((t) => t.status === 'in_progress');
@@ -251,6 +261,43 @@ const DashboardPage: React.FC = () => {
 
         {/* ── Right column ── */}
         <div className="space-y-4">
+
+          {/* My Performance Card */}
+          {perfScore && (
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-50 rounded-lg">
+                    <Trophy className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900">My Performance</h3>
+                </div>
+                <button
+                  onClick={() => navigate('/app/performance')}
+                  className="text-xs text-primary font-medium hover:text-primary-600 flex items-center gap-1 transition-colors"
+                >
+                  View details <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-14 h-14 flex items-center justify-center bg-amber-50 rounded-full border-2 border-amber-500/20">
+                    <span className="text-xl font-black text-amber-650">{perfScore.overallPerformanceIndex}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-gray-400 block uppercase">Overall OPI</span>
+                    <span className="text-sm font-bold text-gray-800">
+                      {perfScore.overallPerformanceIndex >= 90 ? '🏆 Elite Performer' : perfScore.overallPerformanceIndex >= 75 ? '⭐ Strong Performer' : '👍 Consistent'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-gray-400 block font-medium font-bold">Streak</span>
+                  <span className="text-lg font-black text-orange-650">🔥 {perfScore.consecutiveSuccesses}</span>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Projects */}
           <Card padding={false}>

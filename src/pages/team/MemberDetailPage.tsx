@@ -7,8 +7,8 @@ import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import { TaskStatusChip } from '../../components/ui/StatusChip';
-import { getUser, getAllRoles, getTasks, getUserAttendanceHistory } from '../../lib/firestore';
-import { AppUser, Role, Task, Attendance } from '../../types';
+import { getUser, getAllRoles, getTasks, getUserAttendanceHistory, getPerformanceScore } from '../../lib/firestore';
+import { AppUser, Role, Task, Attendance, PerformanceScore } from '../../types';
 import { formatDate, formatTime, getDuration } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { getDmChannelId } from '../../lib/utils';
@@ -23,8 +23,9 @@ const MemberDetailPage: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [performance, setPerformance] = useState<PerformanceScore | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'info' | 'tasks' | 'attendance'>('info');
+  const [tab, setTab] = useState<'info' | 'tasks' | 'attendance' | 'performance'>('info');
 
   useEffect(() => {
     if (!userId) return;
@@ -36,12 +37,18 @@ const MemberDetailPage: React.FC = () => {
 
         if (u) {
           // Fetch secondary resources in parallel, individual safe fallbacks
-          const [r, t, a] = await Promise.all([
+          const [r, t, a, p] = await Promise.all([
             getAllRoles().catch((err) => {
               console.warn('MemberDetail: failed to load roles:', err);
               return [];
             }),
-            getTasks([where('assigneeIds', 'array-contains', userId)]).catch((err) => {
+            getTasks().then((allTasks) =>
+              allTasks.filter((t) =>
+                t.assigneeIds?.includes(userId) ||
+                t.assignedRoleIds?.includes(u.roleId ?? '') ||
+                (t.assignedRoleId && t.assignedRoleId === u.roleId)
+              )
+            ).catch((err) => {
               console.warn('MemberDetail: failed to load tasks:', err);
               return [];
             }),
@@ -49,10 +56,15 @@ const MemberDetailPage: React.FC = () => {
               console.warn('MemberDetail: failed to load attendance history:', err);
               return [];
             }),
+            getPerformanceScore(userId).catch((err) => {
+              console.warn('MemberDetail: failed to load performance score:', err);
+              return null;
+            }),
           ]);
           setRoles(r);
           setTasks(t);
           setAttendance(a);
+          setPerformance(p);
         }
       } catch (err) {
         console.error('Failed to load member details:', err);
@@ -127,6 +139,7 @@ const MemberDetailPage: React.FC = () => {
           { id: 'info', label: 'Info' },
           { id: 'tasks', label: `Tasks (${tasks.length})` },
           { id: 'attendance', label: `Attendance (${attendance.length})` },
+          { id: 'performance', label: 'Performance' },
         ].map((t) => (
           <button
             key={t.id}
@@ -176,7 +189,7 @@ const MemberDetailPage: React.FC = () => {
                   <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
                   <p className="text-xs text-gray-500">Due {formatDate(task.dueDate)}</p>
                 </div>
-                <TaskStatusChip status={task.status} />
+                <TaskStatusChip status={task.memberProgress?.[userId || '']?.status ?? task.status} />
               </div>
             ))}
             {tasks.length === 0 && (
@@ -211,6 +224,83 @@ const MemberDetailPage: React.FC = () => {
               <p className="text-sm text-gray-400 text-center py-8">No attendance history</p>
             )}
           </div>
+        </Card>
+      )}
+
+      {tab === 'performance' && (
+        <Card>
+          {performance ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">Performance Metrics</h3>
+                  <p className="text-xs text-gray-500">Overall Performance Index (OPI)</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-amber-500">{performance.overallPerformanceIndex}</span>
+                  <span className="block text-[10px] text-gray-400 font-bold uppercase">OPI Score</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 border-t pt-4 border-gray-100">
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Productivity</span>
+                  <span className="text-lg font-bold text-gray-800">{performance.productivityScore}%</span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Reliability</span>
+                  <span className="text-lg font-bold text-gray-800">{performance.reliabilityScore}%</span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Efficiency</span>
+                  <span className="text-lg font-bold text-gray-800">{performance.efficiencyScore}%</span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Quality</span>
+                  <span className="text-lg font-bold text-gray-800">{performance.qualityScore}%</span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Collab</span>
+                  <span className="text-lg font-bold text-gray-800">{performance.collaborationScore}%</span>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 border-gray-100">
+                <h4 className="text-sm font-bold mb-3">Earned Badges ({performance.badges.length})</h4>
+                <div className="flex flex-wrap gap-2">
+                  {performance.badges.map(b => (
+                    <span key={b} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                      🏆 {b.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                  ))}
+                  {performance.badges.length === 0 && (
+                    <span className="text-xs text-gray-400 font-medium">No achievements earned yet.</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-4 border-gray-100 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Tasks Completed On-Time</span>
+                  <span className="text-sm font-bold text-green-600">{performance.tasksCompletedOnTime}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Tasks Completed Late</span>
+                  <span className="text-sm font-bold text-red-650">{performance.tasksCompletedLate}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Active Overdue Tasks</span>
+                  <span className="text-sm font-bold text-rose-600">{performance.tasksOverdue}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Consecutive Streak</span>
+                  <span className="text-sm font-bold text-orange-600">🔥 {performance.consecutiveSuccesses}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-8">No performance score calculated yet.</p>
+          )}
         </Card>
       )}
     </div>

@@ -16,7 +16,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   getTask, getAllUsers, getSubtasks, addSubtask, updateSubtask, deleteSubtask,
   updateTask, deleteTask, getProject, sendMessage, getChannel, createChannelWithId,
-  createNotification, getRole,
+  createNotification, getRole, getAllRoles,
 } from '../../lib/firestore';
 import { Task, Subtask, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
@@ -24,7 +24,7 @@ import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId } from '../
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
 import { isAfter } from 'date-fns';
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },
@@ -42,7 +42,7 @@ const TaskDetailPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
-  const [assignedRole, setAssignedRole] = useState<Role | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
@@ -53,16 +53,17 @@ const TaskDetailPage: React.FC = () => {
     if (!taskId) return;
     const load = async () => {
       try {
-        const [t, u] = await Promise.all([getTask(taskId), getAllUsers()]);
+        const [t, u, rList] = await Promise.all([
+          getTask(taskId),
+          getAllUsers(),
+          getAllRoles(),
+        ]);
         setTask(t);
         setUsers(u);
+        setRoles(rList);
         if (t?.projectId) {
           const p = await getProject(t.projectId);
           setProject(p);
-        }
-        if (t?.assignedRoleId) {
-          const r = await getRole(t.assignedRoleId);
-          setAssignedRole(r);
         }
         const st = await getSubtasks(taskId);
         setSubtasks(st);
@@ -77,30 +78,90 @@ const TaskDetailPage: React.FC = () => {
   if (!task) return <div className="flex items-center justify-center h-64 text-gray-500">Task not found</div>;
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
-  const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && task.status !== 'done';
+  const isManager = can('tasks_approve');
+  const displayStatus = isManager ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
+  const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
   const subtaskProgress = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
-    if (!taskId || !appUser) return;
+    if (!taskId || !appUser || !task) return;
     try {
-      await updateTask(taskId, { status: newStatus });
+      const isManager = can('tasks_approve');
+      let updatedProgress = { ...(task.memberProgress ?? {}) };
+      let nextGlobalStatus = task.status;
+
+      if (!isManager) {
+        updatedProgress[appUser.id] = {
+          status: newStatus,
+          updatedAt: Timestamp.now() as any,
+          completedBy: newStatus === 'done' ? appUser.id : undefined,
+        };
+
+        const explicitUids = task.assigneeIds ?? [];
+        const roleUids: string[] = [];
+        const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+        if (assignedRolesList.length > 0) {
+          users
+            .filter((u) => assignedRolesList.includes(u.roleId) && u.isActive)
+            .forEach((u) => roleUids.push(u.id));
+        }
+
+        const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+        let allDone = true;
+        for (const uid of allAssigneeIds) {
+          const userStatus = updatedProgress[uid]?.status ?? 'in_progress';
+          if (userStatus !== 'done') {
+            allDone = false;
+            break;
+          }
+        }
+
+        nextGlobalStatus = allDone && allAssigneeIds.length > 0 ? 'done' : 'in_progress';
+      } else {
+        nextGlobalStatus = newStatus;
+        if (newStatus === 'done') {
+          const explicitUids = task.assigneeIds ?? [];
+          const roleUids: string[] = [];
+          const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+          if (assignedRolesList.length > 0) {
+            users
+              .filter((u) => assignedRolesList.includes(u.roleId) && u.isActive)
+              .forEach((u) => roleUids.push(u.id));
+          }
+          const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+          allAssigneeIds.forEach((uid) => {
+            updatedProgress[uid] = {
+              status: 'done',
+              updatedAt: Timestamp.now() as any,
+              completedBy: appUser.id,
+            };
+          });
+        }
+      }
+
+      const updateData = {
+        status: nextGlobalStatus,
+        memberProgress: updatedProgress,
+      };
+
+      await updateTask(taskId, updateData);
+      
       notifyPush({ event: 'task', taskId, kind: 'status' });
-      // In-app notification to the task's creator (skip if they made the change).
       if (task.createdBy && task.createdBy !== appUser.id) {
         createNotification({
           title: 'Task Status Updated',
-          body: `${task.title} is now ${taskStatusLabel(newStatus)}`,
+          body: `${task.title} is now ${taskStatusLabel(nextGlobalStatus)}`,
           userId: task.createdBy,
           type: 'task_updated',
           isRead: {},
           createdAt: null as any,
         }).catch(() => {});
       }
-      setTask((prev) => prev ? { ...prev, status: newStatus } : prev);
+
+      setTask((prev) => prev ? { ...prev, ...updateData } : prev);
       setStatusOpen(false);
 
-      // Post system message to project chat
       if (task.projectId) {
         const channelId = `project_${task.projectId}`;
         try {
@@ -108,7 +169,7 @@ const TaskDetailPage: React.FC = () => {
           if (ch) {
             await sendMessage(channelId, {
               senderId: appUser.id,
-              text: `Task "${task.title}" status changed to ${taskStatusLabel(newStatus)}`,
+              text: `Task "${task.title}" status changed to ${taskStatusLabel(nextGlobalStatus)}`,
               type: 'system',
               reactions: {},
               mentionedUserIds: [],
@@ -211,8 +272,8 @@ const TaskDetailPage: React.FC = () => {
                   onClick={() => setStatusOpen(!statusOpen)}
                   className="flex items-center gap-1"
                 >
-                  <TaskStatusChip status={task.status} />
-                  {can('tasks_edit') && <ChevronDown className="w-3 h-3 text-gray-500" />}
+                  <TaskStatusChip status={displayStatus} />
+                  {<ChevronDown className="w-3 h-3 text-gray-500" />}
                 </button>
                 {statusOpen && can('tasks_edit') && (
                   <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden min-w-36">
@@ -371,27 +432,72 @@ const TaskDetailPage: React.FC = () => {
                 );
               })}
               {!task.assigneeIds?.length && (
-                <p className="text-sm text-gray-400">No assignees</p>
+                <p className="text-sm text-gray-400">No individual assignees</p>
               )}
             </div>
           </Card>
 
-          {task.assignedRoleId && (
-            <Card>
-              <h3 className="font-semibold text-gray-900 mb-3">Assigned Role</h3>
-              {assignedRole ? (
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: assignedRole.color }}
-                  />
-                  <span className="text-sm font-semibold" style={{ color: assignedRole.color }}>
-                    {assignedRole.name}
-                  </span>
+          {(() => {
+            const rolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+            if (rolesList.length === 0) return null;
+            return (
+              <Card>
+                <h3 className="font-semibold text-gray-900 mb-3">Assigned Roles</h3>
+                <div className="space-y-2">
+                  {rolesList.map((rid) => {
+                    const r = roles.find((roleItem) => roleItem.id === rid);
+                    if (!r) return null;
+                    return (
+                      <div key={rid} className="flex items-center gap-2">
+                        <div
+                          className="w-3.5 h-3.5 rounded-full"
+                          style={{ backgroundColor: r.color }}
+                        />
+                        <span className="text-sm font-semibold" style={{ color: r.color }}>
+                          {r.name}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-400">Loading role info...</p>
-              )}
+              </Card>
+            );
+          })()}
+
+          {isManager && (
+            <Card>
+              <h3 className="font-semibold text-gray-900 mb-3">Member Progress</h3>
+              <div className="space-y-2">
+                {(() => {
+                  const explicitUids = task.assigneeIds ?? [];
+                  const roleUids: string[] = [];
+                  const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+                  if (assignedRolesList.length > 0) {
+                    users
+                      .filter((u) => assignedRolesList.includes(u.roleId) && u.isActive)
+                      .forEach((u) => roleUids.push(u.id));
+                  }
+                  const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+                  if (allAssigneeIds.length === 0) {
+                    return <p className="text-sm text-gray-400">No members assigned</p>;
+                  }
+                  return allAssigneeIds.map((uid) => {
+                    const u = getUser(uid);
+                    if (!u) return null;
+                    const prog = task.memberProgress?.[uid];
+                    const uStatus: TaskStatus = prog?.status ?? 'in_progress';
+                    return (
+                      <div key={uid} className="flex items-center justify-between p-2 border border-gray-100 rounded-xl hover:bg-gray-50/50">
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/app/team/${uid}`)}>
+                          <Avatar name={u.name} src={u.avatarUrl} size="xs" />
+                          <span className="text-xs font-semibold text-gray-700">{u.name}</span>
+                        </div>
+                        <TaskStatusChip status={uStatus} />
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </Card>
           )}
 

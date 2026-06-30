@@ -27,7 +27,27 @@ import {
   AppUser, Role, Project, Task, Subtask, Document as TDocument,
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
   OrgSettings, AuditLog, AppNotification, ContactInquiry, TaskAssignmentConfig,
+  PerformanceScore, PerformanceReview, PerformanceConfig,
 } from '../types';
+import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from './performanceEngine';
+
+// Helper to log detailed, production-grade diagnostic information for permission/authorization errors
+export const logPermissionError = (actionName: string, error: any, context?: any) => {
+  const isPermissionError = error?.code === 'permission-denied' || error?.message?.includes('permission') || error?.message?.includes('denied');
+  if (isPermissionError) {
+    const { firebaseUser, appUser, permissions } = useAuthStore.getState();
+    console.error(`[AUTHORIZATION ERROR] Action: ${actionName} failed with permission-denied.`, {
+      errorMessage: error.message,
+      errorCode: error.code,
+      currentUserUid: firebaseUser?.uid ?? 'not-authenticated',
+      currentUserRole: appUser?.roleId ?? 'no-role-assigned',
+      userPermissions: permissions,
+      context,
+    });
+  } else {
+    console.warn(`[API ERROR] Action: ${actionName} failed.`, error, context);
+  }
+};
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const getUser = async (uid: string): Promise<AppUser | null> => {
@@ -205,7 +225,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
         const snap = await getDocs(q);
         return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
       } catch (err: any) {
-        console.warn('Gracefully handled tasks_view tasks fetch error:', err);
+        logPermissionError('getTasks (tasks_view query)', err);
         return [];
       }
     }
@@ -216,7 +236,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
         const snap = await getDocs(q);
         return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
       } catch (err: any) {
-        console.warn('Gracefully handled tasks fetch error with constraints:', err);
+        logPermissionError('getTasks (constraints query)', err);
         return [];
       }
     }
@@ -230,18 +250,18 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
         tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
       });
     } catch (err: any) {
-      console.warn('Gracefully handled assignee tasks fetch error:', err);
+      logPermissionError('getTasks (assignee query)', err);
     }
 
     if (roleId) {
       try {
-        const qRole = query(collection(db, 'tasks'), where('assignedRoleId', '==', roleId));
+        const qRole = query(collection(db, 'tasks'), where('assignedRoleIds', 'array-contains', roleId));
         const roleSnap = await getDocs(qRole);
         roleSnap.docs.forEach((d) => {
           tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
         });
       } catch (err: any) {
-        console.warn('Gracefully handled role tasks fetch error:', err);
+        logPermissionError('getTasks (role query)', err);
       }
     }
 
@@ -252,7 +272,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
         tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
       });
     } catch (err: any) {
-      console.warn('Gracefully handled created tasks fetch error:', err);
+      logPermissionError('getTasks (created query)', err);
     }
 
     const myProjects = await getProjects();
@@ -273,7 +293,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
               tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
             });
           } catch (err: any) {
-            console.warn('Gracefully handled projects chunk task fetch error:', err);
+            logPermissionError('getTasks (projects chunk query)', err);
           }
         })
       );
@@ -288,7 +308,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
 
     return tasks;
   } catch (err: any) {
-    console.warn('Gracefully handled getTasks top-level error:', err);
+    logPermissionError('getTasks (top-level)', err);
     return [];
   }
 };
@@ -299,7 +319,7 @@ export const getTask = async (id: string): Promise<Task | null> => {
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() } as Task;
   } catch (err: any) {
-    console.warn('Gracefully handled getTask error:', err);
+    logPermissionError('getTask', err, { id });
     return null;
   }
 };
@@ -310,11 +330,29 @@ export const createTask = async (data: Omit<Task, 'id'>): Promise<string> => {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  if (data.assigneeIds && data.assigneeIds.length > 0) {
+    data.assigneeIds.forEach(uid => {
+      recalculatePerformanceScore(uid).catch(err => console.warn('Error recalculating score on task create:', err));
+    });
+  }
   return ref2.id;
 };
 
 export const updateTask = async (id: string, data: Partial<Task>): Promise<void> => {
   await updateDoc(doc(db, 'tasks', id), { ...data, updatedAt: serverTimestamp() });
+  try {
+    const taskDoc = await getDoc(doc(db, 'tasks', id));
+    if (taskDoc.exists()) {
+      const task = taskDoc.data() as Task;
+      if (task.assigneeIds) {
+        task.assigneeIds.forEach(uid => {
+          recalculatePerformanceScore(uid).catch(err => console.warn('Error recalculating score on task update:', err));
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Error triggering recalculation in updateTask:', err);
+  }
 };
 
 export const deleteTask = async (id: string): Promise<void> => {
@@ -342,8 +380,8 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
       q,
       (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))),
       (err) => {
-        if (err?.code === 'permission-denied' || err?.message?.includes('permissions')) {
-          console.warn('Gracefully handled tasks subscription permission denial:', err);
+        if (err?.code === 'permission-denied' || err?.message?.includes('permission')) {
+          logPermissionError('subscribeTasks (constraints query)', err);
           cb([]);
         }
       }
@@ -380,18 +418,18 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
       assigneeTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
       emit();
     },
-    (err) => console.warn('Assignee tasks sub error:', err)
+    (err) => logPermissionError('subscribeTasks (assignee query)', err)
   );
 
   let unsubRole = () => {};
   if (roleId) {
     unsubRole = onSnapshot(
-      query(collection(db, 'tasks'), where('assignedRoleId', '==', roleId)),
+      query(collection(db, 'tasks'), where('assignedRoleIds', 'array-contains', roleId)),
       (snap) => {
         roleTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
         emit();
       },
-      (err) => console.warn('Role tasks sub error:', err)
+      (err) => logPermissionError('subscribeTasks (role query)', err)
     );
   }
 
@@ -401,7 +439,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
       createdTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
       emit();
     },
-    (err) => console.warn('Created tasks sub error:', err)
+    (err) => logPermissionError('subscribeTasks (created query)', err)
   );
 
   const unsubProjects = subscribeProjects((projects) => {
@@ -428,7 +466,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
             );
             emit();
           },
-          (err) => console.warn(`Project chunk ${index} tasks sub error:`, err)
+          (err) => logPermissionError(`subscribeTasks (project chunk ${index} query)`, err)
         );
         projectUnsubs.push(unsubProj);
       });
@@ -659,21 +697,69 @@ export const sendMessage = async (channelId: string, data: Omit<ChatMessage, 'id
   const msgRef = doc(collection(db, 'chats', channelId, 'messages'));
   batch.set(msgRef, { ...data, createdAt: serverTimestamp() });
 
-  // Get channel members to increment unread for non-senders
+  // Get channel details
   const channelSnap = await getDoc(doc(db, 'chats', channelId));
-  const memberIds: string[] = channelSnap.exists() ? (channelSnap.data().memberIds ?? []) : [];
+  const channelData = channelSnap.exists() ? channelSnap.data() : null;
+  const channelType = channelData?.type ?? '';
+  const channelName = channelData?.name ?? 'Group';
+  const memberIds: string[] = channelData?.memberIds ?? [];
 
   const channelUpdate: Record<string, any> = {
     lastMessageText: data.isDeleted ? '' : (data.text.length > 80 ? data.text.slice(0, 80) + '…' : data.text),
     lastMessageAt: serverTimestamp(),
     lastMessageBy: data.senderId,
   };
+  
   memberIds.forEach((uid) => {
     if (uid !== data.senderId) {
       channelUpdate[`unreadCounts.${uid}`] = increment(1);
     }
   });
   batch.update(doc(db, 'chats', channelId), channelUpdate);
+
+  // If this is an announcement channel, create targeted in-app notifications
+  if (channelType === 'announcement') {
+    let senderName = 'Someone';
+    try {
+      const senderSnap = await getDoc(doc(db, 'users', data.senderId));
+      if (senderSnap.exists()) {
+        senderName = senderSnap.data().name || senderSnap.data().email || 'Someone';
+      }
+    } catch (_) {}
+
+    let bodyText = data.text || '';
+    if (data.type === 'image') bodyText = '📷 Photo';
+    else if (data.type === 'file') bodyText = '📎 File';
+    else if (data.type === 'task_ref') bodyText = '📌 Task Reference';
+
+    const truncatedBody = bodyText.length > 150 ? bodyText.slice(0, 150) + '…' : bodyText;
+
+    for (const uid of memberIds) {
+      if (uid === data.senderId) continue;
+      try {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData?.preferences?.announcements === false) {
+            continue;
+          }
+        }
+      } catch (_) {}
+
+      const notifRef = doc(collection(db, 'notifications'));
+      batch.set(notifRef, {
+        userId: uid,
+        type: 'announcement',
+        title: `Announcement in ${channelName}`,
+        body: `${senderName}: ${truncatedBody}`,
+        relatedId: channelId,
+        relatedType: 'chat',
+        isRead: {},
+        createdAt: serverTimestamp(),
+      });
+    }
+  }
+
   await batch.commit();
   return msgRef.id;
 };
@@ -929,8 +1015,11 @@ export const markAllNotificationsRead = async (notifIds: string[], userId: strin
   await batch.commit();
 };
 
-export const createNotification = async (data: Omit<AppNotification, 'id'>): Promise<void> => {
-  await addDoc(collection(db, 'notifications'), { ...data, createdAt: serverTimestamp() });
+export const createNotification = async (data: Omit<AppNotification, 'id' | 'createdAt'> & { createdAt?: any }): Promise<void> => {
+  await addDoc(collection(db, 'notifications'), {
+    ...data,
+    createdAt: data.createdAt || serverTimestamp(),
+  });
 };
 
 // ─── Contact Inquiries ────────────────────────────────────────────────────────
@@ -973,3 +1062,143 @@ export const deleteContactInquiry = async (id: string): Promise<void> => {
 
 // re-export helpers
 export { serverTimestamp, Timestamp, increment, arrayUnion, arrayRemove };
+
+// ─── Performance Score & Points Engine ────────────────────────────────────────
+export const getPerformanceScore = async (userId: string): Promise<PerformanceScore | null> => {
+  try {
+    const docSnap = await getDoc(doc(db, 'performance_scores', userId));
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as PerformanceScore;
+    }
+    return null;
+  } catch (err: any) {
+    logPermissionError('getPerformanceScore', err, { userId });
+    return null;
+  }
+};
+
+export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'performance_scores'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PerformanceScore));
+  } catch (err: any) {
+    logPermissionError('getAllPerformanceScores', err);
+    return [];
+  }
+};
+
+export const subscribePerformanceScores = (cb: (scores: PerformanceScore[]) => void) => {
+  return onSnapshot(
+    collection(db, 'performance_scores'),
+    (snap) => cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as PerformanceScore)))
+  );
+};
+
+export const getPerformanceReviews = async (taskId: string): Promise<PerformanceReview[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'performance_reviews'), where('taskId', '==', taskId)));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PerformanceReview));
+  } catch (err: any) {
+    console.warn('Gracefully handled getPerformanceReviews error:', err);
+    return [];
+  }
+};
+
+export const submitPerformanceReview = async (review: Omit<PerformanceReview, 'id' | 'createdAt'>): Promise<string> => {
+  const ref2 = await addDoc(collection(db, 'performance_reviews'), {
+    ...review,
+    createdAt: serverTimestamp(),
+  });
+  recalculatePerformanceScore(review.revieweeId).catch(err => console.warn('Error recalculating score on review submit:', err));
+  return ref2.id;
+};
+
+export const getPerformanceConfig = async (): Promise<PerformanceConfig> => {
+  try {
+    const docSnap = await getDoc(doc(db, 'settings', 'performance_config'));
+    if (docSnap.exists()) {
+      return docSnap.data() as PerformanceConfig;
+    }
+    return DEFAULT_PERFORMANCE_CONFIG;
+  } catch (err: any) {
+    console.warn('getPerformanceConfig error:', err);
+    return DEFAULT_PERFORMANCE_CONFIG;
+  }
+};
+
+export const updatePerformanceConfig = async (data: Partial<PerformanceConfig>): Promise<void> => {
+  const { firebaseUser } = useAuthStore.getState();
+  await setDoc(doc(db, 'settings', 'performance_config'), {
+    ...data,
+    updatedAt: serverTimestamp(),
+    updatedBy: firebaseUser?.email || 'admin',
+  }, { merge: true });
+};
+
+export const recalculatePerformanceScore = async (userId: string): Promise<PerformanceScore> => {
+  const userDoc = await getDoc(doc(db, 'users', userId));
+  if (!userDoc.exists()) {
+    throw new Error('User not found');
+  }
+  const user = { id: userDoc.id, ...userDoc.data() } as AppUser;
+  const roleId = user.roleId || '';
+
+  const taskSnap = await getDocs(collection(db, 'tasks'));
+  const allTasks = taskSnap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+  const userTasks = allTasks.filter(t => 
+    t.assigneeIds?.includes(userId) || 
+    t.createdBy === userId || 
+    (t.assignedRoleIds && t.assignedRoleIds.includes(roleId)) ||
+    (t.assignedRoleId && t.assignedRoleId === roleId)
+  );
+
+  const reviewSnap = await getDocs(query(collection(db, 'performance_reviews'), where('revieweeId', '==', userId)));
+  const userReviews = reviewSnap.docs.map(d => ({ id: d.id, ...d.data() } as PerformanceReview));
+
+  const attSnap = await getDocs(query(collection(db, 'attendance'), where('userId', '==', userId)));
+  const userAttendance = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance));
+
+  const config = await getPerformanceConfig();
+
+  const score = calculatePerformanceScore(userId, userTasks, userReviews, userAttendance, config, roleId);
+
+  const oldScoreDoc = await getDoc(doc(db, 'performance_scores', userId));
+  const oldScore = oldScoreDoc.exists() ? oldScoreDoc.data() as PerformanceScore : null;
+
+  await setDoc(doc(db, 'performance_scores', userId), score);
+
+  if (oldScore) {
+    const newBadges = score.badges.filter(b => !oldScore.badges.includes(b));
+    newBadges.forEach(b => {
+      createNotification({
+        title: '🏆 Achievement Unlocked!',
+        body: `Congratulations! You earned the **${b.replace(/_/g, ' ').toUpperCase()}** badge.`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    });
+
+    if (score.overallPerformanceIndex >= 80 && oldScore.overallPerformanceIndex < 80) {
+      createNotification({
+        title: '⭐ Performance Milestone!',
+        body: `Amazing work! Your Overall Performance Index (OPI) has reached **${score.overallPerformanceIndex}**!`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    }
+  } else {
+    score.badges.forEach(b => {
+      createNotification({
+        title: '🏆 Achievement Unlocked!',
+        body: `Congratulations! You earned the **${b.replace(/_/g, ' ').toUpperCase()}** badge.`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    });
+  }
+
+  return score;
+};

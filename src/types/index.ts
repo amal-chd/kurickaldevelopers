@@ -32,6 +32,8 @@ export interface Permissions {
   attendance_view_all?: boolean;
   contact_view?: boolean;
   contact_manage?: boolean;
+  performance_view?: boolean;
+  performance_manage?: boolean;
 }
 
 // ─── Role ─────────────────────────────────────────────────────────────────────
@@ -61,6 +63,11 @@ export interface AppUser {
   projectIds?: string[];
   notificationsEnabled?: boolean;
   biometricEnabled?: boolean;
+  preferences?: {
+    announcements: boolean;
+    chats: boolean;
+    tasks: boolean;
+  };
 }
 
 // ─── Project ──────────────────────────────────────────────────────────────────
@@ -99,6 +106,7 @@ export interface Task {
   projectId: string;
   assigneeIds: string[];
   assignedRoleId?: string;
+  assignedRoleIds?: string[];
   createdBy: string;
   status: TaskStatus;
   priority: TaskPriority;
@@ -107,6 +115,7 @@ export interface Task {
   estimatedHours: number;
   tags: string[];
   approvalStatus: ApprovalStatus;
+  memberProgress?: Record<string, { status: TaskStatus; updatedAt?: Timestamp; actualHours?: number; completedBy?: string }>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -258,6 +267,8 @@ export interface AppNotification {
   isRead: Record<string, boolean>;
   type: string;
   createdAt: Timestamp;
+  relatedId?: string;
+  relatedType?: string;
 }
 
 // ─── Task Assignment Rules ────────────────────────────────────────────────────
@@ -271,4 +282,97 @@ export interface TaskAssignmentConfig {
   matrix: Record<string, string[]>;
   updatedBy?: string;
   updatedAt?: Timestamp;
+}
+
+// ─── Performance Score ────────────────────────────────────────────────────────
+export interface PerformanceScore {
+  id: string; // matches userId
+  userId: string;
+  totalTasksCompleted: number;
+  totalTasksAssigned: number;
+  tasksCompletedOnTime: number;
+  tasksCompletedLate: number;
+  tasksOverdue: number;
+  tasksRejected: number;
+  tasksReopened: number;
+  deadlineExtensions: number;
+  consecutiveSuccesses: number;
+  bestStreak: number;
+  completedByPriority: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  avgCompletionHours: number;
+  avgEfficiencyRatio: number;
+  avgPeerReviewScore: number;
+  avgManagerReviewScore: number;
+  qualityScore: number;
+  dailyActivityDays: number;
+  weeklyCompletionRates: number[];
+  monthlyCompletionRates: number[];
+  tasksHelpedOnCount: number;
+  collaborationScore: number;
+  attendanceDays: number;
+  attendanceRate: number;
+  productivityScore: number;
+  reliabilityScore: number;
+  efficiencyScore: number;
+  overallPerformanceIndex: number;
+  totalPenaltyPoints: number;
+  penaltyBreakdown: {
+    lateCompletions: number;
+    deadlineExtensions: number;
+    rejections: number;
+    reopenings: number;
+    missedDeadlines: number;
+    inactivity: number;
+  };
+  badges: string[];
+  roleId: string;
+  departmentNormalizationFactor: number;
+  lastRecalculatedAt: Timestamp;
+}
+
+// ─── Performance Review ────────────────────────────────────────────────────────
+export interface PerformanceReview {
+  id: string;
+  taskId: string;
+  reviewerId: string;
+  revieweeId: string;
+  type: 'peer' | 'manager';
+  score: number;
+  comment?: string;
+  createdAt: Timestamp;
+}
+
+// ─── Performance Config ────────────────────────────────────────────────────────
+export interface PerformanceConfig {
+  priorityWeights: { critical: number; high: number; medium: number; low: number };
+  penalties: {
+    latePerDay: number;
+    deadlineExtension: number;
+    rejection: number;
+    reopening: number;
+    missedDeadline: number;
+    inactivityPerDay: number;
+  };
+  bonuses: {
+    streakBonus5: number;
+    streakBonus10: number;
+    streakBonus25: number;
+    onTimeBonus: number;
+    collaborationBonus: number;
+  };
+  scoreWeights: {
+    productivity: number;
+    reliability: number;
+    efficiency: number;
+    quality: number;
+    collaboration: number;
+  };
+  roleDifficultyMultipliers: Record<string, number>;
+  updatedAt: Timestamp;
+  updatedBy: string;
 }

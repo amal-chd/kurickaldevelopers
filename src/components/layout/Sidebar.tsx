@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CheckSquare, FolderOpen, Users, FileText,
-  MessageSquare, BookOpen, BarChart2, Shield, LogOut, X,
+  MessageSquare, BookOpen, BarChart2, Shield, LogOut, X, Award,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -22,11 +22,12 @@ const NAV_GROUPS = [
     label: 'Workspace',
     items: [
       { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard, always: true },
-      { to: '/app/tasks', label: 'Tasks', icon: CheckSquare, perm: 'tasks_view' as const },
+      { to: '/app/tasks', label: 'Tasks', icon: CheckSquare, always: true },
       { to: '/app/projects', label: 'Projects', icon: FolderOpen, perm: 'projects_view' as const },
       { to: '/app/site-diary', label: 'Site Diary', icon: BookOpen, always: true },
       { to: '/app/documents', label: 'Documents', icon: FileText, perm: 'docs_view' as const },
       { to: '/app/reports', label: 'Reports', icon: BarChart2, perm: 'reports_view' as const },
+      { to: '/app/performance', label: 'Performance', icon: Award, perm: 'performance_view' as const },
     ],
   },
   {

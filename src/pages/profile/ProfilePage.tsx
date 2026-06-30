@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X } from 'lucide-react';
+import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X, Bell, Megaphone, MessageSquare, CheckSquare } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -19,6 +19,34 @@ const ProfilePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [prefAnnouncements, setPrefAnnouncements] = useState(appUser?.preferences?.announcements ?? true);
+  const [prefChats, setPrefChats] = useState(appUser?.preferences?.chats ?? true);
+  const [prefTasks, setPrefTasks] = useState(appUser?.preferences?.tasks ?? true);
+
+  const handleTogglePreference = async (key: 'announcements' | 'chats' | 'tasks', val: boolean) => {
+    if (!appUser) return;
+    const newPrefs = {
+      announcements: key === 'announcements' ? val : prefAnnouncements,
+      chats: key === 'chats' ? val : prefChats,
+      tasks: key === 'tasks' ? val : prefTasks,
+    };
+
+    if (key === 'announcements') setPrefAnnouncements(val);
+    if (key === 'chats') setPrefChats(val);
+    if (key === 'tasks') setPrefTasks(val);
+
+    try {
+      await updateUser(appUser.id, { preferences: newPrefs });
+      setAppUser({ ...appUser, preferences: newPrefs });
+      toast.success('Notification preferences updated');
+    } catch {
+      toast.error('Failed to update notification preferences');
+      if (key === 'announcements') setPrefAnnouncements(!val);
+      if (key === 'chats') setPrefChats(!val);
+      if (key === 'tasks') setPrefTasks(!val);
+    }
+  };
 
   const handleSave = async () => {
     if (!appUser) return;
@@ -192,6 +220,87 @@ const ProfilePage: React.FC = () => {
           </div>
         </Card>
       )}
+
+      {/* Notification Preferences */}
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-2 bg-primary/10 rounded-xl">
+            <Bell className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900">Notification Settings</h3>
+            <p className="text-xs text-gray-400">Choose what updates you want to receive</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Announcements Toggle */}
+          <div className="flex items-center justify-between pb-3 border-b border-gray-50">
+            <div className="flex gap-3">
+              <div className="p-2 bg-purple-50 rounded-xl h-fit border border-purple-100 flex-shrink-0">
+                <Megaphone className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-gray-900">Group Announcements</p>
+                <p className="text-xs text-gray-400">Broad updates and group-wide notifications</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={prefAnnouncements}
+                onChange={(e) => handleTogglePreference('announcements', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {/* Chats Toggle */}
+          <div className="flex items-center justify-between pb-3 border-b border-gray-50">
+            <div className="flex gap-3">
+              <div className="p-2 bg-blue-50 rounded-xl h-fit border border-blue-100 flex-shrink-0">
+                <MessageSquare className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-gray-900">Chat Messages</p>
+                <p className="text-xs text-gray-400">Push notifications for direct and group chats</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={prefChats}
+                onChange={(e) => handleTogglePreference('chats', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {/* Tasks Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              <div className="p-2 bg-emerald-50 rounded-xl h-fit border border-emerald-100 flex-shrink-0">
+                <CheckSquare className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-gray-900">Task Assignments</p>
+                <p className="text-xs text-gray-400">Reminders for assignments and status updates</p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={prefTasks}
+                onChange={(e) => handleTogglePreference('tasks', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
+      </Card>
 
       {/* Sign out */}
       <Card className="!p-4">
