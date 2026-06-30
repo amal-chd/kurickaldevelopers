@@ -144,3 +144,67 @@ export function getMimeIcon(mimeType: string): string {
   if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return '📋';
   return '📎';
 }
+
+export interface CompletionDetails {
+  completionStatus: 'completed' | 'completed_on_time' | 'completed_late';
+  delaySeconds: number;
+}
+
+export function calculateCompletionDetails(
+  completedAtDate: Date,
+  dueDateVal: Date | Timestamp | string | null | undefined
+): CompletionDetails {
+  const due = toDate(dueDateVal);
+  if (!due) {
+    return { completionStatus: 'completed', delaySeconds: 0 };
+  }
+
+  const compTime = completedAtDate.getTime();
+  const dueTime = due.getTime();
+
+  const compDayStr = completedAtDate.toDateString();
+  const dueDayStr = due.toDateString();
+  const isSameDay = compDayStr === dueDayStr;
+
+  const isMidnight = due.getHours() === 0 && due.getMinutes() === 0 && due.getSeconds() === 0;
+
+  if (isMidnight) {
+    const compStartOfDay = new Date(completedAtDate.getFullYear(), completedAtDate.getMonth(), completedAtDate.getDate()).getTime();
+    const dueStartOfDay = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+
+    if (compStartOfDay < dueStartOfDay) {
+      return { completionStatus: 'completed', delaySeconds: 0 };
+    } else if (compStartOfDay === dueStartOfDay) {
+      return { completionStatus: 'completed_on_time', delaySeconds: 0 };
+    } else {
+      const delayMs = compTime - (dueTime + 24 * 3600 * 1000 - 1000);
+      return {
+        completionStatus: 'completed_late',
+        delaySeconds: Math.max(0, Math.floor(delayMs / 1000)),
+      };
+    }
+  } else {
+    if (compTime > dueTime) {
+      return {
+        completionStatus: 'completed_late',
+        delaySeconds: Math.floor((compTime - dueTime) / 1000),
+      };
+    } else {
+      if (isSameDay) {
+        return { completionStatus: 'completed_on_time', delaySeconds: 0 };
+      } else {
+        return { completionStatus: 'completed', delaySeconds: 0 };
+      }
+    }
+  }
+}
+
+export function formatDelay(delaySeconds: number | undefined | null): string {
+  if (!delaySeconds || delaySeconds <= 0) return '';
+  const hours = Math.ceil(delaySeconds / 3600);
+  if (hours < 24) {
+    return `${hours} hour${hours === 1 ? '' : 's'} late`;
+  }
+  const days = Math.ceil(delaySeconds / (24 * 3600));
+  return `${days} day${days === 1 ? '' : 's'} late`;
+}

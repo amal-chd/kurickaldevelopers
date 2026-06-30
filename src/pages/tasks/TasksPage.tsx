@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
-import { TaskStatusChip, PriorityChip } from '../../components/ui/StatusChip';
+import { TaskStatusChip, PriorityChip, CompletionStatusChip } from '../../components/ui/StatusChip';
 import Avatar from '../../components/ui/Avatar';
 import Input from '../../components/ui/Input';
 import { useAuthStore } from '../../store/authStore';
@@ -290,7 +290,13 @@ const TasksPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell text-gray-400 text-xs">{project?.name ?? '—'}</td>
                         <td className="px-4 py-3.5 hidden sm:table-cell"><PriorityChip priority={task.priority} /></td>
-                        <td className="px-4 py-3.5"><TaskStatusChip status={getTaskStatus(task)} /></td>
+                        <td className="px-4 py-3.5">
+                          <CompletionStatusChip
+                            status={getTaskStatus(task)}
+                            completionStatus={task.completionStatus}
+                            dueDate={task.dueDate}
+                          />
+                        </td>
                         <td className={`px-4 py-3.5 hidden lg:table-cell text-xs font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
                           {formatDate(task.dueDate)}
                         </td>

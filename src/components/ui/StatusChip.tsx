@@ -55,3 +55,65 @@ export const PriorityChip: React.FC<PriorityChipProps> = ({ priority, className 
     </span>
   );
 };
+
+export const CompletionStatusChip: React.FC<{
+  status: TaskStatus;
+  completionStatus?: 'completed' | 'completed_on_time' | 'completed_late';
+  dueDate?: any;
+  className?: string;
+}> = ({ status, completionStatus, dueDate, className }) => {
+  if (status === 'done' || status === 'approved') {
+    if (completionStatus === 'completed_on_time') {
+      return (
+        <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100', className)}>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Completed On Time
+        </span>
+      );
+    }
+    if (completionStatus === 'completed_late') {
+      return (
+        <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100', className)}>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+          Completed Late
+        </span>
+      );
+    }
+    return (
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100', className)}>
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        Completed
+      </span>
+    );
+  }
+
+  if (dueDate) {
+    const dueTime = (dueDate.toDate ? dueDate.toDate() : new Date(dueDate)).getTime();
+    const nowTime = new Date().getTime();
+    const isSameDay = new Date(dueTime).toDateString() === new Date().toDateString();
+
+    if (nowTime > dueTime && !isSameDay) {
+      return (
+        <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100', className)}>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+          Late (Overdue)
+        </span>
+      );
+    }
+    if (isSameDay) {
+      return (
+        <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-100', className)}>
+          <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+          Due Today
+        </span>
+      );
+    }
+  }
+
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100', className)}>
+      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+      In Progress
+    </span>
+  );
+};

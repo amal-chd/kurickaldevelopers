@@ -517,10 +517,26 @@ export const subscribeSubtasks = (taskId: string, cb: (subtasks: Subtask[]) => v
 // ─── Documents ────────────────────────────────────────────────────────────────
 export const getDocuments = async (projectId?: string): Promise<TDocument[]> => {
   try {
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
-    if (projectId) constraints.unshift(where('projectId', '==', projectId));
+    const constraints: QueryConstraint[] = [];
+    if (projectId) constraints.push(where('projectId', '==', projectId));
     const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TDocument));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      const createdAt = data.createdAt || data.uploadedAt || null;
+      const url = data.url || data.fileUrl || '';
+      const size = typeof data.size === 'number' ? data.size : (data.fileSize || 0);
+      return {
+        id: d.id,
+        ...data,
+        createdAt,
+        url,
+        size
+      } as TDocument;
+    }).sort((a, b) => {
+      const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+      const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+      return timeB - timeA;
+    });
   } catch (err: any) {
     console.warn('Gracefully handled getDocuments error:', err);
     return [];
@@ -528,12 +544,27 @@ export const getDocuments = async (projectId?: string): Promise<TDocument[]> => 
 };
 
 export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<string> => {
-  const ref2 = await addDoc(collection(db, 'documents'), { ...data, createdAt: serverTimestamp() });
+  const payload = {
+    ...data,
+    createdAt: serverTimestamp(),
+    uploadedAt: serverTimestamp(),
+    fileUrl: data.url || '',
+    fileSize: data.size || 0,
+    type: 'other' // default type for mobile compatibility
+  };
+  const ref2 = await addDoc(collection(db, 'documents'), payload);
   return ref2.id;
 };
 
 export const updateDocument = async (id: string, data: Partial<TDocument>): Promise<void> => {
-  await updateDoc(doc(db, 'documents', id), { ...data });
+  const updates: Record<string, any> = { ...data };
+  if (data.url !== undefined) {
+    updates.fileUrl = data.url;
+  }
+  if (data.size !== undefined) {
+    updates.fileSize = data.size;
+  }
+  await updateDoc(doc(db, 'documents', id), updates);
 };
 
 export const deleteDocument = async (id: string): Promise<void> => {
@@ -1165,39 +1196,115 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
   const oldScoreDoc = await getDoc(doc(db, 'performance_scores', userId));
   const oldScore = oldScoreDoc.exists() ? oldScoreDoc.data() as PerformanceScore : null;
 
+  const allScores = await getAllPerformanceScores();
+  const sortedOldScores = [...allScores].sort((a, b) => b.overallPerformanceIndex - a.overallPerformanceIndex);
+  const oldRank = sortedOldScores.findIndex(s => s.userId === userId) + 1;
+
   await setDoc(doc(db, 'performance_scores', userId), score);
 
+  const updatedScores = allScores.map(s => s.userId === userId ? score : s);
+  if (!allScores.some(s => s.userId === userId)) {
+    updatedScores.push(score);
+  }
+  const sortedNewScores = [...updatedScores].sort((a, b) => b.overallPerformanceIndex - a.overallPerformanceIndex);
+  const newRank = sortedNewScores.findIndex(s => s.userId === userId) + 1;
+
+  const formatBadgeName = (badgeId: string): string => {
+    return badgeId.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   if (oldScore) {
+    // 1. Badge earned
     const newBadges = score.badges.filter(b => !oldScore.badges.includes(b));
     newBadges.forEach(b => {
       createNotification({
         title: '🏆 Achievement Unlocked!',
-        body: `Congratulations! You earned the **${b.replace(/_/g, ' ').toUpperCase()}** badge.`,
+        body: `🏆 You earned the ${formatBadgeName(b)} badge!`,
         userId,
         type: 'milestone',
         isRead: {},
       }).catch(e => console.warn('Notification failed:', e));
     });
 
-    if (score.overallPerformanceIndex >= 80 && oldScore.overallPerformanceIndex < 80) {
+    // 2. Rank change
+    if (oldRank > 0 && newRank < oldRank) {
       createNotification({
-        title: '⭐ Performance Milestone!',
-        body: `Amazing work! Your Overall Performance Index (OPI) has reached **${score.overallPerformanceIndex}**!`,
+        title: '📈 Leaderboard Rank Up!',
+        body: `📈 You moved up to #${newRank} in the org leaderboard!`,
         userId,
         type: 'milestone',
         isRead: {},
       }).catch(e => console.warn('Notification failed:', e));
     }
+
+    // 3. Streak milestone
+    if (score.consecutiveSuccesses > oldScore.consecutiveSuccesses && score.consecutiveSuccesses % 5 === 0) {
+      createNotification({
+        title: '🔥 On-Time Streak!',
+        body: `🔥 ${score.consecutiveSuccesses} tasks completed on time in a row!`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    }
+
+    // 4. OPI milestone
+    if (score.overallPerformanceIndex >= 80 && oldScore.overallPerformanceIndex < 80) {
+      createNotification({
+        title: '⭐ OPI Milestone!',
+        body: `⭐ Your OPI reached ${score.overallPerformanceIndex}! Great work!`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    }
+
+    // 5. At-risk alert to managers
+    const opiDrop = oldScore.overallPerformanceIndex - score.overallPerformanceIndex;
+    if (opiDrop >= 15) {
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as AppUser));
+        const rolesSnap = await getDocs(collection(db, 'roles'));
+        const allRoles = rolesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Role));
+        
+        const managerRoles = allRoles.filter(r => r.permissions.tasks_approve || r.permissions.team_manage).map(r => r.id);
+        const managers = allUsers.filter(u => managerRoles.includes(u.roleId));
+        
+        managers.forEach(m => {
+          createNotification({
+            title: '⚠️ At-Risk Team Member Alert',
+            body: `⚠️ ${user.name}'s OPI dropped ${opiDrop} points this week`,
+            userId: m.id,
+            type: 'alert',
+            isRead: {},
+          }).catch(e => console.warn('Manager alert failed:', e));
+        });
+      } catch (err) {
+        console.warn('Failed to alert managers:', err);
+      }
+    }
   } else {
+    // Initial score calculations
     score.badges.forEach(b => {
       createNotification({
         title: '🏆 Achievement Unlocked!',
-        body: `Congratulations! You earned the **${b.replace(/_/g, ' ').toUpperCase()}** badge.`,
+        body: `🏆 You earned the ${formatBadgeName(b)} badge!`,
         userId,
         type: 'milestone',
         isRead: {},
       }).catch(e => console.warn('Notification failed:', e));
     });
+
+    if (score.overallPerformanceIndex >= 80) {
+      createNotification({
+        title: '⭐ OPI Milestone!',
+        body: `⭐ Your OPI reached ${score.overallPerformanceIndex}! Great work!`,
+        userId,
+        type: 'milestone',
+        isRead: {},
+      }).catch(e => console.warn('Notification failed:', e));
+    }
   }
 
   return score;

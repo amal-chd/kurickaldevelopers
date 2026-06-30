@@ -7,7 +7,7 @@ import {
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
-import { TaskStatusChip, PriorityChip } from '../../components/ui/StatusChip';
+import { TaskStatusChip, PriorityChip, CompletionStatusChip } from '../../components/ui/StatusChip';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import Modal from '../../components/ui/Modal';
@@ -20,7 +20,7 @@ import {
 } from '../../lib/firestore';
 import { Task, Subtask, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
-import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId } from '../../lib/utils';
+import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId, calculateCompletionDetails, formatDelay } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
 import { isAfter } from 'date-fns';
@@ -88,14 +88,18 @@ const TaskDetailPage: React.FC = () => {
     if (!taskId || !appUser || !task) return;
     try {
       const isManager = can('tasks_approve');
-      let updatedProgress = { ...(task.memberProgress ?? {}) };
+      const updatedProgress = { ...(task.memberProgress ?? {}) };
       let nextGlobalStatus = task.status;
 
       if (!isManager) {
+        const details = newStatus === 'done' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
         updatedProgress[appUser.id] = {
           status: newStatus,
           updatedAt: Timestamp.now() as any,
           completedBy: newStatus === 'done' ? appUser.id : undefined,
+          completedAt: newStatus === 'done' ? Timestamp.now() as any : undefined,
+          completionStatus: details ? details.completionStatus : undefined,
+          delaySeconds: details ? details.delaySeconds : undefined,
         };
 
         const explicitUids = task.assigneeIds ?? [];
@@ -121,6 +125,7 @@ const TaskDetailPage: React.FC = () => {
       } else {
         nextGlobalStatus = newStatus;
         if (newStatus === 'done') {
+          const details = calculateCompletionDetails(new Date(), task.dueDate);
           const explicitUids = task.assigneeIds ?? [];
           const roleUids: string[] = [];
           const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
@@ -135,15 +140,28 @@ const TaskDetailPage: React.FC = () => {
               status: 'done',
               updatedAt: Timestamp.now() as any,
               completedBy: appUser.id,
+              completedAt: Timestamp.now() as any,
+              completionStatus: details.completionStatus,
+              delaySeconds: details.delaySeconds,
             };
           });
         }
       }
 
-      const updateData = {
+      const globalDetails = nextGlobalStatus === 'done' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
+      const updateData: any = {
         status: nextGlobalStatus,
         memberProgress: updatedProgress,
       };
+      if (nextGlobalStatus === 'done' && globalDetails) {
+        updateData.completedAt = Timestamp.now() as any;
+        updateData.completionStatus = globalDetails.completionStatus;
+        updateData.delaySeconds = globalDetails.delaySeconds;
+      } else if (nextGlobalStatus !== 'done') {
+        updateData.completedAt = null;
+        updateData.completionStatus = null;
+        updateData.delaySeconds = null;
+      }
 
       await updateTask(taskId, updateData);
       
@@ -272,7 +290,7 @@ const TaskDetailPage: React.FC = () => {
                   onClick={() => setStatusOpen(!statusOpen)}
                   className="flex items-center gap-1"
                 >
-                  <TaskStatusChip status={displayStatus} />
+                  <CompletionStatusChip status={displayStatus} completionStatus={task.memberProgress?.[appUser?.id ?? '']?.completionStatus ?? task.completionStatus} dueDate={task.dueDate} />
                   {<ChevronDown className="w-3 h-3 text-gray-500" />}
                 </button>
                 {statusOpen && can('tasks_edit') && (
@@ -394,6 +412,21 @@ const TaskDetailPage: React.FC = () => {
                   {formatDate(task.dueDate)}
                 </span>
               </div>
+              {(task.status === 'done' || task.status === 'approved') && task.completedAt && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span>Completed: </span>
+                  <span className="text-gray-900 font-medium">
+                    {formatDate(task.completedAt)}
+                  </span>
+                </div>
+              )}
+              {task.delaySeconds !== undefined && task.delaySeconds > 0 && (
+                <div className="flex items-center gap-2 text-rose-600 font-medium">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Delay: {formatDelay(task.delaySeconds)}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-gray-600">
                 <Clock className="w-4 h-4 text-gray-400" />
                 <span>Est: {task.estimatedHours ?? 0}h</span>

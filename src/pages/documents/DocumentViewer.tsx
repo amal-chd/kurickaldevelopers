@@ -123,7 +123,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           
           // Loop and try to find slides ppt/slides/slide[N].xml
           let slideIndex = 1;
-          while (true) {
+          while (slideIndex > 0) {
             const file = zip.file(`ppt/slides/slide${slideIndex}.xml`);
             if (!file) break;
             const xmlText = await file.async('string');

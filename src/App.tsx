@@ -3,39 +3,38 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthInit } from './hooks/useAuth';
-import LandingPage from './pages/landing/LandingPage';
-import PrivacyPolicyPage from './pages/landing/PrivacyPolicyPage';
-import TermsOfUsePage from './pages/landing/TermsOfUsePage';
 import { useAuthStore } from './store/authStore';
-
 import AppLayout from './components/layout/AppLayout';
-import DashboardPage from './pages/dashboard/DashboardPage';
-import LoginPage from './pages/auth/LoginPage';
-import SetupPage from './pages/auth/SetupPage';
 
-import TasksPage from './pages/tasks/TasksPage';
-import TaskDetailPage from './pages/tasks/TaskDetailPage';
-import CreateTaskPage from './pages/tasks/CreateTaskPage';
-import ProjectsPage from './pages/projects/ProjectsPage';
-import ProjectDetailPage from './pages/projects/ProjectDetailPage';
-import CreateProjectPage from './pages/projects/CreateProjectPage';
-import TeamPage from './pages/team/TeamPage';
-import MemberDetailPage from './pages/team/MemberDetailPage';
-import DocumentsPage from './pages/documents/DocumentsPage';
-import ChatPage from './pages/chat/ChatPage';
-import SiteDiaryPage from './pages/site-diary/SiteDiaryPage';
-import ReportsPage from './pages/reports/ReportsPage';
-import NotificationsPage from './pages/notifications/NotificationsPage';
-import PerformancePage from './pages/performance/PerformancePage';
-import AdminPage from './pages/admin/AdminPage';
-import UserManagementPage from './pages/admin/UserManagementPage';
-import RoleManagementPage from './pages/admin/RoleManagementPage';
-import TaskAssignmentSettingsPage from './pages/admin/TaskAssignmentSettingsPage';
-import AuditLogPage from './pages/admin/AuditLogPage';
-import NotificationAdminPage from './pages/admin/NotificationAdminPage';
-import AttendanceDashboardPage from './pages/admin/AttendanceDashboardPage';
-import ContactInquiriesPage from './pages/admin/ContactInquiriesPage';
-import ProfilePage from './pages/profile/ProfilePage';
+const LandingPage = React.lazy(() => import('./pages/landing/LandingPage'));
+const PrivacyPolicyPage = React.lazy(() => import('./pages/landing/PrivacyPolicyPage'));
+const TermsOfUsePage = React.lazy(() => import('./pages/landing/TermsOfUsePage'));
+const DashboardPage = React.lazy(() => import('./pages/dashboard/DashboardPage'));
+const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
+const SetupPage = React.lazy(() => import('./pages/auth/SetupPage'));
+const TasksPage = React.lazy(() => import('./pages/tasks/TasksPage'));
+const TaskDetailPage = React.lazy(() => import('./pages/tasks/TaskDetailPage'));
+const CreateTaskPage = React.lazy(() => import('./pages/tasks/CreateTaskPage'));
+const ProjectsPage = React.lazy(() => import('./pages/projects/ProjectsPage'));
+const ProjectDetailPage = React.lazy(() => import('./pages/projects/ProjectDetailPage'));
+const CreateProjectPage = React.lazy(() => import('./pages/projects/CreateProjectPage'));
+const TeamPage = React.lazy(() => import('./pages/team/TeamPage'));
+const MemberDetailPage = React.lazy(() => import('./pages/team/MemberDetailPage'));
+const DocumentsPage = React.lazy(() => import('./pages/documents/DocumentsPage'));
+const ChatPage = React.lazy(() => import('./pages/chat/ChatPage'));
+const SiteDiaryPage = React.lazy(() => import('./pages/site-diary/SiteDiaryPage'));
+const ReportsPage = React.lazy(() => import('./pages/reports/ReportsPage'));
+const NotificationsPage = React.lazy(() => import('./pages/notifications/NotificationsPage'));
+const PerformancePage = React.lazy(() => import('./pages/performance/PerformancePage'));
+const AdminPage = React.lazy(() => import('./pages/admin/AdminPage'));
+const UserManagementPage = React.lazy(() => import('./pages/admin/UserManagementPage'));
+const RoleManagementPage = React.lazy(() => import('./pages/admin/RoleManagementPage'));
+const TaskAssignmentSettingsPage = React.lazy(() => import('./pages/admin/TaskAssignmentSettingsPage'));
+const AuditLogPage = React.lazy(() => import('./pages/admin/AuditLogPage'));
+const NotificationAdminPage = React.lazy(() => import('./pages/admin/NotificationAdminPage'));
+const AttendanceDashboardPage = React.lazy(() => import('./pages/admin/AttendanceDashboardPage'));
+const ContactInquiriesPage = React.lazy(() => import('./pages/admin/ContactInquiriesPage'));
+const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
 import Spinner from './components/ui/Spinner';
 
 const queryClient = new QueryClient({
@@ -76,71 +75,73 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          {/* Landing */}
-          <Route path="/" element={<LandingPage />} />
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>}>
+          <Routes>
+            {/* Landing */}
+            <Route path="/" element={<LandingPage />} />
 
-          {/* Public Auth */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/setup" element={<SetupPage />} />
-          <Route path="/policy" element={<PrivacyPolicyPage />} />
-          <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
-          <Route path="/terms" element={<TermsOfUsePage />} />
+            {/* Public Auth */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/setup" element={<SetupPage />} />
+            <Route path="/policy" element={<PrivacyPolicyPage />} />
+            <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
+            <Route path="/terms" element={<TermsOfUsePage />} />
 
-          {/* Protected App */}
-          <Route
-            path="/app"
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/app/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
+            {/* Protected App */}
+            <Route
+              path="/app"
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/app/dashboard" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
 
-            {/* Tasks */}
-            <Route path="tasks" element={<TasksPage />} />
-            <Route path="tasks/create" element={<CreateTaskPage />} />
-            <Route path="tasks/:id" element={<TaskDetailPage />} />
-            <Route path="tasks/:taskId/edit" element={<CreateTaskPage />} />
+              {/* Tasks */}
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="tasks/create" element={<CreateTaskPage />} />
+              <Route path="tasks/:id" element={<TaskDetailPage />} />
+              <Route path="tasks/:taskId/edit" element={<CreateTaskPage />} />
 
-            {/* Projects */}
-            <Route path="projects" element={<ProjectsPage />} />
-            <Route path="projects/create" element={<CreateProjectPage />} />
-            <Route path="projects/:id" element={<ProjectDetailPage />} />
-            <Route path="projects/:projectId/edit" element={<CreateProjectPage />} />
+              {/* Projects */}
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="projects/create" element={<CreateProjectPage />} />
+              <Route path="projects/:id" element={<ProjectDetailPage />} />
+              <Route path="projects/:projectId/edit" element={<CreateProjectPage />} />
 
-            {/* Team */}
-            <Route path="team" element={<TeamPage />} />
-            <Route path="team/:id" element={<MemberDetailPage />} />
+              {/* Team */}
+              <Route path="team" element={<TeamPage />} />
+              <Route path="team/:id" element={<MemberDetailPage />} />
 
-            {/* Other */}
-            <Route path="documents" element={<DocumentsPage />} />
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="chat/:channelId" element={<ChatPage />} />
-            <Route path="site-diary" element={<SiteDiaryPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="performance" element={<PerformancePage />} />
+              {/* Other */}
+              <Route path="documents" element={<DocumentsPage />} />
+              <Route path="chat" element={<ChatPage />} />
+              <Route path="chat/:channelId" element={<ChatPage />} />
+              <Route path="site-diary" element={<SiteDiaryPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="performance" element={<PerformancePage />} />
 
-            {/* Admin */}
-            <Route path="admin" element={<AdminPage />} />
-            <Route path="admin/users" element={<UserManagementPage />} />
-            <Route path="admin/roles" element={<RoleManagementPage />} />
-            <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
-            <Route path="admin/audit-log" element={<AuditLogPage />} />
-            <Route path="admin/notifications" element={<NotificationAdminPage />} />
-            <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
-            <Route path="admin/contact" element={<ContactInquiriesPage />} />
+              {/* Admin */}
+              <Route path="admin" element={<AdminPage />} />
+              <Route path="admin/users" element={<UserManagementPage />} />
+              <Route path="admin/roles" element={<RoleManagementPage />} />
+              <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
+              <Route path="admin/audit-log" element={<AuditLogPage />} />
+              <Route path="admin/notifications" element={<NotificationAdminPage />} />
+              <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
+              <Route path="admin/contact" element={<ContactInquiriesPage />} />
 
-            {/* Profile */}
-            <Route path="profile" element={<ProfilePage />} />
-          </Route>
+              {/* Profile */}
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </React.Suspense>
       </BrowserRouter>
       <Toaster
         position="top-right"

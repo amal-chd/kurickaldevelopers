@@ -115,9 +115,20 @@ export interface Task {
   estimatedHours: number;
   tags: string[];
   approvalStatus: ApprovalStatus;
-  memberProgress?: Record<string, { status: TaskStatus; updatedAt?: Timestamp; actualHours?: number; completedBy?: string }>;
+  memberProgress?: Record<string, {
+    status: TaskStatus;
+    updatedAt?: Timestamp;
+    actualHours?: number;
+    completedBy?: string;
+    completedAt?: Timestamp;
+    completionStatus?: 'completed' | 'completed_on_time' | 'completed_late';
+    delaySeconds?: number;
+  }>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  completedAt?: Timestamp;
+  completionStatus?: 'completed' | 'completed_on_time' | 'completed_late';
+  delaySeconds?: number;
 }
 
 // ─── Document ─────────────────────────────────────────────────────────────────

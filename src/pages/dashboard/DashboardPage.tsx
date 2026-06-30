@@ -13,7 +13,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { subscribeProjects, subscribeTasks, subscribeUsers, getPerformanceScore } from '../../lib/firestore';
 import { Task, Project, AppUser, PerformanceScore } from '../../types';
-import { formatDate, projectStatusColor, projectStatusLabel } from '../../lib/utils';
+import { formatDate, projectStatusColor, projectStatusLabel, formatDelay } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
 const DashboardPage: React.FC = () => {
@@ -102,6 +102,50 @@ const DashboardPage: React.FC = () => {
     (t) => t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done',
   );
 
+  // Completion stats calculations
+  const doneTasks = allTasks.filter((t) => t.status === 'done');
+  const totalDone = doneTasks.length;
+
+  const onTimeTasks = doneTasks.filter((t) => {
+    if (t.completionStatus) {
+      return t.completionStatus === 'completed_on_time' || t.completionStatus === 'completed';
+    }
+    if (t.dueDate && t.updatedAt) {
+      return t.updatedAt.toDate() <= t.dueDate.toDate();
+    }
+    return true;
+  });
+
+  const lateTasks = doneTasks.filter((t) => {
+    if (t.completionStatus) {
+      return t.completionStatus === 'completed_late';
+    }
+    if (t.dueDate && t.updatedAt) {
+      return t.updatedAt.toDate() > t.dueDate.toDate();
+    }
+    return false;
+  });
+
+  const onTimeRate = totalDone > 0 ? Math.round((onTimeTasks.length / totalDone) * 100) : 100;
+  const lateRate = totalDone > 0 ? Math.round((lateTasks.length / totalDone) * 100) : 0;
+
+  let totalDelaySeconds = 0;
+  let lateCount = 0;
+  lateTasks.forEach((t) => {
+    if (t.delaySeconds !== undefined) {
+      totalDelaySeconds += t.delaySeconds;
+      lateCount++;
+    } else if (t.dueDate && t.updatedAt) {
+      const diff = t.updatedAt.toDate().getTime() - t.dueDate.toDate().getTime();
+      if (diff > 0) {
+        totalDelaySeconds += Math.floor(diff / 1000);
+        lateCount++;
+      }
+    }
+  });
+  const avgDelaySeconds = lateCount > 0 ? Math.round(totalDelaySeconds / lateCount) : 0;
+  const avgDelayText = lateCount > 0 ? formatDelay(avgDelaySeconds) : 'No delay';
+
   const getProjectProgress = (projectId: string) => {
     const pts = allTasks.filter((t) => t.projectId === projectId);
     if (!pts.length) return 0;
@@ -164,6 +208,144 @@ const DashboardPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {/* ── Completion Analytics ── */}
+      <Card padding={false} className="overflow-hidden border border-gray-150 shadow-sm bg-white rounded-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-amber-500" />
+            <h3 className="font-bold text-gray-900">Task Completion Analytics</h3>
+          </div>
+        </div>
+
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-gray-100 bg-white">
+          <div className="flex items-center gap-4 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl font-bold flex-shrink-0">
+              ✓
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-505">On-Time Rate</p>
+              <p className="text-3xl font-black text-emerald-600 mt-1">{onTimeRate}%</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 bg-rose-50/30 p-4 rounded-xl border border-rose-100/50">
+            <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-xl font-bold flex-shrink-0">
+              ⚠️
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-505">Late Rate</p>
+              <p className="text-3xl font-black text-rose-500 mt-1">{lateRate}%</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 bg-amber-50/30 p-4 rounded-xl border border-amber-100/50">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold flex-shrink-0">
+              🕒
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-505">Average Delay</p>
+              <p className="text-lg font-bold text-amber-700 mt-2">{avgDelayText}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 bg-white">
+          <h4 className="font-bold text-sm text-gray-800 mb-3 flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-primary" />
+            Team Member Statistics
+          </h4>
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-150 text-gray-500 font-bold uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Member</th>
+                  <th className="py-2.5 px-4 text-center">Completed Tasks</th>
+                  <th className="py-2.5 px-4 text-center">On-Time Rate</th>
+                  <th className="py-2.5 px-4 text-center">Late Rate</th>
+                  <th className="py-2.5 px-4">Average Delay</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users.map(u => {
+                  const memberTasks = allTasks.filter(t => t.assigneeIds?.includes(u.id));
+                  const memberDone = memberTasks.filter(t => t.status === 'done');
+
+                  const memberOnTime = memberDone.filter(t => {
+                    const prog = t.memberProgress?.[u.id];
+                    if (prog?.completionStatus) {
+                      return prog.completionStatus === 'completed_on_time' || prog.completionStatus === 'completed';
+                    }
+                    if (t.dueDate && prog?.updatedAt) {
+                      return prog.updatedAt.toDate() <= t.dueDate.toDate();
+                    }
+                    return true;
+                  });
+
+                  const memberLate = memberDone.filter(t => {
+                    const prog = t.memberProgress?.[u.id];
+                    if (prog?.completionStatus) {
+                      return prog.completionStatus === 'completed_late';
+                    }
+                    if (t.dueDate && prog?.updatedAt) {
+                      return prog.updatedAt.toDate() > t.dueDate.toDate();
+                    }
+                    return false;
+                  });
+
+                  const mOnTimeRate = memberDone.length > 0 ? Math.round((memberOnTime.length / memberDone.length) * 100) : 100;
+                  const mLateRate = memberDone.length > 0 ? Math.round((memberLate.length / memberDone.length) * 100) : 0;
+
+                  let mDelaySum = 0;
+                  let mLateCount = 0;
+                  memberLate.forEach(t => {
+                    const prog = t.memberProgress?.[u.id];
+                    if (prog?.delaySeconds !== undefined) {
+                      mDelaySum += prog.delaySeconds;
+                      mLateCount++;
+                    } else if (t.dueDate && prog?.updatedAt) {
+                      const diff = prog.updatedAt.toDate().getTime() - t.dueDate.toDate().getTime();
+                      if (diff > 0) {
+                        mDelaySum += Math.floor(diff / 1000);
+                        mLateCount++;
+                      }
+                    }
+                  });
+
+                  const mAvgDelay = mLateCount > 0 ? Math.round(mDelaySum / mLateCount) : 0;
+                  const mAvgDelayText = mLateCount > 0 ? formatDelay(mAvgDelay) : '—';
+
+                  return (
+                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-3 px-4 flex items-center gap-2.5">
+                        <Avatar src={u.avatarUrl} name={u.name} size="xs" />
+                        <div>
+                          <span className="font-semibold text-gray-800 block">{u.name}</span>
+                          <span className="text-[10px] text-gray-400 capitalize">{u.roleId || 'Member'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center font-medium text-gray-700">{memberDone.length}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-600">
+                          {mOnTimeRate}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full font-bold ${mLateRate > 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-50 text-gray-400'}`}>
+                          {mLateRate}%
+                        </span>
+                      </td>
+                      <td className={`py-3 px-4 font-medium ${mLateRate > 0 ? 'text-rose-600' : 'text-gray-400'}`}>
+                        {mAvgDelayText}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Card>
 
       {/* ── Main grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
