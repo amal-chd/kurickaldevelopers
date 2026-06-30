@@ -523,11 +523,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
             {filteredJson.slice(1).map((row, rIdx) => (
               <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left">
-                {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="px-4 py-2 border-r dark:border-gray-700 dark:text-gray-300 whitespace-nowrap">
-                    {cell !== undefined && cell !== null ? String(cell) : ''}
-                  </td>
-                ))}
+                {filteredJson[0]?.map((_, cIdx) => {
+                  const cell = row[cIdx];
+                  return (
+                    <td key={cIdx} className="px-4 py-2 border-r dark:border-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {cell !== undefined && cell !== null ? String(cell) : ''}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

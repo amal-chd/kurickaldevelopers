@@ -27,7 +27,7 @@ const NAV_GROUPS = [
       { to: '/app/site-diary', label: 'Site Diary', icon: BookOpen, always: true },
       { to: '/app/documents', label: 'Documents', icon: FileText, perm: 'docs_view' as const },
       { to: '/app/reports', label: 'Reports', icon: BarChart2, perm: 'reports_view' as const },
-      { to: '/app/performance', label: 'Performance', icon: Award, perm: 'performance_view' as const },
+      { to: '/app/performance', label: 'Performance & Points', icon: Award, always: true },
     ],
   },
   {
