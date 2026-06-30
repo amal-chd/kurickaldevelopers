@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, ZoomIn, ZoomOut, RotateCw, FileText, Download, Share2, Printer, 
   ChevronLeft, ChevronRight, Search, Play, Pause, Volume2, Moon, Sun, 
@@ -539,8 +540,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
     );
   };
 
-  return (
-    <div className={`fixed inset-0 z-50 flex flex-col ${isDarkMode ? 'dark bg-gray-950 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-200`}>
+  return createPortal(
+    <div className={`fixed inset-0 z-[9999] flex flex-col ${isDarkMode ? 'dark bg-gray-950 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-200`}>
       {/* Top Header Bar */}
       <header className="h-16 px-4 flex items-center justify-between border-b bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm flex-shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
@@ -1061,6 +1062,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           )}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
