@@ -2,7 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -18,6 +18,16 @@ const firebaseConfig = {
 // duplicate initialization from HMR / re-imports, which can otherwise lead to
 // "Firebase App ... already deleted/exists" errors).
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firebase App Check
+if (window.location.hostname === 'localhost') {
+  (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+}
+export const appCheck = initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider('6LeCfkMtAAAAADZYsk6GUQHnhervXMJ2LQyvJQ1i'),
+  isTokenAutoRefreshEnabled: true
+});
+
 export const auth = getAuth(app);
 
 // Configure local persistence to survive browser close/refresh
