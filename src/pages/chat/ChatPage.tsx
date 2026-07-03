@@ -38,11 +38,11 @@ function DaySeparator({ date }: { date: Date }) {
 
   return (
     <div className="flex items-center gap-3 my-3 px-4">
-      <div className="flex-1 h-px bg-gray-300/50" />
-      <span className="text-xs text-gray-500 font-medium px-2 py-0.5 bg-white rounded-full shadow-sm">
+      <div className="flex-1 h-px bg-slate-300/50" />
+      <span className="text-xs text-slate-500 font-medium px-2 py-0.5 bg-white rounded-full shadow-sm">
         {label}
       </span>
-      <div className="flex-1 h-px bg-gray-300/50" />
+      <div className="flex-1 h-px bg-slate-300/50" />
     </div>
   );
 }
@@ -82,7 +82,7 @@ const ChannelItem: React.FC<{
     direct: otherUser ? (
       <Avatar name={otherUser.name || otherUser.email || '?'} src={otherUser.avatarUrl} size="sm" />
     ) : (
-      <User className="w-4 h-4 text-gray-400" />
+      <User className="w-4 h-4 text-slate-400" />
     ),
   };
 
@@ -90,13 +90,13 @@ const ChannelItem: React.FC<{
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left ${
-        selected ? 'bg-primary/10' : 'hover:bg-gray-100'
+        selected ? 'bg-primary/10' : 'hover:bg-slate-100'
       }`}
     >
       <div
         className={`flex-shrink-0 ${
           channel.type !== 'direct'
-            ? 'w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 border border-gray-100'
+            ? 'w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 border border-slate-100'
             : ''
         }`}
       >
@@ -106,19 +106,19 @@ const ChannelItem: React.FC<{
         <div className="flex items-center justify-between gap-1">
           <p
             className={`text-sm font-medium truncate ${
-              selected ? 'text-primary' : 'text-gray-900'
+              selected ? 'text-primary' : 'text-slate-900'
             }`}
           >
             {displayName}
           </p>
           {channel.lastMessageAt && (
-            <p className="text-xs text-gray-400 flex-shrink-0">
+            <p className="text-xs text-slate-400 flex-shrink-0">
               {formatRelative(channel.lastMessageAt)}
             </p>
           )}
         </div>
         {channel.lastMessageText && (
-          <p className="text-xs text-gray-500 truncate mt-0.5">
+          <p className="text-xs text-slate-500 truncate mt-0.5">
             {channel.lastMessageText}
           </p>
         )}
@@ -171,7 +171,7 @@ const MessageBubble: React.FC<{
       <div
         className={`flex ${isOwn ? 'justify-end' : 'justify-start'} px-4 mb-1`}
       >
-        <p className="text-xs text-gray-400 italic px-3 py-1.5 bg-gray-100 rounded-xl">
+        <p className="text-xs text-slate-400 italic px-3 py-1.5 bg-slate-100 rounded-xl">
           This message was deleted
         </p>
       </div>
@@ -181,7 +181,7 @@ const MessageBubble: React.FC<{
   if (message.type === 'system') {
     return (
       <div className="flex justify-center px-4 my-1">
-        <p className="text-xs text-gray-500 bg-white/60 rounded-full px-3 py-1">
+        <p className="text-xs text-slate-500 bg-white/60 rounded-full px-3 py-1">
           {message.text}
         </p>
       </div>
@@ -221,7 +221,7 @@ const MessageBubble: React.FC<{
       >
         {/* Sender name */}
         {!isOwn && showAvatar && (
-          <p className="text-xs font-semibold text-gray-600 mb-1 ml-1">
+          <p className="text-xs font-semibold text-slate-600 mb-1 ml-1">
             {senderName}
           </p>
         )}
@@ -232,7 +232,7 @@ const MessageBubble: React.FC<{
             className={`text-xs rounded-lg px-2 py-1 mb-1 border-l-2 ${
               isOwn
                 ? 'border-white/50 bg-white/30 text-white/80'
-                : 'border-primary/50 bg-gray-100 text-gray-500'
+                : 'border-primary/50 bg-slate-100 text-slate-500'
             }`}
           >
             <p className="font-medium">{message.replyToSenderName}</p>
@@ -243,17 +243,17 @@ const MessageBubble: React.FC<{
         {/* Task ref card */}
         {message.type === 'task_ref' && message.taskId && (
           <div
-            className="bg-white border border-gray-200 rounded-xl p-3 mb-1 cursor-pointer hover:shadow-md transition-shadow w-64"
+            className="bg-white border border-slate-200 rounded-xl p-3 mb-1 cursor-pointer hover:shadow-md transition-shadow w-64"
             onClick={() => onTaskClick?.(message.taskId!)}
           >
             <div className="flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-primary flex-shrink-0" />
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-slate-900 truncate">
                 {message.taskTitle}
               </p>
             </div>
             {message.taskStatus && (
-              <span className="text-xs text-gray-500 mt-1 block capitalize">
+              <span className="text-xs text-slate-500 mt-1 block capitalize">
                 Status: {message.taskStatus}
               </span>
             )}
@@ -265,7 +265,7 @@ const MessageBubble: React.FC<{
           className={`relative px-3 py-2 rounded-2xl text-sm shadow-sm ${
             isOwn
               ? 'bg-primary text-white rounded-br-sm'
-              : 'bg-white text-gray-900 rounded-bl-sm'
+              : 'bg-white text-slate-900 rounded-bl-sm'
           }`}
         >
           {/* Image attachment */}
@@ -286,7 +286,7 @@ const MessageBubble: React.FC<{
               target="_blank"
               rel="noopener noreferrer"
               className={`flex items-center gap-2 mb-1 rounded-xl px-2.5 py-2 transition-colors ${
-                isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-gray-50 border border-gray-100 hover:bg-gray-100'
+                isOwn ? 'bg-white/15 hover:bg-white/25' : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
               }`}
             >
               <Paperclip className="w-4 h-4 flex-shrink-0" />
@@ -305,7 +305,7 @@ const MessageBubble: React.FC<{
           >
             <p
               className={`text-xs ${
-                isOwn ? 'text-white/60' : 'text-gray-400'
+                isOwn ? 'text-white/60' : 'text-slate-400'
               }`}
             >
               {message.createdAt
@@ -315,7 +315,7 @@ const MessageBubble: React.FC<{
             {message.editedAt && (
               <p
                 className={`text-xs ${
-                  isOwn ? 'text-white/50' : 'text-gray-400'
+                  isOwn ? 'text-white/50' : 'text-slate-400'
                 }`}
               >
                 (edited)
@@ -337,7 +337,7 @@ const MessageBubble: React.FC<{
                   className={`text-xs rounded-full px-2 py-0.5 border flex items-center gap-0.5 transition-colors ${
                     uids.includes(currentUserId)
                       ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
                   {emoji} {uids.length}
@@ -357,7 +357,7 @@ const MessageBubble: React.FC<{
           {/* Emoji picker trigger */}
           <div className="relative">
             <button
-              className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
+              className="p-1 rounded-lg bg-white shadow-sm text-slate-500 hover:text-slate-700 border border-slate-100"
               onClick={() => setShowEmoji(!showEmoji)}
             >
               <Smile className="w-3.5 h-3.5" />
@@ -366,7 +366,7 @@ const MessageBubble: React.FC<{
               <div
                 className={`absolute ${
                   isOwn ? 'right-0' : 'left-0'
-                } bottom-full mb-1 bg-white rounded-xl shadow-lg border border-gray-100 p-2 flex gap-1 z-20`}
+                } bottom-full mb-1 bg-white rounded-xl shadow-lg border border-slate-100 p-2 flex gap-1 z-20`}
               >
                 {EMOJI_LIST.map((e) => (
                   <button
@@ -385,20 +385,20 @@ const MessageBubble: React.FC<{
           </div>
 
           <button
-            className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
+            className="p-1 rounded-lg bg-white shadow-sm text-slate-500 hover:text-slate-700 border border-slate-100"
             onClick={() => onReply(message)}
           >
             <CornerUpLeft className="w-3.5 h-3.5" />
           </button>
           <button
-            className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
+            className="p-1 rounded-lg bg-white shadow-sm text-slate-500 hover:text-slate-700 border border-slate-100"
             onClick={() => onCopy(message.text)}
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
           {canEdit && (
             <button
-              className="p-1 rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-700 border border-gray-100"
+              className="p-1 rounded-lg bg-white shadow-sm text-slate-500 hover:text-slate-700 border border-slate-100"
               onClick={() => onEdit(message)}
             >
               <Edit2 className="w-3.5 h-3.5" />
@@ -406,7 +406,7 @@ const MessageBubble: React.FC<{
           )}
           {canDelete && (
             <button
-              className="p-1 rounded-lg bg-white shadow-sm text-red-400 hover:text-red-600 border border-gray-100"
+              className="p-1 rounded-lg bg-white shadow-sm text-red-400 hover:text-red-600 border border-slate-100"
               onClick={() => onDelete(message.id)}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -823,18 +823,18 @@ const ChatPage: React.FC = () => {
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <div
-        className={`flex-shrink-0 flex flex-col border-r border-gray-100 bg-white transition-all duration-300 ${
+        className={`flex-shrink-0 flex flex-col border-r border-slate-100 bg-white transition-all duration-300 ${
           sidebarOpen ? 'w-72' : 'w-0 overflow-hidden'
         } ${channelId ? 'hidden md:flex' : 'flex w-full md:w-72'}`}
       >
         {/* Sidebar header */}
-        <div className="p-3 border-b border-gray-100">
+        <div className="p-3 border-b border-slate-100">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-gray-900 text-sm">Messages</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Messages</h2>
             <div className="flex items-center gap-1">
               {can('chat_send') && (
                 <button
-                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
                   onClick={() => setNewDmModal(true)}
                   title="New direct message"
                 >
@@ -843,7 +843,7 @@ const ChatPage: React.FC = () => {
               )}
               {chatCreateGroup && (
                 <button
-                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
                   onClick={() => setNewGroupModal(true)}
                   title="New group"
                 >
@@ -872,14 +872,14 @@ const ChatPage: React.FC = () => {
               announcement: <Megaphone className="w-3 h-3 text-amber-500" />,
               project: <Hash className="w-3 h-3 text-blue-500" />,
               group: <Users className="w-3 h-3 text-violet-500" />,
-              direct: <User className="w-3 h-3 text-gray-400" />,
+              direct: <User className="w-3 h-3 text-slate-400" />,
             };
 
             return (
               <div key={type} className="mb-2">
                 <div className="flex items-center gap-1.5 px-2 mb-1">
                   {sectionIconMap[type]}
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                     {label}
                   </p>
                 </div>
@@ -900,7 +900,7 @@ const ChatPage: React.FC = () => {
           })}
 
           {filteredChannels.length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-6">
+            <p className="text-xs text-slate-400 text-center py-6">
               No channels yet
             </p>
           )}
@@ -911,10 +911,10 @@ const ChatPage: React.FC = () => {
       {channelId ? (
         <div className="flex-1 flex flex-col min-w-0 bg-[#F0EBE3]">
           {/* Chat header */}
-          <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+          <div className="bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
             {/* Back arrow — mobile only */}
             <button
-              className="md:hidden p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+              className="md:hidden p-1 rounded-lg hover:bg-slate-100 text-slate-500"
               onClick={() => navigate('/app/chat')}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -922,7 +922,7 @@ const ChatPage: React.FC = () => {
 
             {/* Toggle sidebar — desktop */}
             <button
-              className="hidden md:block p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+              className="hidden md:block p-1 rounded-lg hover:bg-slate-100 text-slate-500"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               <MessageSquare className="w-5 h-5" />
@@ -939,8 +939,8 @@ const ChatPage: React.FC = () => {
                       size="sm"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      <User className="w-4 h-4 text-gray-400" />
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                      <User className="w-4 h-4 text-slate-400" />
                     </div>
                   )
                 ) : (
@@ -957,7 +957,7 @@ const ChatPage: React.FC = () => {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-gray-900 text-sm truncate">
+                    <p className="font-semibold text-slate-900 text-sm truncate">
                       {channelDisplayName}
                     </p>
                     {currentChannel.type === 'announcement' && (
@@ -967,7 +967,7 @@ const ChatPage: React.FC = () => {
                     )}
                   </div>
                   {currentChannel.type !== 'direct' && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-slate-500">
                       {currentChannel.memberIds.length} members
                     </p>
                   )}
@@ -976,7 +976,7 @@ const ChatPage: React.FC = () => {
                 {/* Info button — non-DM channels only */}
                 {currentChannel.type !== 'direct' && (
                   <button
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 flex-shrink-0"
                     onClick={() => setChannelInfoModal(true)}
                     title="Channel info"
                   >
@@ -987,7 +987,7 @@ const ChatPage: React.FC = () => {
                 {/* Delete conversation */}
                 {canDeleteChannel && (
                   <button
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 flex-shrink-0"
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 flex-shrink-0"
                     onClick={handleDeleteChannel}
                     title="Delete conversation"
                   >
@@ -1060,12 +1060,12 @@ const ChatPage: React.FC = () => {
                       {[0, 1, 2].map((i) => (
                         <div
                           key={i}
-                          className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                          className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
                           style={{ animationDelay: `${i * 0.15}s` }}
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-slate-500">
                       {Object.values(typing).join(', ')}{' '}
                       {Object.keys(typing).length === 1 ? 'is' : 'are'} typing…
                     </span>
@@ -1079,7 +1079,7 @@ const ChatPage: React.FC = () => {
 
           {/* ── Compose area ──────────────────────────────────────────────── */}
           {canSend ? (
-            <div className="bg-white border-t border-gray-100 flex-shrink-0">
+            <div className="bg-white border-t border-slate-100 flex-shrink-0">
               {/* Reply / Edit strip */}
               {(replyTo || editMsg) && (
                 <div className="flex items-center gap-3 px-4 pt-3 pb-0">
@@ -1091,12 +1091,12 @@ const ChatPage: React.FC = () => {
                             getUserById(replyTo!.senderId)?.name ?? 'Unknown'
                           }`}
                     </p>
-                    <p className="text-gray-500 text-xs truncate">
+                    <p className="text-slate-500 text-xs truncate">
                       {editMsg?.text ?? replyTo?.text}
                     </p>
                   </div>
                   <button
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-slate-400 hover:text-slate-600"
                     onClick={cancelEditReply}
                   >
                     <X className="w-4 h-4" />
@@ -1106,15 +1106,15 @@ const ChatPage: React.FC = () => {
 
               {/* @ Mention picker */}
               {showMention && mentionUsers.length > 0 && (
-                <div className="mx-4 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                <div className="mx-4 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
                   {mentionUsers.map((u) => (
                     <button
                       key={u.id}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 text-left"
                       onClick={() => insertMention(u)}
                     >
                       <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="xs" />
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-slate-700">
                         {u.name || u.email || 'Unknown'}
                       </span>
                     </button>
@@ -1131,7 +1131,7 @@ const ChatPage: React.FC = () => {
                   onChange={handleAttach}
                 />
                 <button
-                  className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 flex-shrink-0 disabled:opacity-50"
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 flex-shrink-0 disabled:opacity-50"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={attaching}
                   title="Attach file"
@@ -1144,7 +1144,7 @@ const ChatPage: React.FC = () => {
                 {/* Share task button */}
                 {tasksView && (
                   <button
-                    className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                    className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 flex-shrink-0"
                     onClick={() => setShowShareTask(true)}
                     title="Share task"
                   >
@@ -1161,7 +1161,7 @@ const ChatPage: React.FC = () => {
                     value={text}
                     onChange={handleTextChange}
                     onKeyDown={handleKeyDown}
-                    className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary focus:border-primary max-h-32"
+                    className="w-full resize-none rounded-2xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary focus:border-primary max-h-32"
                     style={{ minHeight: '42px' }}
                   />
                 </div>
@@ -1178,8 +1178,8 @@ const ChatPage: React.FC = () => {
             </div>
           ) : (
             /* Read-only bar */
-            <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-center justify-center flex-shrink-0">
-              <p className="text-sm text-gray-400 italic">
+            <div className="bg-white border-t border-slate-100 px-4 py-3 flex items-center justify-center flex-shrink-0">
+              <p className="text-sm text-slate-400 italic">
                 {isAnnouncement
                   ? 'Only admins can post in announcement channels'
                   : "You don't have permission to send messages"}
@@ -1233,7 +1233,7 @@ const ChatPage: React.FC = () => {
             onChange={(e) => setGroupName(e.target.value)}
           />
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
+            <p className="text-sm font-medium text-slate-700 mb-2">
               Add Members
             </p>
             <Input
@@ -1251,7 +1251,7 @@ const ChatPage: React.FC = () => {
                 .map((u) => (
                   <label
                     key={u.id}
-                    className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"
+                    className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer"
                   >
                     <input
                       type="checkbox"
@@ -1263,10 +1263,10 @@ const ChatPage: React.FC = () => {
                             : [...prev, u.id]
                         )
                       }
-                      className="rounded border-gray-300 text-primary focus:ring-primary/40"
+                      className="rounded border-slate-300 text-primary focus:ring-primary/40"
                     />
                     <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="xs" />
-                    <span className="text-sm text-gray-700">{u.name || u.email || 'Unknown'}</span>
+                    <span className="text-sm text-slate-700">{u.name || u.email || 'Unknown'}</span>
                   </label>
                 ))}
             </div>
@@ -1298,22 +1298,22 @@ const ChatPage: React.FC = () => {
               .map((u) => (
                 <button
                   key={u.id}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-left transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-left transition-colors"
                   onClick={() => startDm(u.id)}
                 >
                   <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800">
+                    <p className="text-sm font-medium text-slate-800">
                       {u.name || u.email || 'Unknown'}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    <p className="text-xs text-slate-500 truncate">{u.email}</p>
                   </div>
                 </button>
               ))}
             {activeOtherUsers.filter((u) =>
               (u.name || u.email || '').toLowerCase().includes(dmSearch.toLowerCase())
             ).length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">
+              <p className="text-sm text-slate-400 text-center py-4">
                 No users found
               </p>
             )}
@@ -1331,7 +1331,7 @@ const ChatPage: React.FC = () => {
         >
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-slate-500">
                 {currentChannel.memberIds.length} members
               </span>
               {currentChannel.type === 'announcement' && (
@@ -1352,7 +1352,7 @@ const ChatPage: React.FC = () => {
                     {u ? (
                       <>
                         <Avatar name={u.name || u.email || '?'} src={u.avatarUrl} size="sm" />
-                        <span className="flex-1 text-sm text-gray-800">
+                        <span className="flex-1 text-sm text-slate-800">
                           {u.name || u.email || 'Unknown'}
                         </span>
                         {isAdmin && (
@@ -1362,7 +1362,7 @@ const ChatPage: React.FC = () => {
                         )}
                       </>
                     ) : (
-                      <span className="text-sm text-gray-400 italic">
+                      <span className="text-sm text-slate-400 italic">
                         Unknown user
                       </span>
                     )}
@@ -1383,22 +1383,22 @@ const ChatPage: React.FC = () => {
       >
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {tasks.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">
+            <p className="text-sm text-slate-400 text-center py-6">
               No tasks available
             </p>
           ) : (
             tasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer border border-gray-100 transition-colors"
+                className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl cursor-pointer border border-slate-100 transition-colors"
                 onClick={() => handleShareTask(task)}
               >
                 <CheckSquare className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-slate-900 truncate">
                     {task.title}
                   </p>
-                  <p className="text-xs text-gray-500 capitalize">
+                  <p className="text-xs text-slate-500 capitalize">
                     {task.status}
                   </p>
                 </div>

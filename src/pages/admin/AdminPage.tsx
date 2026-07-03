@@ -55,7 +55,7 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Admin Panel</h2>
+      <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Panel</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {visibleItems.map((item) => (
           <Card
@@ -73,10 +73,10 @@ const AdminPage: React.FC = () => {
               )}
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-900">{item.label}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+              <p className="font-semibold text-slate-900">{item.label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
+            <ChevronRight className="w-4 h-4 text-slate-400" />
           </Card>
         ))}
       </div>

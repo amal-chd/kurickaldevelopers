@@ -14,8 +14,7 @@
     font-feature-settings: 'cv11', 'ss01';
   }
   body {
-    @apply text-gray-900 antialiased;
-    background-color: #F7F8FA;
+    @apply text-slate-900 antialiased bg-canvas;
   }
 
   /* Premium typographic hierarchy — tighter tracking on headings */
@@ -29,8 +28,8 @@
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ── Animations ── */
 @keyframes fadeUp {
@@ -58,14 +57,14 @@
   50%       { transform: scale(1.4); opacity: 0.7; }
 }
 
-.anim-fade-up     { animation: fadeUp    0.55s ease both; }
-.anim-fade-up-d1  { animation: fadeUp    0.55s 0.10s ease both; }
-.anim-fade-up-d2  { animation: fadeUp    0.55s 0.20s ease both; }
-.anim-fade-up-d3  { animation: fadeUp    0.55s 0.32s ease both; }
-.anim-fade-in     { animation: fadeIn    0.4s ease both; }
-.anim-scale-in    { animation: scaleIn   0.35s ease both; }
-.anim-slide-right { animation: slideRight 0.4s ease both; }
-.anim-count       { animation: countUp   0.5s 0.4s ease both; }
+.anim-fade-up     { animation: fadeUp    0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-up-d1  { animation: fadeUp    0.5s 0.05s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-up-d2  { animation: fadeUp    0.5s 0.10s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-up-d3  { animation: fadeUp    0.5s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-fade-in     { animation: fadeIn    0.3s ease both; }
+.anim-scale-in    { animation: scaleIn   0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-slide-right { animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-count       { animation: countUp   0.5s 0.3s ease both; }
 
 /* ── Styled select ── */
 select {
@@ -79,25 +78,25 @@ select {
 
 /* ── Focus ring ── */
 *:focus-visible {
-  outline: 2px solid rgba(26, 58, 92, 0.45);
+  outline: 2px solid rgba(15, 23, 42, 0.3); /* Slate 900 */
   outline-offset: 2px;
   border-radius: 8px;
 }
 
 /* ── Text selection ── */
-::selection { background: rgba(26, 58, 92, 0.14); }
+::selection { background: rgba(15, 23, 42, 0.1); }
 
 /* ── Reusable surface + interaction utilities ── */
 @layer components {
   .card-surface {
-    @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+    @apply bg-white rounded-xl border border-slate-200/60 shadow-sm;
   }
   .hover-lift {
-    @apply transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5;
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300;
   }
   /* Skeleton shimmer for loading states */
   .skeleton {
-    @apply relative overflow-hidden bg-gray-100 rounded-lg;
+    @apply relative overflow-hidden bg-slate-100 rounded-lg;
   }
   .skeleton::after {
     content: '';

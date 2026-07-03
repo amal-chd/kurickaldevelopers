@@ -36,9 +36,9 @@ const AppLayout: React.FC = () => {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopBar onMenuClick={() => setSidebarOpen(true)} title={title} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto w-full">
           {/* Keyed by route so every page navigation gets a smooth entrance */}
-          <div key={location.pathname} className="animate-fade-in min-h-full">
+          <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full flex flex-col">
             <Outlet />
           </div>
         </main>

@@ -190,75 +190,75 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map((s) => (
           <button
             key={s.label}
             onClick={() => navigate(s.path)}
-            className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex items-center gap-4 hover:shadow-card-hover hover:-translate-y-0.5 hover:border-gray-200 transition-all duration-200 text-left w-full overflow-hidden"
+            className="group relative bg-white rounded-xl border border-slate-200/60 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 transition-all duration-200 text-left w-full overflow-hidden"
           >
-            <div className={`p-3 rounded-xl bg-gradient-to-br ${s.gradient} ring-1 ring-inset ring-white/40 flex-shrink-0 shadow-sm`}>
-              <s.icon className="w-5 h-5 text-white" />
+            <div className={`p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex-shrink-0`}>
+              <s.icon className="w-5 h-5 text-slate-500 group-hover:text-primary transition-colors" />
             </div>
             <div className="min-w-0">
-              <p className="text-2xl sm:text-[28px] font-bold text-gray-900 leading-none tracking-tight">{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1.5 leading-tight font-medium">{s.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none tracking-tight">{s.value}</p>
+              <p className="text-xs text-slate-500 mt-1.5 leading-tight font-medium">{s.label}</p>
             </div>
-            <ArrowRight className="w-4 h-4 text-gray-300 absolute top-4 right-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight className="w-4 h-4 text-slate-300 absolute top-5 right-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
           </button>
         ))}
       </div>
 
       {/* ── Completion Analytics ── */}
-      <Card padding={false} className="overflow-hidden border border-gray-150 shadow-sm bg-white rounded-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+      <Card padding={false} className="overflow-hidden border border-slate-200/60 shadow-sm bg-white rounded-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-amber-500" />
-            <h3 className="font-bold text-gray-900">Task Completion Analytics</h3>
+            <TrendingUp className="w-5 h-5 text-slate-500" />
+            <h3 className="font-bold text-slate-900">Task Completion Analytics</h3>
           </div>
         </div>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-gray-100 bg-white">
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-4 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl font-bold flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold flex-shrink-0">
               ✓
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-505">On-Time Rate</p>
-              <p className="text-3xl font-black text-emerald-600 mt-1">{onTimeRate}%</p>
+              <p className="text-sm font-semibold text-slate-600">On-Time Rate</p>
+              <p className="text-3xl font-black text-emerald-600 mt-0.5">{onTimeRate}%</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 bg-rose-50/30 p-4 rounded-xl border border-rose-100/50">
-            <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-xl font-bold flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 font-bold flex-shrink-0">
               ⚠️
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-505">Late Rate</p>
-              <p className="text-3xl font-black text-rose-500 mt-1">{lateRate}%</p>
+              <p className="text-sm font-semibold text-slate-600">Late Rate</p>
+              <p className="text-3xl font-black text-rose-500 mt-0.5">{lateRate}%</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 bg-amber-50/30 p-4 rounded-xl border border-amber-100/50">
-            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl font-bold flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 font-bold flex-shrink-0">
               🕒
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-505">Average Delay</p>
-              <p className="text-lg font-bold text-amber-700 mt-2">{avgDelayText}</p>
+              <p className="text-sm font-semibold text-slate-600">Average Delay</p>
+              <p className="text-lg font-bold text-amber-700 mt-1">{avgDelayText}</p>
             </div>
           </div>
         </div>
 
         <div className="p-5 bg-white">
-          <h4 className="font-bold text-sm text-gray-800 mb-3 flex items-center gap-1.5">
-            <Users className="w-4 h-4 text-primary" />
+          <h4 className="font-bold text-sm text-slate-900 mb-3 flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-slate-400" />
             Team Member Statistics
           </h4>
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-150 text-gray-500 font-bold uppercase tracking-wider">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                   <th className="py-2.5 px-4">Member</th>
                   <th className="py-2.5 px-4 text-center">Completed Tasks</th>
                   <th className="py-2.5 px-4 text-center">On-Time Rate</th>
@@ -266,7 +266,7 @@ const DashboardPage: React.FC = () => {
                   <th className="py-2.5 px-4">Average Delay</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {users.map(u => {
                   const memberTasks = allTasks.filter(t => t.assigneeIds?.includes(u.id));
                   const memberDone = memberTasks.filter(t => t.status === 'done');
@@ -316,26 +316,26 @@ const DashboardPage: React.FC = () => {
                   const mAvgDelayText = mLateCount > 0 ? formatDelay(mAvgDelay) : '—';
 
                   return (
-                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-3 px-4 flex items-center gap-2.5">
                         <Avatar src={u.avatarUrl} name={u.name} size="xs" />
                         <div>
-                          <span className="font-semibold text-gray-800 block">{u.name}</span>
-                          <span className="text-[10px] text-gray-400 capitalize">{u.roleId || 'Member'}</span>
+                          <span className="font-semibold text-slate-800 block">{u.name}</span>
+                          <span className="text-[10px] text-slate-400 capitalize">{u.roleId || 'Member'}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-center font-medium text-gray-700">{memberDone.length}</td>
+                      <td className="py-3 px-4 text-center font-medium text-slate-700">{memberDone.length}</td>
                       <td className="py-3 px-4 text-center">
-                        <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-600">
+                        <span className="inline-block px-2 py-0.5 rounded-md font-semibold bg-emerald-50 text-emerald-600">
                           {mOnTimeRate}%
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full font-bold ${mLateRate > 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-50 text-gray-400'}`}>
+                        <span className={`inline-block px-2 py-0.5 rounded-md font-semibold ${mLateRate > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
                           {mLateRate}%
                         </span>
                       </td>
-                      <td className={`py-3 px-4 font-medium ${mLateRate > 0 ? 'text-rose-600' : 'text-gray-400'}`}>
+                      <td className={`py-3 px-4 font-medium ${mLateRate > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
                         {mAvgDelayText}
                       </td>
                     </tr>
@@ -353,20 +353,20 @@ const DashboardPage: React.FC = () => {
         {/* ── My Tasks ── */}
         <div className="lg:col-span-2">
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/30">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-blue-50 rounded-lg">
                   <CheckSquare className="w-4 h-4 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-semibold text-slate-900">
                   {isManager ? 'All Tasks' : 'My Tasks'}
                 </h3>
                 {overdueTasks.length > 0 && (
-                  <span className="text-xs bg-red-50 text-red-600 font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                  <span className="text-xs bg-rose-50 text-rose-600 font-semibold px-2 py-0.5 rounded-md border border-rose-100">
                     {overdueTasks.length} overdue
                   </span>
                 )}
-                <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-md">
                   {myTasks.length}
                 </span>
               </div>
@@ -380,11 +380,11 @@ const DashboardPage: React.FC = () => {
 
             {myTasks.length === 0 ? (
               <div className="py-14 text-center">
-                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <CheckSquare className="w-6 h-6 text-gray-200" />
+                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <CheckSquare className="w-6 h-6 text-slate-200" />
                 </div>
-                <p className="text-sm font-medium text-gray-400">No tasks yet</p>
-                <p className="text-xs text-gray-300 mt-1">Tasks assigned to you will appear here</p>
+                <p className="text-sm font-medium text-slate-400">No tasks yet</p>
+                <p className="text-xs text-slate-400 mt-1">Tasks assigned to you will appear here</p>
                 {can('tasks_create') && (
                   <button
                     onClick={() => navigate('/app/tasks/create')}
@@ -395,7 +395,7 @@ const DashboardPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-slate-50">
                 {myTasks.slice(0, 8).map((task) => {
                   const isOverdue =
                     task.dueDate &&
@@ -404,16 +404,16 @@ const DashboardPage: React.FC = () => {
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/70 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/70 cursor-pointer transition-colors"
                       onClick={() => navigate(`/app/tasks/${task.id}`)}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
-                          <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                          {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />}
+                          <p className="text-sm font-medium text-slate-900 truncate">{task.title}</p>
                         </div>
                         {task.dueDate && (
-                          <p className={`text-xs mt-0.5 flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`}>
+                          <p className={`text-xs mt-0.5 flex items-center gap-1 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`}>
                             <Calendar className="w-3 h-3" />
                             {isOverdue ? 'Overdue · ' : ''}Due {formatDate(task.dueDate)}
                           </p>
@@ -427,7 +427,7 @@ const DashboardPage: React.FC = () => {
                   );
                 })}
                 {myTasks.length > 8 && (
-                  <div className="px-5 py-3 bg-gray-50/40">
+                  <div className="px-5 py-3 bg-slate-50/40 border-t border-slate-50">
                     <button
                       onClick={() => navigate('/app/tasks')}
                       className="text-xs text-primary font-semibold hover:underline"
@@ -483,13 +483,13 @@ const DashboardPage: React.FC = () => {
 
           {/* Projects */}
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/30">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-emerald-50 rounded-lg">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900">Projects</h3>
-                <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                <h3 className="font-semibold text-slate-900">Projects</h3>
+                <span className="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-md">
                   {projects.length}
                 </span>
               </div>
@@ -503,10 +503,10 @@ const DashboardPage: React.FC = () => {
 
             {projects.length === 0 ? (
               <div className="py-10 text-center">
-                <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-2">
-                  <FolderOpen className="w-5 h-5 text-gray-200" />
+                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                  <FolderOpen className="w-5 h-5 text-slate-200" />
                 </div>
-                <p className="text-sm text-gray-400">No projects yet</p>
+                <p className="text-sm text-slate-400">No projects yet</p>
                 {can('projects_create') && (
                   <button
                     onClick={() => navigate('/app/projects/create')}
@@ -517,29 +517,29 @@ const DashboardPage: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-slate-50">
                 {projects.slice(0, 5).map((project) => {
                   const progress = getProjectProgress(project.id);
                   return (
                     <div
                       key={project.id}
-                      className="px-5 py-3.5 hover:bg-gray-50/70 cursor-pointer transition-colors"
+                      className="px-5 py-3.5 hover:bg-slate-50/70 cursor-pointer transition-colors"
                       onClick={() => navigate(`/app/projects/${project.id}`)}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-gray-900 truncate flex-1 mr-2">{project.name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${projectStatusColor(project.status)}`}>
+                        <p className="text-sm font-medium text-slate-900 truncate flex-1 mr-2">{project.name}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-md font-semibold flex-shrink-0 ${projectStatusColor(project.status)}`}>
                           {projectStatusLabel(project.status)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-400 font-medium w-8 text-right">{progress}%</span>
+                        <span className="text-xs text-slate-400 font-medium w-8 text-right">{progress}%</span>
                       </div>
                     </div>
                   );
@@ -551,13 +551,13 @@ const DashboardPage: React.FC = () => {
           {/* Team snapshot */}
           {users.length > 0 && (
             <Card padding={false}>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/30">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-purple-50 rounded-lg">
                     <Users className="w-4 h-4 text-purple-600" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">Team</h3>
-                  <span className="text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">
+                  <h3 className="font-semibold text-slate-900">Team</h3>
+                  <span className="text-xs bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded-md">
                     {users.length}
                   </span>
                 </div>
@@ -579,14 +579,14 @@ const DashboardPage: React.FC = () => {
                   >
                     <Avatar name={u.name || u.email} src={u.avatarUrl} size="sm" />
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-10 pointer-events-none">
-                      <div className="bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded-lg whitespace-nowrap shadow-lg">
+                      <div className="bg-slate-900 text-white text-[10px] font-medium px-2 py-1 rounded-lg whitespace-nowrap shadow-sm">
                         {u.name || u.email}
                       </div>
                     </div>
                   </div>
                 ))}
                 {users.length > 12 && (
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
                     +{users.length - 12}
                   </div>
                 )}
@@ -600,7 +600,7 @@ const DashboardPage: React.FC = () => {
               <div className="p-1.5 bg-amber-50 rounded-lg">
                 <Zap className="w-4 h-4 text-amber-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Quick Actions</h3>
+              <h3 className="font-semibold text-slate-900">Quick Actions</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {([
@@ -612,7 +612,7 @@ const DashboardPage: React.FC = () => {
                 <button
                   key={a.label}
                   onClick={() => navigate(a.path)}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 text-gray-600 text-xs font-medium transition-all duration-150 ${a.color}`}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border border-slate-100 text-slate-600 text-xs font-medium transition-all duration-150 ${a.color}`}
                 >
                   <a.icon className="w-5 h-5" />
                   {a.label}

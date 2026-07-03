@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, Clock, CheckSquare, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Clock, CheckSquare, MessageSquare, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
@@ -87,51 +87,61 @@ const MemberDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/app/team')}>
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
-      </div>
-
-      {/* Profile header */}
-      <Card className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-        <Avatar name={member.name} src={member.avatarUrl} size="xl" />
-        <div className="flex-1 text-center sm:text-left">
-          <h1 className="text-2xl font-bold text-gray-900">{member.name}</h1>
-          {role && (
-            <span
-              className="inline-block mt-1 text-xs px-3 py-1 rounded-full text-white font-medium"
-              style={{ backgroundColor: role.color }}
-            >
-              {role.name}
-            </span>
-          )}
-          <div className="flex flex-wrap gap-3 mt-3 justify-center sm:justify-start text-sm text-gray-600">
-            {member.email && (
-              <span className="flex items-center gap-1"><Mail className="w-4 h-4" />{member.email}</span>
-            )}
-            {member.phone && (
-              <span className="flex items-center gap-1"><Phone className="w-4 h-4" />{member.phone}</span>
-            )}
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" 
+        onClick={() => navigate('/app/team')} 
+      />
+      {/* Drawer */}
+      <div className="relative w-full max-w-3xl bg-slate-50 h-full shadow-2xl animate-slide-in-right overflow-y-auto flex flex-col border-l border-slate-200/60">
+        <div className="p-6 space-y-6 flex-1">
+          {/* Header */}
+          <div className="flex items-start justify-between pb-4 mb-2 border-b border-slate-200/60">
+            <div className="flex items-center gap-4">
+              <Avatar name={member.name} src={member.avatarUrl} size="lg" />
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{member.name}</h1>
+                {role && (
+                  <span
+                    className="inline-block mt-1 text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded text-white"
+                    style={{ backgroundColor: role.color }}
+                  >
+                    {role.name}
+                  </span>
+                )}
+                <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-slate-500 font-medium">
+                  {member.email && (
+                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{member.email}</span>
+                  )}
+                  {member.phone && (
+                    <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{member.phone}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 items-center">
+              <Badge variant={member.isActive ? 'success' : 'danger'}>
+                {member.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+              {appUser?.id !== userId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<MessageSquare className="w-4 h-4" />}
+                  onClick={handleMessage}
+                >
+                  Message
+                </Button>
+              )}
+              <button 
+                onClick={() => navigate('/app/team')}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors ml-2"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Badge variant={member.isActive ? 'success' : 'danger'}>
-            {member.isActive ? 'Active' : 'Inactive'}
-          </Badge>
-          {appUser?.id !== userId && (
-            <Button
-              size="sm"
-              variant="outline"
-              leftIcon={<MessageSquare className="w-4 h-4" />}
-              onClick={handleMessage}
-            >
-              Message
-            </Button>
-          )}
-        </div>
-      </Card>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
@@ -303,6 +313,8 @@ const MemberDetailPage: React.FC = () => {
           )}
         </Card>
       )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -110,8 +110,8 @@ const TaskAssignmentSettingsPage: React.FC = () => {
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Task Assignment Rules</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Task Assignment Rules</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             Decide which roles can assign tasks to which roles.
           </p>
         </div>
@@ -121,15 +121,15 @@ const TaskAssignmentSettingsPage: React.FC = () => {
       <Card>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="font-semibold text-gray-900">Enforce assignment rules</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="font-semibold text-slate-900">Enforce assignment rules</p>
+            <p className="text-xs text-slate-500 mt-0.5">
               When off, anyone who can create tasks may assign them to anyone.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setEnabled((v) => !v)}
-            className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-primary' : 'bg-gray-300'}`}
+            className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-primary' : 'bg-slate-300'}`}
             aria-pressed={enabled}
           >
             <span
@@ -140,7 +140,7 @@ const TaskAssignmentSettingsPage: React.FC = () => {
       </Card>
 
       {/* Info banner */}
-      <div className={`flex items-start gap-2.5 p-3 rounded-xl border text-sm ${enabled ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+      <div className={`flex items-start gap-2.5 p-3 rounded-xl border text-sm ${enabled ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
         <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
         <p>
           Each row is a role that creates a task. Tick the roles it is allowed to
@@ -151,7 +151,7 @@ const TaskAssignmentSettingsPage: React.FC = () => {
       {/* Matrix */}
       {roles.length === 0 ? (
         <Card>
-          <p className="text-sm text-gray-500 text-center py-6">
+          <p className="text-sm text-slate-500 text-center py-6">
             No roles found. Create roles first in Role Management.
           </p>
         </Card>
@@ -160,25 +160,25 @@ const TaskAssignmentSettingsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
-                  <th className="px-4 py-3 text-left font-semibold text-gray-500 text-xs uppercase tracking-wide sticky left-0 bg-gray-50/60">
+                <tr className="border-b border-slate-100 bg-slate-50/60">
+                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wide sticky left-0 bg-slate-50/60">
                     Creator role
                   </th>
                   {roles.map((r) => (
-                    <th key={r.id} className="px-3 py-3 text-center font-semibold text-gray-500 text-xs">
+                    <th key={r.id} className="px-3 py-3 text-center font-semibold text-slate-500 text-xs">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.color }} />
                         {r.name}
                       </span>
                     </th>
                   ))}
-                  <th className="px-3 py-3 text-center font-semibold text-gray-400 text-xs">All</th>
+                  <th className="px-3 py-3 text-center font-semibold text-slate-400 text-xs">All</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-50">
                 {roles.map((from) => (
-                  <tr key={from.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white">
+                  <tr key={from.id} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap sticky left-0 bg-white">
                       <span className="inline-flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: from.color }} />
                         {from.name}
@@ -194,7 +194,7 @@ const TaskAssignmentSettingsPage: React.FC = () => {
                             className={`w-6 h-6 rounded-md border flex items-center justify-center mx-auto transition-colors ${
                               active
                                 ? 'bg-primary border-primary text-white'
-                                : 'bg-white border-gray-200 hover:border-gray-300'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
                             }`}
                             title={`${from.name} → ${to.name}`}
                           >

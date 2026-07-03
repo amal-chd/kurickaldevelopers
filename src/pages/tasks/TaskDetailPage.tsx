@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
-  CheckSquare, Plus, Check, AlertCircle, ChevronDown,
+  CheckSquare, Plus, Check, AlertCircle, ChevronDown, X
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -249,37 +249,50 @@ const TaskDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/app/tasks')}>
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
-        <div className="flex-1" />
-        {can('tasks_edit') && (
-          <Button
-            variant="outline"
-            size="sm"
-            leftIcon={<Edit className="w-4 h-4" />}
-            onClick={() => navigate(`/app/tasks/${taskId}/edit`)}
-          >
-            Edit
-          </Button>
-        )}
-        {can('tasks_delete') && (
-          <Button
-            variant="danger"
-            size="sm"
-            leftIcon={<Trash2 className="w-4 h-4" />}
-            onClick={() => setDeleteConfirm(true)}
-          >
-            Delete
-          </Button>
-        )}
-      </div>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" 
+        onClick={() => navigate('/app/tasks')} 
+      />
+      {/* Drawer */}
+      <div className="relative w-full max-w-2xl bg-slate-50 h-full shadow-2xl animate-slide-in-right overflow-y-auto flex flex-col border-l border-slate-200/60">
+        <div className="p-6 space-y-6 flex-1">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-4 mb-2 border-b border-slate-200/60">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Task Details</h2>
+            <div className="flex items-center gap-2">
+              {can('tasks_edit') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Edit className="w-4 h-4" />}
+                  onClick={() => navigate(`/app/tasks/${taskId}/edit`)}
+                >
+                  Edit
+                </Button>
+              )}
+              {can('tasks_delete') && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  leftIcon={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setDeleteConfirm(true)}
+                >
+                  Delete
+                </Button>
+              )}
+              <button 
+                onClick={() => navigate('/app/tasks')}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors ml-2"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Main content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left - main info */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
@@ -550,8 +563,9 @@ const TaskDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Delete confirm */}
+    {/* Delete confirm */}
       <Modal
         open={deleteConfirm}
         onClose={() => setDeleteConfirm(false)}
@@ -565,6 +579,7 @@ const TaskDetailPage: React.FC = () => {
       >
         <p className="text-gray-600">Are you sure you want to delete this task? This cannot be undone.</p>
       </Modal>
+      </div>
     </div>
   );
 };

@@ -901,10 +901,27 @@ export const subscribeTyping = (channelId: string, cb: (typing: Record<string, s
 // ─── Site Diary ───────────────────────────────────────────────────────────────
 export const getSiteDiary = async (projectId?: string): Promise<SiteDiaryEntry[]> => {
   try {
-    const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
-    if (projectId) constraints.unshift(where('projectId', '==', projectId));
+    const constraints: QueryConstraint[] = [];
+    if (projectId) constraints.push(where('projectId', '==', projectId));
     const snap = await getDocs(query(collection(db, 'site_diaries'), ...constraints));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SiteDiaryEntry));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        // Normalize: prefer mobile field names, fall back to legacy web fields
+        progressNotes: data.progressNotes || data.workDone || '',
+        workerCount: data.workerCount ?? data.manpower ?? 0,
+        issuesNotes: data.issuesNotes || '',
+        safetyNotes: data.safetyNotes || data.remarks || '',
+        temperature: data.temperature ?? null,
+        photoUrls: data.photoUrls ?? [],
+        createdAt: data.createdAt || data.updatedAt || null,
+      } as SiteDiaryEntry;
+    }).sort((a, b) => {
+      // Sort by date descending (client-side to avoid index requirements)
+      return (b.date || '').localeCompare(a.date || '');
+    });
   } catch (err: any) {
     console.warn('Gracefully handled getSiteDiary error:', err);
     return [];
@@ -912,12 +929,32 @@ export const getSiteDiary = async (projectId?: string): Promise<SiteDiaryEntry[]
 };
 
 export const createSiteDiary = async (data: Omit<SiteDiaryEntry, 'id'>): Promise<string> => {
-  const ref2 = await addDoc(collection(db, 'site_diaries'), { ...data, createdAt: serverTimestamp() });
+  // Write both mobile and web fields for cross-platform compatibility
+  const payload = {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    // Ensure mobile fields are written
+    progressNotes: data.progressNotes || '',
+    workerCount: data.workerCount ?? 0,
+    issuesNotes: data.issuesNotes || '',
+    safetyNotes: data.safetyNotes || '',
+    // Also write legacy web fields for backward compat
+    workDone: data.progressNotes || '',
+    manpower: data.workerCount ?? 0,
+    remarks: data.safetyNotes || '',
+  };
+  const ref2 = await addDoc(collection(db, 'site_diaries'), payload);
   return ref2.id;
 };
 
 export const updateSiteDiary = async (id: string, data: Partial<SiteDiaryEntry>): Promise<void> => {
-  await updateDoc(doc(db, 'site_diaries', id), { ...data });
+  const updates: Record<string, any> = { ...data, updatedAt: serverTimestamp() };
+  // Sync legacy web fields when mobile fields are updated
+  if (data.progressNotes !== undefined) updates.workDone = data.progressNotes;
+  if (data.workerCount !== undefined) updates.manpower = data.workerCount;
+  if (data.safetyNotes !== undefined) updates.remarks = data.safetyNotes;
+  await updateDoc(doc(db, 'site_diaries', id), updates);
 };
 
 export const deleteSiteDiary = async (id: string): Promise<void> => {

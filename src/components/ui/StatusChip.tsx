@@ -20,8 +20,8 @@ const STATUS_CONFIG: Record<TaskStatus, { label: string; classes: string; dot: s
   },
   done: {
     label: 'Done',
-    classes: 'bg-gray-100 text-gray-600 border border-gray-200',
-    dot: 'bg-gray-400',
+    classes: 'bg-slate-100 text-slate-600 border border-slate-200',
+    dot: 'bg-slate-400',
   },
 };
 

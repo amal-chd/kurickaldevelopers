@@ -105,20 +105,20 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       <aside
         className={cn(
           'fixed top-0 left-0 h-full w-60 z-40 flex flex-col transition-transform duration-300 ease-in-out',
-          'bg-gradient-to-b from-[#102339] to-[#0a1525] lg:translate-x-0 lg:static lg:z-auto',
+          'bg-slate-50/50 border-r border-slate-200/60 lg:translate-x-0 lg:static lg:z-auto backdrop-blur-md',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Logo */}
-        <div className="px-4 py-5 flex items-center justify-between flex-shrink-0 border-b border-white/8">
+        <div className="px-4 py-5 flex items-center justify-between flex-shrink-0 border-b border-slate-200/60">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Task Pilot" className="w-9 h-9 rounded-xl object-cover shadow-lg" />
+            <img src="/logo.png" alt="Task Pilot" className="w-9 h-9 rounded-lg object-cover shadow-sm border border-slate-200/50" />
             <div>
-              <p className="text-white font-bold text-sm leading-tight tracking-wide">Task Pilot</p>
-              <p className="text-white/40 text-xs">Construction TMS</p>
+              <p className="text-slate-900 font-bold text-sm leading-tight tracking-tight">Task Pilot</p>
+              <p className="text-slate-500 text-xs font-medium">Construction TMS</p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -130,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
             if (visibleItems.length === 0) return null;
             return (
               <div key={group.label}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/30 px-3 mb-1.5">{group.label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-1.5">{group.label}</p>
                 <div className="space-y-0.5">
                   {visibleItems.map((item) => (
                     <NavLink
@@ -139,22 +139,19 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
                       onClick={onClose}
                       className={({ isActive }) =>
                         cn(
-                          'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative',
+                          'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150',
                           isActive
-                            ? 'bg-gradient-to-r from-white/[0.13] to-white/[0.04] text-white shadow-sm ring-1 ring-white/5'
-                            : 'text-white/55 hover:bg-white/[0.06] hover:text-white/90'
+                            ? 'bg-white text-primary shadow-xs border border-slate-200/60'
+                            : 'text-slate-600 hover:bg-slate-200/40 hover:text-slate-900 border border-transparent'
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
-                          {isActive && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-full shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                          )}
-                          <item.icon className={cn('w-4 h-4 flex-shrink-0 transition-colors', isActive ? 'text-accent' : 'text-white/40 group-hover:text-white/70')} />
+                          <item.icon className={cn('w-4 h-4 flex-shrink-0 transition-colors', isActive ? 'text-primary' : 'text-slate-400 group-hover:text-slate-600')} />
                           <span className="flex-1 truncate">{item.label}</span>
                           {(item as any).isBadge && totalUnread > 0 && (
-                            <span className="bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ring-2 ring-[#0e1d31]">
+                            <span className="bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                               {totalUnread > 99 ? '99+' : totalUnread}
                             </span>
                           )}
@@ -170,16 +167,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
         {/* User footer */}
         {appUser && (
-          <div className="border-t border-white/8 p-3 flex-shrink-0">
-            <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/8 transition-colors group">
+          <div className="border-t border-slate-200/60 p-3 flex-shrink-0 bg-slate-50/80 backdrop-blur-sm">
+            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-200/50 transition-colors group">
               <Avatar name={appUser.name} src={appUser.avatarUrl} size="sm" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate leading-tight">{appUser.name}</p>
-                <p className="text-xs text-white/40 truncate">{appUser.email || appUser.phone}</p>
+                <p className="text-sm font-semibold text-slate-900 truncate leading-tight tracking-tight">{appUser.name}</p>
+                <p className="text-xs text-slate-500 truncate">{appUser.email || appUser.phone}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0"
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4" />

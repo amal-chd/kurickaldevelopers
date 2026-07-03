@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Plus, BookOpen, Users, Wrench, Edit2, Camera,
+  Plus, BookOpen, Users, Edit2, Camera, Thermometer, AlertTriangle, Shield,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -29,14 +29,16 @@ const SiteDiaryPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [projectFilter, setProjectFilter] = useState('');
 
+  // Form uses mobile-compatible field names
   const [form, setForm] = useState({
     projectId: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     weather: 'Sunny',
-    workDone: '',
-    manpower: '',
-    equipment: '',
-    remarks: '',
+    progressNotes: '',
+    workerCount: '',
+    issuesNotes: '',
+    safetyNotes: '',
+    temperature: '',
     photoUrls: [] as string[],
   });
 
@@ -59,10 +61,11 @@ const SiteDiaryPage: React.FC = () => {
       projectId: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       weather: 'Sunny',
-      workDone: '',
-      manpower: '',
-      equipment: '',
-      remarks: '',
+      progressNotes: '',
+      workerCount: '',
+      issuesNotes: '',
+      safetyNotes: '',
+      temperature: '',
       photoUrls: [],
     });
     setEditing(null);
@@ -74,30 +77,30 @@ const SiteDiaryPage: React.FC = () => {
       projectId: entry.projectId,
       date: entry.date,
       weather: entry.weather,
-      workDone: entry.workDone,
-      manpower: String(entry.manpower),
-      equipment: entry.equipment,
-      remarks: entry.remarks,
+      progressNotes: entry.progressNotes || '',
+      workerCount: String(entry.workerCount || 0),
+      issuesNotes: entry.issuesNotes || '',
+      safetyNotes: entry.safetyNotes || '',
+      temperature: entry.temperature != null ? String(entry.temperature) : '',
       photoUrls: entry.photoUrls ?? [],
     });
     setModal(true);
   };
 
   const handleSave = async () => {
-    if (!appUser || !form.workDone.trim()) return;
+    if (!appUser || !form.progressNotes.trim()) return;
     setSaving(true);
     try {
       const data = {
         projectId: form.projectId,
         date: form.date,
         weather: form.weather,
-        workDone: form.workDone,
-        manpower: Number(form.manpower) || 0,
-        equipment: form.equipment,
-        remarks: form.remarks,
+        progressNotes: form.progressNotes,
+        workerCount: Number(form.workerCount) || 0,
+        issuesNotes: form.issuesNotes,
+        safetyNotes: form.safetyNotes,
+        temperature: form.temperature ? Number(form.temperature) : undefined,
         photoUrls: form.photoUrls,
-        // Firestore security rule for site_diaries checks resource.data.authorId;
-        // `createdBy` was being written before, which broke author-self-update.
         authorId: appUser.id,
       };
       if (editing) {
@@ -105,8 +108,8 @@ const SiteDiaryPage: React.FC = () => {
         setEntries((prev) => prev.map((e) => e.id === editing.id ? { ...e, ...data } : e));
         toast.success('Entry updated');
       } else {
-        const id = await createSiteDiary(data);
-        setEntries((prev) => [{ id, ...data }, ...prev]);
+        const id = await createSiteDiary(data as any);
+        setEntries((prev) => [{ id, ...data } as any, ...prev]);
         toast.success('Entry created');
       }
       setModal(false);
@@ -187,6 +190,11 @@ const SiteDiaryPage: React.FC = () => {
                     <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                       {entry.weather}
                     </span>
+                    {entry.temperature != null && (
+                      <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Thermometer className="w-3 h-3" /> {entry.temperature}°C
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500">{getProjectName(entry.projectId)}</p>
                 </div>
@@ -205,29 +213,39 @@ const SiteDiaryPage: React.FC = () => {
               {expanded === entry.id && (
                 <div className="px-4 pb-4 border-t border-gray-50 pt-3 space-y-3">
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Work Done</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.workDone}</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Progress Notes</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.progressNotes}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                        <Users className="w-3 h-3" /> Manpower
+                        <Users className="w-3 h-3" /> Worker Count
                       </p>
-                      <p className="text-sm text-gray-700">{entry.manpower} workers</p>
+                      <p className="text-sm text-gray-700">{entry.workerCount} workers</p>
                     </div>
-                    {entry.equipment && (
+                    {entry.temperature != null && (
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                          <Wrench className="w-3 h-3" /> Equipment
+                          <Thermometer className="w-3 h-3" /> Temperature
                         </p>
-                        <p className="text-sm text-gray-700">{entry.equipment}</p>
+                        <p className="text-sm text-gray-700">{entry.temperature}°C</p>
                       </div>
                     )}
                   </div>
-                  {entry.remarks && (
+                  {entry.issuesNotes && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</p>
-                      <p className="text-sm text-gray-700">{entry.remarks}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Issues Notes
+                      </p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.issuesNotes}</p>
+                    </div>
+                  )}
+                  {entry.safetyNotes && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Safety Notes
+                      </p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.safetyNotes}</p>
                     </div>
                   )}
                   {entry.photoUrls?.length > 0 && (
@@ -293,34 +311,42 @@ const SiteDiaryPage: React.FC = () => {
             placeholder="Select project"
           />
           <Textarea
-            label="Work Done"
+            label="Progress Notes"
             placeholder="Describe the work done today..."
-            value={form.workDone}
-            onChange={(e) => setForm((p) => ({ ...p, workDone: e.target.value }))}
+            value={form.progressNotes}
+            onChange={(e) => setForm((p) => ({ ...p, progressNotes: e.target.value }))}
             rows={4}
             required
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Manpower Count"
+              label="Worker Count"
               type="number"
               placeholder="0"
-              value={form.manpower}
-              onChange={(e) => setForm((p) => ({ ...p, manpower: e.target.value }))}
+              value={form.workerCount}
+              onChange={(e) => setForm((p) => ({ ...p, workerCount: e.target.value }))}
               min="0"
             />
             <Input
-              label="Equipment Used"
-              placeholder="e.g. Excavator, Crane"
-              value={form.equipment}
-              onChange={(e) => setForm((p) => ({ ...p, equipment: e.target.value }))}
+              label="Temperature (°C)"
+              type="number"
+              placeholder="e.g. 32"
+              value={form.temperature}
+              onChange={(e) => setForm((p) => ({ ...p, temperature: e.target.value }))}
             />
           </div>
           <Textarea
-            label="Remarks"
-            placeholder="Any additional remarks..."
-            value={form.remarks}
-            onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))}
+            label="Issues Notes"
+            placeholder="Any issues or problems encountered..."
+            value={form.issuesNotes}
+            onChange={(e) => setForm((p) => ({ ...p, issuesNotes: e.target.value }))}
+            rows={2}
+          />
+          <Textarea
+            label="Safety Notes"
+            placeholder="Safety observations and remarks..."
+            value={form.safetyNotes}
+            onChange={(e) => setForm((p) => ({ ...p, safetyNotes: e.target.value }))}
             rows={2}
           />
         </div>

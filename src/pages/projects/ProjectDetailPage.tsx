@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Edit, Trash2, Users, CheckSquare, FileText, BookOpen,
-  Calendar, DollarSign, TrendingUp,
+  Calendar, DollarSign, TrendingUp, X
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -108,49 +108,60 @@ const ProjectDetailPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/app/projects')}>
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
-            <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 capitalize">
-              ● {project.status.replace('_', ' ')}
-            </span>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" 
+        onClick={() => navigate('/app/projects')} 
+      />
+      {/* Drawer */}
+      <div className="relative w-full max-w-3xl bg-slate-50 h-full shadow-2xl animate-slide-in-right overflow-y-auto flex flex-col border-l border-slate-200/60">
+        <div className="p-6 space-y-6 flex-1">
+          {/* Header */}
+          <div className="flex items-start gap-3 pb-4 mb-2 border-b border-slate-200/60">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
+                <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 capitalize border border-emerald-100">
+                  ● {project.status.replace('_', ' ')}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5 font-medium">Manager: {manager?.name ?? '—'}</p>
+            </div>
+            <div className="flex gap-2">
+              {can('projects_edit') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Edit className="w-4 h-4" />}
+                  onClick={() => navigate(`/app/projects/${projectId}/edit`)}
+                >
+                  Edit
+                </Button>
+              )}
+              {can('projects_delete') && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={async () => {
+                    if (window.confirm('Delete this project?')) {
+                      await deleteProject(projectId!);
+                      toast.success('Project deleted');
+                      navigate('/app/projects');
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+              <button 
+                onClick={() => navigate('/app/projects')}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors ml-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">Manager: {manager?.name ?? '—'}</p>
-        </div>
-        <div className="flex gap-2">
-          {can('projects_edit') && (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Edit className="w-4 h-4" />}
-              onClick={() => navigate(`/app/projects/${projectId}/edit`)}
-            >
-              Edit
-            </Button>
-          )}
-          {can('projects_delete') && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={async () => {
-                if (window.confirm('Delete this project?')) {
-                  await deleteProject(projectId!);
-                  toast.success('Project deleted');
-                  navigate('/app/projects');
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
@@ -298,9 +309,9 @@ const ProjectDetailPage: React.FC = () => {
                   <p className="text-sm font-semibold text-gray-900">{entry.date}</p>
                   <Badge variant="info" size="sm">{entry.weather}</Badge>
                 </div>
-                <p className="text-xs text-gray-600 line-clamp-2">{entry.workDone}</p>
+                <p className="text-xs text-gray-600 line-clamp-2">{entry.progressNotes}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {entry.manpower} workers · {entry.equipment}
+                  {entry.workerCount} workers{entry.temperature != null ? ` · ${entry.temperature}°C` : ''}
                 </p>
               </div>
             ))}
@@ -335,6 +346,8 @@ const ProjectDetailPage: React.FC = () => {
           )}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 };

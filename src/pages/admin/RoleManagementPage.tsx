@@ -115,7 +115,7 @@ const RoleManagementPage: React.FC = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/app/admin')}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <h2 className="text-xl font-bold text-gray-900 flex-1">Role Management</h2>
+        <h2 className="text-xl font-bold text-slate-900 flex-1">Role Management</h2>
         <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => { resetForm(); setModal(true); }}>
           New Role
         </Button>
@@ -141,22 +141,22 @@ const RoleManagementPage: React.FC = () => {
                     <Shield className="w-5 h-5" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{role.name}</p>
-                    <p className="text-xs text-gray-500">Level {role.level}</p>
+                    <p className="font-semibold text-slate-900">{role.name}</p>
+                    <p className="text-xs text-slate-500">Level {role.level}</p>
                   </div>
                   <div className="flex gap-1">
-                    <button className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg" onClick={() => openEdit(role)}>
+                    <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg" onClick={() => openEdit(role)}>
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" onClick={() => handleDelete(role.id)}>
+                    <button className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg" onClick={() => handleDelete(role.id)}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 {role.description && (
-                  <p className="text-xs text-gray-500 line-clamp-2">{role.description}</p>
+                  <p className="text-xs text-slate-500 line-clamp-2">{role.description}</p>
                 )}
-                <p className="text-xs text-gray-500">{permCount} permissions enabled</p>
+                <p className="text-xs text-slate-500">{permCount} permissions enabled</p>
               </Card>
             );
           })}
@@ -194,14 +194,14 @@ const RoleManagementPage: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Color:</label>
+            <label className="text-sm font-medium text-slate-700">Color:</label>
             <input
               type="color"
               value={form.color}
               onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
-              className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer"
+              className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer"
             />
-            <span className="text-sm text-gray-500">{form.color}</span>
+            <span className="text-sm text-slate-500">{form.color}</span>
           </div>
           <Textarea
             label="Description"
@@ -212,7 +212,7 @@ const RoleManagementPage: React.FC = () => {
           />
 
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
+            <p className="text-sm font-medium text-slate-700 mb-2">Permissions</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
               {ALL_PERMISSIONS.map((perm) => (
                 <label
@@ -220,14 +220,14 @@ const RoleManagementPage: React.FC = () => {
                   className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer text-xs transition-colors ${
                     form.permissions[perm]
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={!!form.permissions[perm]}
                     onChange={() => togglePerm(perm)}
-                    className="rounded border-gray-300 text-primary"
+                    className="rounded border-slate-300 text-primary"
                   />
                   <span>{perm.replace(/_/g, ' ')}</span>
                 </label>

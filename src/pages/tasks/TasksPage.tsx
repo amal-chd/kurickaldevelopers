@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { Plus, List, LayoutGrid, Search, AlertCircle, CheckSquare, Calendar, ChevronDown } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -23,7 +23,7 @@ const STATUSES: TaskStatus[] = ['in_progress', 'approved', 'done'];
 const COLUMN_CONFIG: Record<TaskStatus, { label: string; color: string; bg: string; dot: string }> = {
   in_progress: { label: 'In Progress', color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-100',     dot: 'bg-blue-500' },
   approved:    { label: 'Approved',    color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', dot: 'bg-emerald-500' },
-  done:        { label: 'Done',        color: 'text-gray-600',    bg: 'bg-gray-50 border-gray-200',       dot: 'bg-gray-400' },
+  done:        { label: 'Done',        color: 'text-slate-600',    bg: 'bg-slate-50 border-slate-200',       dot: 'bg-slate-400' },
 };
 
 const TAB_LABELS: Record<TabFilter, string> = {
@@ -104,7 +104,7 @@ const TasksPage: React.FC = () => {
 
     return (
       <div
-        className={`bg-white rounded-xl border shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-3.5 ${overdue ? 'border-red-200' : 'border-gray-100'}`}
+        className={`bg-white rounded-xl border shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-3.5 ${overdue ? 'border-red-200' : 'border-slate-100'}`}
         onClick={() => navigate(`/app/tasks/${task.id}`)}
       >
         <div className="flex items-center justify-between mb-2">
@@ -115,7 +115,7 @@ const TasksPage: React.FC = () => {
             </span>
           )}
         </div>
-        <p className="text-sm font-semibold text-gray-900 leading-snug mb-2 line-clamp-2">{task.title}</p>
+        <p className="text-sm font-semibold text-slate-900 leading-snug mb-2 line-clamp-2">{task.title}</p>
         {project && <p className="text-xs text-primary/70 font-medium mb-3 truncate">{project.name}</p>}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -144,7 +144,7 @@ const TasksPage: React.FC = () => {
             })()}
           </div>
           {task.dueDate && (
-            <span className={`flex items-center gap-1 text-xs font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
+            <span className={`flex items-center gap-1 text-xs font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
               <Calendar className="w-3 h-3" />
               {formatDate(task.dueDate)}
             </span>
@@ -159,23 +159,23 @@ const TasksPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Tasks</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tasks</h2>
         </div>
         {can('tasks_create') && (
           <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => navigate('/app/tasks/create')}>
             New Task
           </Button>
         )}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
           <button
-            className={`p-2 rounded-lg transition-all ${view === 'kanban' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`p-2 rounded-lg transition-all ${view === 'kanban' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             onClick={() => setView('kanban')}
             aria-label="Board view"
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
           <button
-            className={`p-2 rounded-lg transition-all ${view === 'list' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`p-2 rounded-lg transition-all ${view === 'list' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             onClick={() => setView('list')}
             aria-label="List view"
           >
@@ -196,19 +196,19 @@ const TasksPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all"
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >
             <option value="">All Projects</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0.5 border-b border-gray-200 overflow-x-auto">
+      <div className="flex gap-0.5 border-b border-slate-200 overflow-x-auto">
         {(Object.keys(TAB_LABELS) as TabFilter[]).map((t) => {
           const count = t === 'all' ? filteredTasks.length
             : t === 'overdue' ? filteredTasks.filter(isOverdue).length
@@ -218,12 +218,12 @@ const TasksPage: React.FC = () => {
               key={t}
               onClick={() => setTab(t)}
               className={`px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-all ${
-                tab === t ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
+                tab === t ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
               {TAB_LABELS[t]}
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                tab === t ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'
+                tab === t ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'
               }`}>{count}</span>
             </button>
           );
@@ -248,9 +248,9 @@ const TasksPage: React.FC = () => {
                 <div className="flex flex-col gap-2 min-h-16">
                   {colTasks.map((task) => <KanbanCard key={task.id} task={task} />)}
                   {colTasks.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
-                      <CheckSquare className="w-5 h-5 text-gray-200 mb-1" />
-                      <p className="text-xs text-gray-300">Empty</p>
+                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-slate-100 rounded-xl">
+                      <CheckSquare className="w-5 h-5 text-slate-200 mb-1" />
+                      <p className="text-xs text-slate-300">Empty</p>
                     </div>
                   )}
                 </div>
@@ -267,28 +267,28 @@ const TasksPage: React.FC = () => {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b border-gray-100 bg-gray-50/60">
-                    <th className="px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Task</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Project</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden sm:table-cell">Priority</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Due</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Assignees</th>
+                  <tr className="text-left border-b border-slate-100 bg-slate-50/60">
+                    <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Task</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden md:table-cell">Project</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden sm:table-cell">Priority</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden lg:table-cell">Due</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden lg:table-cell">Assignees</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {filteredTasks.map((task) => {
                     const project = projects.find((p) => p.id === task.projectId);
                     const overdue = isOverdue(task);
                     return (
-                      <tr key={task.id} className="hover:bg-gray-50/60 cursor-pointer transition-colors" onClick={() => navigate(`/app/tasks/${task.id}`)}>
+                      <tr key={task.id} className="hover:bg-slate-50/60 cursor-pointer transition-colors" onClick={() => navigate(`/app/tasks/${task.id}`)}>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
                             {overdue && <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
-                            <span className="font-medium text-gray-900 line-clamp-1">{task.title}</span>
+                            <span className="font-medium text-slate-900 line-clamp-1">{task.title}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 hidden md:table-cell text-gray-400 text-xs">{project?.name ?? '—'}</td>
+                        <td className="px-4 py-3.5 hidden md:table-cell text-slate-400 text-xs">{project?.name ?? '—'}</td>
                         <td className="px-4 py-3.5 hidden sm:table-cell"><PriorityChip priority={task.priority} /></td>
                         <td className="px-4 py-3.5">
                           <CompletionStatusChip
@@ -297,7 +297,7 @@ const TasksPage: React.FC = () => {
                             dueDate={task.dueDate}
                           />
                         </td>
-                        <td className={`px-4 py-3.5 hidden lg:table-cell text-xs font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
+                        <td className={`px-4 py-3.5 hidden lg:table-cell text-xs font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
                           {formatDate(task.dueDate)}
                         </td>
                         <td className="px-4 py-3.5 hidden lg:table-cell">
@@ -339,6 +339,7 @@ const TasksPage: React.FC = () => {
           </Card>
         </div>
       )}
+      <Outlet />
     </div>
   );
 };

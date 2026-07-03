@@ -216,14 +216,22 @@ export interface SiteDiaryEntry {
   projectId: string;
   date: string; // YYYY-MM-DD
   weather: string;
-  workDone: string;
-  manpower: number;
-  equipment: string;
-  remarks: string;
+  // Mobile-primary field names (source of truth)
+  progressNotes: string;
+  workerCount: number;
+  issuesNotes: string;
+  safetyNotes: string;
+  temperature?: number;
   photoUrls: string[];
   // Firestore rule for site_diaries checks resource.data.authorId.
   authorId: string;
   createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  // Legacy web fields (for backward compat reading old entries)
+  workDone?: string;
+  manpower?: number;
+  equipment?: string;
+  remarks?: string;
 }
 
 // ─── Org Settings ─────────────────────────────────────────────────────────────

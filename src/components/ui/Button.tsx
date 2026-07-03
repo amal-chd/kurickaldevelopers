@@ -13,19 +13,19 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', size = 'md', loading, leftIcon, rightIcon, children, className, disabled, ...props }, ref) => {
     const base =
-      'inline-flex items-center justify-center font-semibold rounded-xl whitespace-nowrap transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:cursor-not-allowed select-none';
+      'inline-flex items-center justify-center font-medium rounded-lg whitespace-nowrap transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:cursor-not-allowed select-none';
 
     const variants = {
       primary:
-        'bg-primary text-white hover:bg-primary-600 shadow-sm hover:shadow-md focus-visible:ring-primary/40 disabled:opacity-50 disabled:shadow-none',
+        'bg-primary text-white hover:bg-slate-800 shadow-sm focus-visible:ring-primary/30 disabled:opacity-50 disabled:shadow-none',
       secondary:
-        'bg-accent text-white hover:bg-accent-600 shadow-sm hover:shadow-md focus-visible:ring-accent/40 disabled:opacity-50',
+        'bg-accent text-white hover:bg-accent-600 shadow-sm focus-visible:ring-accent/30 disabled:opacity-50',
       danger:
-        'bg-danger text-white hover:bg-danger-700 shadow-sm hover:shadow-md focus-visible:ring-danger/40 disabled:opacity-50',
+        'bg-danger text-white hover:bg-danger-600 shadow-sm focus-visible:ring-danger/30 disabled:opacity-50',
       ghost:
-        'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-300 disabled:opacity-50',
+        'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-200 disabled:opacity-50',
       outline:
-        'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 focus-visible:ring-gray-200 shadow-xs disabled:opacity-50',
+        'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-slate-200 shadow-xs disabled:opacity-50',
     };
 
     const sizes = {

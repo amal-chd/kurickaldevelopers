@@ -21,7 +21,7 @@ import toast from 'react-hot-toast';
 const STATUS_CONFIG: Record<InquiryStatus, { label: string; classes: string; dot: string }> = {
   new:       { label: 'New',       classes: 'bg-blue-50 text-blue-700 border border-blue-100',      dot: 'bg-blue-500' },
   contacted: { label: 'Contacted', classes: 'bg-amber-50 text-amber-700 border border-amber-100',   dot: 'bg-amber-500' },
-  closed:    { label: 'Closed',    classes: 'bg-gray-100 text-gray-500 border border-gray-200',     dot: 'bg-gray-400' },
+  closed:    { label: 'Closed',    classes: 'bg-slate-100 text-slate-500 border border-slate-200',     dot: 'bg-slate-400' },
 };
 
 const SOURCE_CONFIG: Record<InquirySource, { label: string; icon: React.ElementType; classes: string }> = {
@@ -136,8 +136,8 @@ const ContactInquiriesPage: React.FC = () => {
           Back
         </Button>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Contact Inquiries</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{inquiries.length} total · from website &amp; mobile app</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Contact Inquiries</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{inquiries.length} total · from website &amp; mobile app</p>
         </div>
       </div>
 
@@ -150,7 +150,7 @@ const ContactInquiriesPage: React.FC = () => {
               key={status}
               onClick={() => setStatusFilter(statusFilter === status ? 'all' : status)}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                statusFilter === status ? cfg.classes + ' ring-2 ring-offset-1 ring-current/30' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                statusFilter === status ? cfg.classes + ' ring-2 ring-offset-1 ring-current/30' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
@@ -167,7 +167,7 @@ const ContactInquiriesPage: React.FC = () => {
               className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 sourceFilter === src
                   ? 'bg-primary text-white border-primary'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
               {src === 'all' ? 'All Sources' : src === 'website' ? '🌐 Website' : '📱 Mobile'}
@@ -197,17 +197,17 @@ const ContactInquiriesPage: React.FC = () => {
         <Card padding={false}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left border-b border-gray-100 bg-gray-50/60">
-                <th className="px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Name</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Project Type</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Source</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden sm:table-cell">Date</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Actions</th>
+              <tr className="text-left border-b border-slate-100 bg-slate-50/60">
+                <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Name</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden lg:table-cell">Project Type</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Source</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden sm:table-cell">Date</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {filtered.map((inq) => {
                 const statusCfg = STATUS_CONFIG[inq.status];
                 const sourceCfg = SOURCE_CONFIG[inq.source];
@@ -215,11 +215,11 @@ const ContactInquiriesPage: React.FC = () => {
                 return (
                   <tr
                     key={inq.id}
-                    className="hover:bg-gray-50/60 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50/60 cursor-pointer transition-colors"
                     onClick={() => openDetail(inq)}
                   >
                     <td className="px-5 py-3.5">
-                      <p className="font-semibold text-gray-900">{inq.name}</p>
+                      <p className="font-semibold text-slate-900">{inq.name}</p>
                       {inq.notes && (
                         <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
                           <StickyNote className="w-3 h-3" /> Has notes
@@ -227,17 +227,17 @@ const ContactInquiriesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3.5 hidden md:table-cell">
-                      <p className="text-xs text-gray-600 flex items-center gap-1.5">
-                        <Phone className="w-3 h-3 text-gray-400" /> {inq.phone}
+                      <p className="text-xs text-slate-600 flex items-center gap-1.5">
+                        <Phone className="w-3 h-3 text-slate-400" /> {inq.phone}
                       </p>
                       {inq.email && (
-                        <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
                           <Mail className="w-3 h-3" /> {inq.email}
                         </p>
                       )}
                     </td>
                     <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${PROJECT_TYPE_COLORS[inq.projectType] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${PROJECT_TYPE_COLORS[inq.projectType] ?? 'bg-slate-100 text-slate-600'}`}>
                         {inq.projectType}
                       </span>
                     </td>
@@ -253,7 +253,7 @@ const ContactInquiriesPage: React.FC = () => {
                         {statusCfg.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell text-xs text-gray-400">
+                    <td className="px-4 py-3.5 hidden sm:table-cell text-xs text-slate-400">
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formatDate(inq.createdAt)}
@@ -263,7 +263,7 @@ const ContactInquiriesPage: React.FC = () => {
                       <div className="flex items-center gap-1">
                         {can('contact_manage') && inq.status === 'new' && (
                           <button
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
                             onClick={() => changeStatus(inq, 'contacted')}
                             title="Mark as Contacted"
                           >
@@ -272,7 +272,7 @@ const ContactInquiriesPage: React.FC = () => {
                         )}
                         {can('contact_manage') && inq.status === 'contacted' && (
                           <button
-                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                             onClick={() => changeStatus(inq, 'closed')}
                             title="Close"
                           >
@@ -281,7 +281,7 @@ const ContactInquiriesPage: React.FC = () => {
                         )}
                         {can('contact_manage') && (
                           <button
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                             onClick={() => handleDelete(inq)}
                             title="Delete"
                           >
@@ -343,16 +343,16 @@ const ContactInquiriesPage: React.FC = () => {
                 {React.createElement(SOURCE_CONFIG[selected.source].icon, { className: 'w-3 h-3' })}
                 {SOURCE_CONFIG[selected.source].label}
               </span>
-              <span className={`text-xs font-medium px-2.5 py-1.5 rounded-full ${PROJECT_TYPE_COLORS[selected.projectType] ?? 'bg-gray-100 text-gray-600'}`}>
+              <span className={`text-xs font-medium px-2.5 py-1.5 rounded-full ${PROJECT_TYPE_COLORS[selected.projectType] ?? 'bg-slate-100 text-slate-600'}`}>
                 {selected.projectType}
               </span>
             </div>
 
             {/* Contact info */}
             <div className="grid sm:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide">Contact Info</h4>
-                <p className="text-base font-bold text-gray-900">{selected.name}</p>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2.5">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Contact Info</h4>
+                <p className="text-base font-bold text-slate-900">{selected.name}</p>
                 <a href={`tel:${selected.phone}`} className="flex items-center gap-2 text-sm text-primary hover:underline">
                   <Phone className="w-4 h-4" /> {selected.phone}
                 </a>
@@ -362,10 +362,10 @@ const ContactInquiriesPage: React.FC = () => {
                   </a>
                 )}
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Received</h4>
-                <p className="text-sm text-gray-700 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-gray-400" />
+              <div className="bg-slate-50 rounded-xl p-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Received</h4>
+                <p className="text-sm text-slate-700 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-slate-400" />
                   {formatDate(selected.createdAt)}
                 </p>
               </div>
@@ -373,17 +373,17 @@ const ContactInquiriesPage: React.FC = () => {
 
             {/* Message */}
             <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5" /> Project Details
               </h4>
-              <p className="text-sm text-gray-700 bg-gray-50 rounded-xl p-4 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-slate-700 bg-slate-50 rounded-xl p-4 whitespace-pre-wrap leading-relaxed">
                 {selected.message}
               </p>
             </div>
 
             {/* Internal notes */}
             <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <StickyNote className="w-3.5 h-3.5" /> Internal Notes
               </h4>
               <textarea
@@ -392,7 +392,7 @@ const ContactInquiriesPage: React.FC = () => {
                 onChange={(e) => setNotesValue(e.target.value)}
                 disabled={!can('contact_manage')}
                 placeholder="Add internal notes about this inquiry…"
-                className="w-full text-sm bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>

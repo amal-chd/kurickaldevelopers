@@ -71,9 +71,13 @@ export function useChannels() {
   return { channels: _channelsCache, loading: _channelsLoading };
 }
 
+const messageCache = new Map<string, ChatMessage[]>();
+
 export function useMessages(channelId: string | null) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    return channelId ? (messageCache.get(channelId) || []) : [];
+  });
+  const [loading, setLoading] = useState(!channelId || !messageCache.has(channelId));
   const { firebaseUser } = useAuthStore();
   const prevChannelRef = useRef<string | null>(null);
 
@@ -84,15 +88,20 @@ export function useMessages(channelId: string | null) {
       return;
     }
 
-    // Only show full loading spinner when switching to a *different* channel.
-    // When re-subscribing to the same channel (e.g. HMR), keep messages visible.
     if (prevChannelRef.current !== channelId) {
-      setMessages([]);
-      setLoading(true);
+      const cached = messageCache.get(channelId);
+      if (cached) {
+        setMessages(cached);
+        setLoading(false);
+      } else {
+        setMessages([]);
+        setLoading(true);
+      }
       prevChannelRef.current = channelId;
     }
 
     const unsub = subscribeMessages(channelId, (msgs) => {
+      messageCache.set(channelId, msgs);
       setMessages(msgs);
       setLoading(false);
     }, 50);

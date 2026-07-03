@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { Plus, FolderOpen, Users, Calendar, TrendingUp, Search } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -87,8 +87,8 @@ const ProjectsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Projects</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{projects.length} total</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Projects</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{projects.length} total</p>
         </div>
         {can('projects_create') && (
           <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => navigate('/app/projects/create')}>
@@ -115,12 +115,12 @@ const ProjectsPage: React.FC = () => {
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl whitespace-nowrap transition-all ${
                 filter === s
                   ? 'bg-primary text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               {s === 'all' ? 'All' : s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
               {counts[s] > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${filter === s ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${filter === s ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {counts[s]}
                 </span>
               )}
@@ -155,15 +155,15 @@ const ProjectsPage: React.FC = () => {
               <div
                 key={project.id}
                 onClick={() => navigate(`/app/projects/${project.id}`)}
-                className={`bg-white rounded-2xl border border-gray-100 border-t-4 ${style.border} shadow-sm hover:shadow-card-hover hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden`}
+                className={`bg-white rounded-2xl border border-slate-100 border-t-4 ${style.border} shadow-sm hover:shadow-card-hover hover:border-slate-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden`}
               >
                 <div className="p-5 space-y-3">
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate text-base">{project.name}</h3>
+                      <h3 className="font-semibold text-slate-900 truncate text-base">{project.name}</h3>
                       {project.description && (
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-relaxed">{project.description}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">{project.description}</p>
                       )}
                     </div>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${style.badge}`}>
@@ -173,11 +173,11 @@ const ProjectsPage: React.FC = () => {
 
                   {/* Progress */}
                   <div>
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
                       <span className="font-medium">Progress</span>
-                      <span className="font-semibold text-gray-700">{progress}%</span>
+                      <span className="font-semibold text-slate-700">{progress}%</span>
                     </div>
-                    <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="bg-slate-100 rounded-full h-2 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${style.bar}`}
                         style={{ width: `${progress}%` }}
@@ -186,7 +186,7 @@ const ProjectsPage: React.FC = () => {
                   </div>
 
                   {/* Meta */}
-                  <div className="flex items-center gap-3 text-xs text-gray-400 pt-1 border-t border-gray-50">
+                  <div className="flex items-center gap-3 text-xs text-slate-400 pt-1 border-t border-slate-50">
                     <span className="flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5" />
                       {project.memberIds?.length ?? 0} members
@@ -208,7 +208,7 @@ const ProjectsPage: React.FC = () => {
                       <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="text-[10px] font-bold text-primary">{(manager.name || manager.email || '?')[0].toUpperCase()}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{manager.name || manager.email}</span>
+                      <span className="text-xs text-slate-500">{manager.name || manager.email}</span>
                     </div>
                   )}
                 </div>
@@ -217,6 +217,7 @@ const ProjectsPage: React.FC = () => {
           })}
         </div>
       )}
+      <Outlet />
     </div>
   );
 };

@@ -217,7 +217,7 @@ const DocumentsPage: React.FC = () => {
                         {getMimeIcon(doc.mimeType)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate max-w-48">{doc.name}</p>
+                        <p className="font-medium text-gray-900 truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px]">{doc.name}</p>
                         <p className="text-xs text-gray-400 lg:hidden">{formatFileSize(doc.size)}</p>
                       </div>
                     </div>

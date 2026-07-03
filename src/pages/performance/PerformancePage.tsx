@@ -159,7 +159,7 @@ const PerformancePage: React.FC = () => {
   ] : [];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in text-gray-800 dark:text-gray-200">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in text-slate-800 dark:text-slate-200">
       
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -168,7 +168,7 @@ const PerformancePage: React.FC = () => {
             <Trophy className="w-8 h-8 text-amber-500" />
             Performance & Points Engine
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Track achievements, leaderboard ranks, and complete detailed operational KPIs.
           </p>
         </div>
@@ -191,7 +191,7 @@ const PerformancePage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700 flex gap-4 overflow-x-auto">
+      <div className="border-b border-slate-200 dark:border-slate-700 flex gap-4 overflow-x-auto">
         {(['overview', 'leaderboard', 'analytics', 'badges', 'insights'] as const).map(tab => {
           if (tab === 'insights' && !isManager) return null;
           return (
@@ -201,7 +201,7 @@ const PerformancePage: React.FC = () => {
               className={`pb-3 font-semibold text-sm capitalize border-b-2 transition-all ${
                 activeTab === tab
                   ? 'border-amber-500 text-amber-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               {tab}
@@ -214,30 +214,30 @@ const PerformancePage: React.FC = () => {
       {activeTab === 'overview' && myScore && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* My Score Card */}
-          <Card padding={false} className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-white to-gray-50 dark:from-gray-850 dark:to-gray-800 border border-gray-100 dark:border-gray-700">
+          <Card padding={false} className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-white to-slate-50 dark:from-slate-850 dark:to-slate-800 border border-slate-100 dark:border-slate-700">
             <div className="relative w-40 h-40 flex items-center justify-center mt-4">
               <span className="text-6xl font-black text-amber-500">{myScore.overallPerformanceIndex}</span>
               <div className="absolute inset-0 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin" style={{ animationDuration: '3s' }} />
             </div>
             <h3 className="text-xl font-bold mt-4">Overall Performance Index</h3>
-            <p className="text-sm text-gray-500 mt-1">OPI Target: 90+</p>
+            <p className="text-sm text-slate-500 mt-1">OPI Target: 90+</p>
             
-            <div className="grid grid-cols-2 gap-4 w-full mt-6 border-t pt-6 border-gray-100 dark:border-gray-700">
+            <div className="grid grid-cols-2 gap-4 w-full mt-6 border-t pt-6 border-slate-100 dark:border-slate-700">
               <div className="text-center">
-                <span className="block text-2xl font-bold text-gray-900 dark:text-white">#{deptRank || '-'}</span>
-                <span className="text-xs text-gray-500 font-medium">Department Rank</span>
+                <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{deptRank || '-'}</span>
+                <span className="text-xs text-slate-500 font-medium">Department Rank</span>
               </div>
               <div className="text-center">
-                <span className="block text-2xl font-bold text-gray-900 dark:text-white">#{orgRank || '-'}</span>
-                <span className="text-xs text-gray-500 font-medium">Organization Rank</span>
+                <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{orgRank || '-'}</span>
+                <span className="text-xs text-slate-500 font-medium">Organization Rank</span>
               </div>
             </div>
           </Card>
 
           {/* Radar Metrics */}
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">KPI Breakdown</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-slate-900 dark:text-white">KPI Breakdown</h3>
             </div>
             <div className="p-5">
               <div className="h-64 w-full">
@@ -255,8 +255,8 @@ const PerformancePage: React.FC = () => {
 
           {/* Quick Stats & Streak */}
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Streaks & Badges</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Streaks & Badges</h3>
             </div>
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between p-4 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
@@ -270,7 +270,7 @@ const PerformancePage: React.FC = () => {
                 <span className="text-3xl font-black text-orange-600">{myScore.consecutiveSuccesses}</span>
               </div>
 
-              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
                 <h4 className="font-bold text-sm mb-3">Earned Badges ({myScore.badges.length})</h4>
                 <div className="flex flex-wrap gap-2">
                   {myScore.badges.map(b => {
@@ -296,18 +296,18 @@ const PerformancePage: React.FC = () => {
 
       {activeTab === 'leaderboard' && (
         <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Leaderboards</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+            <h3 className="font-semibold text-slate-900 dark:text-white">Leaderboards</h3>
           </div>
           <div className="p-5">
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-              <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 p-0.5">
+              <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
                 {(['week', 'month', 'all'] as const).map(p => (
                   <button
                     key={p}
                     onClick={() => setPeriod(p)}
                     className={`px-4 py-1.5 rounded text-xs font-bold capitalize transition-all ${
-                      period === p ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      period === p ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
                     {p}
@@ -319,7 +319,7 @@ const PerformancePage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-500 text-xs font-bold uppercase">
+                  <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 text-xs font-bold uppercase">
                     <th className="py-3 px-4">Rank</th>
                     <th className="py-3 px-4">Member</th>
                     <th className="py-3 px-4">OPI Score</th>
@@ -337,18 +337,18 @@ const PerformancePage: React.FC = () => {
                     return (
                       <tr
                         key={score.userId}
-                        className={`border-b border-gray-100 dark:border-gray-800 transition-all ${
-                          isCurrent ? 'bg-amber-500/10 font-medium' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                        className={`border-b border-slate-100 dark:border-slate-800 transition-all ${
+                          isCurrent ? 'bg-amber-500/10 font-medium' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <td className="py-4 px-4 font-bold text-gray-900 dark:text-white">
+                        <td className="py-4 px-4 font-bold text-slate-900 dark:text-white">
                           {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
                         </td>
                         <td className="py-4 px-4 flex items-center gap-3">
                           <Avatar src={user.avatarUrl} name={user.name} size="sm" />
                           <div>
-                            <span className="font-semibold text-gray-900 dark:text-white block">{user.name}</span>
-                            <span className="text-xs text-gray-500">{user.email}</span>
+                            <span className="font-semibold text-slate-900 dark:text-white block">{user.name}</span>
+                            <span className="text-xs text-slate-500">{user.email}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
@@ -366,7 +366,7 @@ const PerformancePage: React.FC = () => {
                               </span>
                             ))}
                             {score.badges.length > 3 && (
-                              <span className="text-xs text-gray-400 font-bold self-center">+{score.badges.length - 3}</span>
+                              <span className="text-xs text-slate-400 font-bold self-center">+{score.badges.length - 3}</span>
                             )}
                           </div>
                         </td>
@@ -383,8 +383,8 @@ const PerformancePage: React.FC = () => {
       {activeTab === 'analytics' && myScore && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Task Priority Distribution</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Task Priority Distribution</h3>
             </div>
             <div className="p-5 h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -414,8 +414,8 @@ const PerformancePage: React.FC = () => {
           </Card>
 
           <Card padding={false}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Penalty Points Breakdown</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Penalty Points Breakdown</h3>
             </div>
             <div className="p-5 h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -442,8 +442,8 @@ const PerformancePage: React.FC = () => {
 
       {activeTab === 'badges' && myScore && (
         <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white">Achievements Shelf</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+            <h3 className="font-semibold text-slate-900 dark:text-white">Achievements Shelf</h3>
           </div>
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(BADGE_METADATA).map(([id, meta]) => {
@@ -453,19 +453,19 @@ const PerformancePage: React.FC = () => {
                   key={id}
                   className={`p-4 rounded-xl border flex gap-4 transition-all ${
                     hasBadge
-                      ? 'bg-white dark:bg-gray-850 border-amber-200 dark:border-amber-900/30 shadow-sm'
-                      : 'bg-gray-50/50 dark:bg-gray-900/20 border-gray-150 dark:border-gray-800 opacity-60'
+                      ? 'bg-white dark:bg-slate-850 border-amber-200 dark:border-amber-900/30 shadow-sm'
+                      : 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-150 dark:border-slate-800 opacity-60'
                   }`}
                 >
                   <span className="text-4xl self-center">{meta.icon}</span>
                   <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                    <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       {meta.name}
                       {hasBadge && <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1">{meta.desc}</p>
+                    <p className="text-xs text-slate-500 mt-1">{meta.desc}</p>
                     <span className={`inline-block mt-3 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      hasBadge ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+                      hasBadge ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200'
                     }`}>
                       {hasBadge ? 'Unlocked' : 'Locked'}
                     </span>
@@ -479,8 +479,8 @@ const PerformancePage: React.FC = () => {
 
       {activeTab === 'insights' && isManager && (
         <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white">At-Risk Team Members (OPI &lt; 70)</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+            <h3 className="font-semibold text-slate-900 dark:text-white">At-Risk Team Members (OPI &lt; 70)</h3>
           </div>
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {allScores.filter(s => s.overallPerformanceIndex < 70).map(s => {
@@ -492,7 +492,7 @@ const PerformancePage: React.FC = () => {
                     <Avatar src={u.avatarUrl} name={u.name} size="sm" />
                     <div>
                       <h4 className="font-bold">{u.name}</h4>
-                      <p className="text-xs text-gray-500">OPI: {s.overallPerformanceIndex}</p>
+                      <p className="text-xs text-slate-500">OPI: {s.overallPerformanceIndex}</p>
                     </div>
                   </div>
                   <Badge variant="danger">Review Needed</Badge>
@@ -506,17 +506,17 @@ const PerformancePage: React.FC = () => {
       {/* Review Modal */}
       {showReviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Card padding={false} className="w-full max-w-md bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Peer Performance Review</h3>
+          <Card padding={false} className="w-full max-w-md bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="font-semibold text-slate-900 dark:text-white">Peer Performance Review</h3>
             </div>
             <form onSubmit={handleReviewSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Task Reference</label>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Task Reference</label>
                 <select
                   value={selectedTask}
                   onChange={(e) => setSelectedTask(e.target.value)}
-                  className="w-full p-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700"
+                  className="w-full p-2 border rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700"
                 >
                   <option value="">Select Task</option>
                   {allTasks.map(t => (
@@ -526,11 +526,11 @@ const PerformancePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Assignee / Reviewee</label>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Assignee / Reviewee</label>
                 <select
                   value={selectedUser}
                   onChange={(e) => setSelectedUser(e.target.value)}
-                  className="w-full p-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700"
+                  className="w-full p-2 border rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700"
                 >
                   <option value="">Select Member</option>
                   {allUsers.map(u => (
@@ -540,14 +540,14 @@ const PerformancePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Score Rating (1-5 Stars)</label>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Score Rating (1-5 Stars)</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setReviewScore(star)}
-                      className={`text-2xl transition-all ${reviewScore >= star ? 'text-amber-500 scale-110' : 'text-gray-300 dark:text-gray-600'}`}
+                      className={`text-2xl transition-all ${reviewScore >= star ? 'text-amber-500 scale-110' : 'text-slate-300 dark:text-slate-600'}`}
                     >
                       ★
                     </button>
@@ -556,16 +556,16 @@ const PerformancePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5">Review Comment</label>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">Review Comment</label>
                 <textarea
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   placeholder="Provide details on quality, timeliness, or collaboration..."
-                  className="w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 h-24"
+                  className="w-full p-3 border rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 h-24"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t pt-4 border-gray-100 dark:border-gray-700">
+              <div className="flex justify-end gap-2 border-t pt-4 border-slate-100 dark:border-slate-700">
                 <Button type="button" onClick={() => setShowReviewModal(false)} variant="outline">
                   Cancel
                 </Button>

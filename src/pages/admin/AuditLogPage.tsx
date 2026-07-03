@@ -13,29 +13,29 @@ const ACTION_COLORS: Record<string, string> = {
   update: 'bg-blue-100 text-blue-700',
   delete: 'bg-red-100 text-red-700',
   login: 'bg-purple-100 text-purple-700',
-  logout: 'bg-gray-100 text-gray-600',
+  logout: 'bg-slate-100 text-slate-600',
   approve: 'bg-teal-100 text-teal-700',
   reject: 'bg-orange-100 text-orange-700',
 };
 
 const getActionColor = (action: string) => {
   const key = Object.keys(ACTION_COLORS).find((k) => action.toLowerCase().includes(k));
-  return key ? ACTION_COLORS[key] : 'bg-gray-100 text-gray-600';
+  return key ? ACTION_COLORS[key] : 'bg-slate-100 text-slate-600';
 };
 
 const TARGET_ICON_MAP: Record<string, React.ReactNode> = {
-  user: <User className="w-4 h-4 text-gray-500" />,
+  user: <User className="w-4 h-4 text-slate-500" />,
   task: <CheckSquare className="w-4 h-4 text-blue-500" />,
   project: <Folder className="w-4 h-4 text-emerald-500" />,
   role: <Key className="w-4 h-4 text-purple-500" />,
   document: <FileText className="w-4 h-4 text-amber-500" />,
   attendance: <Clock className="w-4 h-4 text-teal-500" />,
-  settings: <Settings className="w-4 h-4 text-gray-500" />,
+  settings: <Settings className="w-4 h-4 text-slate-500" />,
   notification: <Bell className="w-4 h-4 text-indigo-500" />,
 };
 
 const getTargetIcon = (targetType: string): React.ReactNode => {
-  return TARGET_ICON_MAP[targetType?.toLowerCase()] ?? <ClipboardList className="w-4 h-4 text-gray-400" />;
+  return TARGET_ICON_MAP[targetType?.toLowerCase()] ?? <ClipboardList className="w-4 h-4 text-slate-400" />;
 };
 
 const AuditLogPage: React.FC = () => {
@@ -87,12 +87,12 @@ const AuditLogPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Audit Log</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Complete history of admin & user actions</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Audit Log</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Complete history of admin & user actions</p>
         </div>
         <button
           onClick={() => fetchLogs(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
@@ -102,9 +102,9 @@ const AuditLogPage: React.FC = () => {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="flex-1 min-w-48 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
             placeholder="Search by action, user, or details..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -112,7 +112,7 @@ const AuditLogPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3 py-2.5 pr-8 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
+            className="appearance-none px-3 py-2.5 pr-8 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
@@ -121,21 +121,21 @@ const AuditLogPage: React.FC = () => {
               <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Entries', value: logs.length, color: 'text-gray-900' },
+          { label: 'Total Entries', value: logs.length, color: 'text-slate-900' },
           { label: 'Today', value: logs.filter((l) => { try { const d = l.createdAt?.toDate(); return d && format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'); } catch { return false; } }).length, color: 'text-primary' },
           { label: 'This Week', value: logs.filter((l) => { try { const d = l.createdAt?.toDate(); return d && (Date.now() - d.getTime()) < 7*24*3600*1000; } catch { return false; } }).length, color: 'text-blue-600' },
-          { label: 'Filtered', value: filtered.length, color: 'text-gray-700' },
+          { label: 'Filtered', value: filtered.length, color: 'text-slate-700' },
         ].map((s) => (
           <Card key={s.label} className="text-center py-3">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+            <p className="text-xs text-slate-500 mt-1">{s.label}</p>
           </Card>
         ))}
       </div>
@@ -151,22 +151,22 @@ const AuditLogPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 text-left bg-gray-50/60">
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">Timestamp</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">User</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Action</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Target</th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Details</th>
+                  <tr className="border-b border-slate-100 text-left bg-slate-50/60">
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide whitespace-nowrap">Timestamp</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">User</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Action</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden md:table-cell">Target</th>
+                    <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden lg:table-cell">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-50">
                   {filtered.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{formatTime(log.createdAt)}</td>
+                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">{formatTime(log.createdAt)}</td>
                       <td className="px-4 py-3">
                         <div>
-                          <p className="font-medium text-gray-900">{log.userName || '—'}</p>
-                          <p className="text-xs text-gray-400">{log.userId?.slice(0, 8)}…</p>
+                          <p className="font-medium text-slate-900">{log.userName || '—'}</p>
+                          <p className="text-xs text-slate-400">{log.userId?.slice(0, 8)}…</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -178,12 +178,12 @@ const AuditLogPage: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <span className="flex-shrink-0">{getTargetIcon(log.targetType)}</span>
                           <div>
-                            <p className="text-xs font-medium text-gray-700 capitalize">{log.targetType || '—'}</p>
-                            {log.targetId && <p className="text-xs text-gray-400">{log.targetId.slice(0, 8)}…</p>}
+                            <p className="text-xs font-medium text-slate-700 capitalize">{log.targetType || '—'}</p>
+                            {log.targetId && <p className="text-xs text-slate-400">{log.targetId.slice(0, 8)}…</p>}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-gray-500 text-xs max-w-xs truncate">{log.details || '—'}</td>
+                      <td className="px-4 py-3 hidden lg:table-cell text-slate-500 text-xs max-w-xs truncate">{log.details || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -96,31 +96,31 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-3 p-5 border-b border-gray-100">
+        <div className="flex items-center gap-3 p-5 border-b border-slate-100">
           <Avatar name={user.name} src={user.avatarUrl} size="md" />
           <div className="flex-1">
-            <h3 className="font-bold text-gray-900">{user.name}</h3>
-            <p className="text-sm text-gray-500">{user.email} · Last 30 days</p>
+            <h3 className="font-bold text-slate-900">{user.name}</h3>
+            <p className="text-sm text-slate-500">{user.email} · Last 30 days</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+            <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
         {/* Stats */}
         {!loading && (
-          <div className="grid grid-cols-3 gap-3 p-4 border-b border-gray-100">
+          <div className="grid grid-cols-3 gap-3 p-4 border-b border-slate-100">
             <div className="text-center">
-              <p className="text-xl font-bold text-gray-900">{history.filter((h) => h.checkInTime).length}</p>
-              <p className="text-xs text-gray-500">Days Present</p>
+              <p className="text-xl font-bold text-slate-900">{history.filter((h) => h.checkInTime).length}</p>
+              <p className="text-xs text-slate-500">Days Present</p>
             </div>
             <div className="text-center">
               <p className="text-xl font-bold text-amber-600">{history.filter((h) => isOutsideGeofence(h)).length}</p>
-              <p className="text-xs text-gray-500">Outside Fence</p>
+              <p className="text-xs text-slate-500">Outside Fence</p>
             </div>
             <div className="text-center">
               <p className="text-xl font-bold text-red-600">{history.filter((h) => h.checkInTime && !h.checkOutTime).length}</p>
-              <p className="text-xs text-gray-500">No Check-out</p>
+              <p className="text-xs text-slate-500">No Check-out</p>
             </div>
           </div>
         )}
@@ -130,27 +130,27 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
           {loading ? (
             <div className="flex justify-center py-8"><Spinner size="md" /></div>
           ) : history.length === 0 ? (
-            <p className="text-center text-gray-400 py-8 text-sm">No attendance records found</p>
+            <p className="text-center text-slate-400 py-8 text-sm">No attendance records found</p>
           ) : (
             history.map((rec) => {
               const outside = isOutsideGeofence(rec);
               const duration = getDuration(rec);
               return (
-                <div key={rec.id} className={`p-3 rounded-xl border ${outside ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}>
+                <div key={rec.id} className={`p-3 rounded-xl border ${outside ? 'border-amber-200 bg-amber-50' : 'border-slate-100 bg-slate-50'}`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-slate-900">
                         {rec.date ? format(new Date(rec.date), 'EEE, dd MMM yyyy') : '—'}
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-slate-600">
                           In: <span className="font-medium text-green-700">{formatTs(rec.checkInTime)}</span>
                         </span>
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs text-slate-600">
                           Out: <span className="font-medium text-red-600">{formatTs(rec.checkOutTime)}</span>
                         </span>
                         {duration && (
-                          <span className="text-xs text-gray-500">{duration}</span>
+                          <span className="text-xs text-slate-500">{duration}</span>
                         )}
                       </div>
                     </div>
@@ -167,7 +167,7 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                     </div>
                   </div>
                   {rec.checkInAddress && (
-                    <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                    <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
                       <MapPin className="w-3 h-3 flex-shrink-0" />
                       {rec.checkInAddress}
                     </p>
@@ -236,26 +236,26 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Attendance Dashboard</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Monitor daily check-ins, check-outs & geofence compliance</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Dashboard</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Monitor daily check-ins, check-outs & geofence compliance</p>
         </div>
         {/* Date Picker */}
-        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
-          <button onClick={() => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))} className="p-1 hover:bg-gray-100 rounded">
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+          <button onClick={() => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))} className="p-1 hover:bg-slate-100 rounded">
+            <ChevronLeft className="w-4 h-4 text-slate-600" />
           </button>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="text-sm font-medium text-gray-800 focus:outline-none"
+            className="text-sm font-medium text-slate-800 focus:outline-none"
           />
           <button
             onClick={() => setDate(format(addDays(new Date(date), 1), 'yyyy-MM-dd'))}
             disabled={isToday}
-            className="p-1 hover:bg-gray-100 rounded disabled:opacity-30"
+            className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"
           >
-            <ChevronRight className="w-4 h-4 text-gray-600" />
+            <ChevronRight className="w-4 h-4 text-slate-600" />
           </button>
         </div>
       </div>
@@ -272,7 +272,7 @@ const AttendanceDashboardPage: React.FC = () => {
             <div className={`p-2 rounded-xl ${s.bg} ${s.color}`}>{s.icon}</div>
             <div>
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-xs text-slate-500">{s.label}</p>
             </div>
           </Card>
         ))}
@@ -289,7 +289,7 @@ const AttendanceDashboardPage: React.FC = () => {
             const checkedOut = !!rec?.checkOutTime;
             const outside = isOutsideGeofence(rec!);
 
-            let statusColor = 'border-gray-100 bg-white';
+            let statusColor = 'border-slate-100 bg-white';
             let statusLabel = 'Absent';
             let statusIcon = <XCircle className="w-4 h-4 text-red-400" />;
 
@@ -326,11 +326,11 @@ const AttendanceDashboardPage: React.FC = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
                     <div className="flex items-center gap-1.5 mt-1">
                       {statusIcon}
-                      <span className="text-xs font-medium text-gray-700">{statusLabel}</span>
+                      <span className="text-xs font-medium text-slate-700">{statusLabel}</span>
                     </div>
                   </div>
                   {outside && (
@@ -341,27 +341,27 @@ const AttendanceDashboardPage: React.FC = () => {
                 {checkedIn && (
                   <div className="mt-3 pt-3 border-t border-black/5 space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-500">Check-in</span>
-                      <span className="font-medium text-gray-800">
+                      <span className="text-slate-500">Check-in</span>
+                      <span className="font-medium text-slate-800">
                         {rec?.checkInTime ? format(rec.checkInTime.toDate(), 'HH:mm') : '—'}
                       </span>
                     </div>
                     {checkedOut ? (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Check-out</span>
-                        <span className="font-medium text-gray-800">
+                        <span className="text-slate-500">Check-out</span>
+                        <span className="font-medium text-slate-800">
                           {rec?.checkOutTime ? format(rec.checkOutTime.toDate(), 'HH:mm') : '—'}
                         </span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Duration</span>
+                        <span className="text-slate-500">Duration</span>
                         {rec?.checkInTime && <LiveTimer checkInTime={rec.checkInTime} />}
                       </div>
                     )}
                     {getDur() && checkedOut && (
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">Total</span>
+                        <span className="text-slate-500">Total</span>
                         <span className="font-medium text-blue-600">{getDur()}</span>
                       </div>
                     )}

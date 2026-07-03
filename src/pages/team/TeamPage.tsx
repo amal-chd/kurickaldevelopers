@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { Search, Users, UserPlus, Mail, Phone, ChevronDown } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
@@ -59,8 +59,8 @@ const TeamPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Team</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{users.length} members · {activeCount} active</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Team</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{users.length} members · {activeCount} active</p>
         </div>
         {can('team_manage') && (
           <Button size="sm" leftIcon={<UserPlus className="w-4 h-4" />} onClick={() => navigate('/app/admin/users')}>
@@ -81,14 +81,14 @@ const TeamPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all h-10"
+            className="appearance-none px-3.5 pr-9 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all h-10"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
           >
             <option value="">All Roles</option>
             {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
@@ -102,7 +102,7 @@ const TeamPage: React.FC = () => {
               <div
                 key={user.id}
                 onClick={() => navigate(`/app/team/${user.id}`)}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-card-hover hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-card-hover hover:border-slate-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
               >
                 {/* Color header */}
                 <div
@@ -120,7 +120,7 @@ const TeamPage: React.FC = () => {
 
                 {/* Content */}
                 <div className="pt-10 pb-5 px-4 text-center">
-                  <h3 className="font-semibold text-gray-900 truncate">{user.name || user.email || 'Unknown'}</h3>
+                  <h3 className="font-semibold text-slate-900 truncate">{user.name || user.email || 'Unknown'}</h3>
                   {role && (
                     <span
                       className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
@@ -132,13 +132,13 @@ const TeamPage: React.FC = () => {
 
                   <div className="mt-3 space-y-1">
                     {user.email && (
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                      <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
                         <Mail className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate max-w-[160px]">{user.email}</span>
                       </div>
                     )}
                     {user.phone && (
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+                      <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
                         <Phone className="w-3 h-3 flex-shrink-0" />
                         <span>{user.phone}</span>
                       </div>
@@ -158,6 +158,7 @@ const TeamPage: React.FC = () => {
           })}
         </div>
       )}
+      <Outlet />
     </div>
   );
 };

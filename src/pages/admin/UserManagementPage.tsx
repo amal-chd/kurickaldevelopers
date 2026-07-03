@@ -158,8 +158,8 @@ const UserManagementPage: React.FC = () => {
           Back
         </Button>
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">User Management</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{users.length} total users</p>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">User Management</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{users.length} total users</p>
         </div>
       </div>
 
@@ -177,29 +177,29 @@ const UserManagementPage: React.FC = () => {
       <Card padding={false}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left border-b border-gray-100 bg-gray-50/60">
-              <th className="px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">User</th>
-              <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
-              <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden sm:table-cell">Role</th>
-              <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Actions</th>
+            <tr className="text-left border-b border-slate-100 bg-slate-50/60">
+              <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">User</th>
+              <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
+              <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden sm:table-cell">Role</th>
+              <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-slate-50">
             {filtered.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
+              <tr key={user.id} className="hover:bg-slate-50/60 transition-colors">
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     <Avatar name={user.name || user.email || '?'} src={user.avatarUrl} size="sm" />
                     <div>
-                      <p className="font-semibold text-gray-900">{user.name || user.email || 'Unknown'}</p>
-                      <p className="text-xs text-gray-400 md:hidden">{user.email || user.phone}</p>
+                      <p className="font-semibold text-slate-900">{user.name || user.email || 'Unknown'}</p>
+                      <p className="text-xs text-slate-400 md:hidden">{user.email || user.phone}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 hidden md:table-cell text-gray-500 text-xs">{user.email || user.phone}</td>
+                <td className="px-4 py-3.5 hidden md:table-cell text-slate-500 text-xs">{user.email || user.phone}</td>
                 <td className="px-4 py-3.5 hidden sm:table-cell">
-                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">{getRoleName(user.roleId)}</span>
+                  <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">{getRoleName(user.roleId)}</span>
                 </td>
                 <td className="px-4 py-3.5">
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
@@ -208,11 +208,11 @@ const UserManagementPage: React.FC = () => {
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-1">
-                    <button className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" onClick={() => openEdit(user)} title="Edit">
+                    <button className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" onClick={() => openEdit(user)} title="Edit">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      className={`p-2 rounded-xl transition-colors ${user.isActive ? 'text-gray-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                      className={`p-2 rounded-xl transition-colors ${user.isActive ? 'text-slate-400 hover:text-red-500 hover:bg-red-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                       onClick={() => toggleActive(user)}
                       title={user.isActive ? 'Deactivate' : 'Activate'}
                     >
@@ -220,7 +220,7 @@ const UserManagementPage: React.FC = () => {
                     </button>
                     {can('team_delete') && (
                       <button
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                         onClick={() => handleDelete(user)}
                         title="Delete permanently"
                       >

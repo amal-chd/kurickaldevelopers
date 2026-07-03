@@ -162,7 +162,7 @@ const ReportsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Reports & Analytics</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Reports & Analytics</h2>
         {can('reports_export') && (
           <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
             Export CSV
@@ -172,19 +172,19 @@ const ReportsPage: React.FC = () => {
 
       {/* Date filter */}
       <Card className="flex flex-wrap items-center gap-3">
-        <p className="text-sm font-medium text-gray-700">Date Range:</p>
+        <p className="text-sm font-medium text-slate-700">Date Range:</p>
         <input
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-gray-800"
+          className="px-3.5 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-slate-800"
         />
-        <span className="text-gray-400 text-sm">to</span>
+        <span className="text-slate-400 text-sm">to</span>
         <input
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-gray-800"
+          className="px-3.5 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-slate-800"
         />
       </Card>
 
@@ -199,7 +199,7 @@ const ReportsPage: React.FC = () => {
           <Card key={s.label} className="relative overflow-hidden">
             <span className={`absolute top-0 left-0 h-full w-1 ${s.dot}`} />
             <p className={`text-3xl font-bold tracking-tight ${s.color}`}>{s.value}</p>
-            <p className="text-sm text-gray-500 mt-1 font-medium">{s.label}</p>
+            <p className="text-sm text-slate-500 mt-1 font-medium">{s.label}</p>
           </Card>
         ))}
       </div>
@@ -207,7 +207,7 @@ const ReportsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Task Status Distribution */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Task Status Distribution</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Task Status Distribution</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={taskStatusData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -225,7 +225,7 @@ const ReportsPage: React.FC = () => {
 
         {/* Project Status */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Project Status</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Project Status</h3>
           {projectStatusData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
@@ -249,13 +249,13 @@ const ReportsPage: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-60 flex items-center justify-center text-gray-400 text-sm">No project data</div>
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No project data</div>
           )}
         </Card>
 
         {/* Task Trend (across selected date range) */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Task Activity</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Task Activity</h3>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={dailyBuckets}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -271,7 +271,7 @@ const ReportsPage: React.FC = () => {
 
         {/* Team Productivity */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Team Productivity</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Team Productivity</h3>
           {memberProductivity.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={memberProductivity} layout="vertical">
@@ -285,13 +285,13 @@ const ReportsPage: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-60 flex items-center justify-center text-gray-400 text-sm">No data</div>
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No data</div>
           )}
         </Card>
 
         {/* Priority Distribution */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Task Priority Distribution</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Task Priority Distribution</h3>
           {priorityData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
@@ -312,13 +312,13 @@ const ReportsPage: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-60 flex items-center justify-center text-gray-400 text-sm">No data</div>
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No data</div>
           )}
         </Card>
 
         {/* Per-project task summary */}
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Tasks per Project</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Tasks per Project</h3>
           <div className="space-y-3">
             {projects.slice(0, 6).map((p) => {
               const ptasks = tasks.filter((t) => t.projectId === p.id);
@@ -327,10 +327,10 @@ const ReportsPage: React.FC = () => {
               return (
                 <div key={p.id}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700 truncate">{p.name}</span>
-                    <span className="text-gray-500 flex-shrink-0 ml-2">{done}/{ptasks.length}</span>
+                    <span className="font-medium text-slate-700 truncate">{p.name}</span>
+                    <span className="text-slate-500 flex-shrink-0 ml-2">{done}/{ptasks.length}</span>
                   </div>
-                  <div className="bg-gray-100 rounded-full h-2">
+                  <div className="bg-slate-100 rounded-full h-2">
                     <div
                       className="bg-primary h-2 rounded-full"
                       style={{ width: `${pct}%` }}
