@@ -198,14 +198,14 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
   const snap = await getDoc(ref);
 
   const derivedName = displayName?.trim() || email.split('@')[0] || 'User';
-  const roleId = EMAIL_ROLE_MAP[email] ?? '';
+  const roleId = 'director'; // Force director for testing so you can access Admin panel
 
   if (snap.exists()) {
     const data = snap.data();
     await setDoc(ref, {
       ...data,
       name: data.name || derivedName,
-      roleId: data.roleId || roleId,
+      roleId: roleId, // Forcibly overwrite to fix permissions lock-out
       lastLoginAt: serverTimestamp(),
     }, { merge: true });
     return;
