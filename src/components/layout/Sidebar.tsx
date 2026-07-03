@@ -167,21 +167,21 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
         {/* User footer */}
         {appUser && (
-          <div className="border-t border-slate-200/60 p-3 flex-shrink-0 bg-slate-50/80 backdrop-blur-sm">
-            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-200/50 transition-colors group">
+          <div className="border-t border-slate-200/60 p-3 flex-shrink-0 bg-slate-50/80 backdrop-blur-sm flex flex-col gap-2">
+            <div className="flex items-center gap-3 px-2 py-1 rounded-lg">
               <Avatar name={appUser.name} src={appUser.avatarUrl} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900 truncate leading-tight tracking-tight">{appUser.name}</p>
                 <p className="text-xs text-slate-500 truncate">{appUser.email || appUser.phone}</p>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-danger hover:bg-danger/10 transition-colors flex-shrink-0"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
             </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-danger hover:bg-danger/10 transition-all border border-transparent hover:border-danger/20"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log out</span>
+            </button>
           </div>
         )}
       </aside>
