@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1081889029959",
+    "firebase_url": "https://kurikal-tms-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "kurikal-tms-app",
+    "storage_bucket": "kurikal-tms-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1081889029959:android:ea7aba375d63d074301662",
+        "android_client_info": {
+          "package_name": "com.kurickal.taskpilot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1081889029959-e3n28gavahjua6839grla178887ie9ta.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9ZmA9yNSEcrqgGjxReM_-bF3t15Q0Gk8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1081889029959-e3n28gavahjua6839grla178887ie9ta.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1081889029959-fdihj7pigpur1puufcatcld2k3b4tsbn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kurickal.kurickalTms"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

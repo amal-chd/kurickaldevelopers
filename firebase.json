@@ -1,0 +1,43 @@
+{
+  "functions": {
+    "source": "functions",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "kurikal-tms-app",
+          "appId": "1:1081889029959:android:39958f0546e18dc1301662",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "kurikal-tms-app",
+          "appId": "1:1081889029959:ios:13917706092dc057301662",
+          "uploadDebugSymbols": true,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "kurikal-tms-app",
+          "configurations": {
+            "android": "1:1081889029959:android:39958f0546e18dc1301662",
+            "ios": "1:1081889029959:ios:13917706092dc057301662"
+          }
+        }
+      }
+    }
+  }
+}

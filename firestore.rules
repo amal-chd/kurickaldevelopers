@@ -1,0 +1,456 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helper functions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function getUserData() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
+    }
+
+    function getUserRole() {
+      let uData = getUserData();
+      let rolePath = /databases/$(database)/documents/roles/$(uData != null ? uData.roleId : '_none_');
+      return uData != null && exists(rolePath) ? get(rolePath).data : null;
+    }
+
+    function hasPermission(permKey) {
+      let role = getUserRole();
+      return isAuthenticated() && role != null && role.permissions.get(permKey, false) == true;
+    }
+
+    function myLevel() {
+      let role = getUserRole();
+      return role != null ? role.get('level', 0) : 0;
+    }
+
+    function isProjectMember(projectId) {
+      let projPath = /databases/$(database)/documents/projects/$(projectId);
+      return isAuthenticated() &&
+             exists(projPath) &&
+             request.auth.uid in get(projPath).data.memberIds;
+    }
+
+    function isProjectManager(projectId) {
+      let projPath = /databases/$(database)/documents/projects/$(projectId);
+      // Unified schema stores the manager as projectManagerId; fall back to
+      // the legacy managerId field for documents created before the rename.
+      return isAuthenticated() &&
+             exists(projPath) &&
+             request.auth.uid == get(projPath).data.get('projectManagerId',
+               get(projPath).data.get('managerId', ''));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Users
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+
+      // A new user can create their own profile on sign-up
+      allow create: if isOwner(userId);
+
+      // Self-update: may change name/phone/avatar/fcmToken – NOT roleId/isActive (unless they don't have a role yet)
+      // team_manage: may update any field for any user EXCEPT escalating roleId above their own level
+      allow update: if isAuthenticated() && (
+        // Owner updating their own non-sensitive fields
+        (isOwner(userId) && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId', 'isActive']) ||
+          (!resource.data.keys().hasAny(['roleId']) || resource.data.roleId == null || resource.data.roleId == '')
+        )) ||
+        // team_manage updating other users (role change constrained)
+        (hasPermission('team_manage') && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId']) ||
+          request.resource.data.roleId == null || 
+          request.resource.data.roleId == '' ||
+          (
+            exists(/databases/$(database)/documents/roles/$(request.resource.data.roleId)) &&
+            get(/databases/$(database)/documents/roles/$(request.resource.data.roleId)).data.get('level', 0) <= myLevel()
+          )
+        ))
+      );
+
+      // team_manage can deactivate users (isActive change)
+      // This is handled via the update rule above (they can change isActive)
+
+      // Only allow delete with team_delete permission
+      allow delete: if hasPermission('team_delete');
+
+      // Private subcollection
+      match /private/{docId} {
+        allow read:  if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Roles
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /roles/{roleId} {
+      allow read: if isAuthenticated();
+      
+      // Allow Director to manage roles, or ANY user who has roleId == 'director' (to solve the chicken-and-egg problem on first boot)
+      allow create: if (hasPermission('roles_manage') &&
+                    request.resource.data.get('level', 0) <= myLevel()) || 
+                    (getUserData() != null && getUserData().roleId == 'director');
+                    
+      allow update: if (hasPermission('roles_manage') &&
+                    request.resource.data.get('level', 0) <= myLevel() &&
+                    resource.data.get('level', 0) <= myLevel()) ||
+                    (getUserData() != null && getUserData().roleId == 'director');
+                    
+      allow delete: if ((hasPermission('roles_manage') && resource.data.get('level', 0) <= myLevel()) ||
+                    (getUserData() != null && getUserData().roleId == 'director')) &&
+                    resource.data.get('isSystem', false) == false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Projects
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /projects/{projectId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.memberIds ||
+        request.auth.uid == resource.data.get('projectManagerId',
+          resource.data.get('managerId', '')) ||
+        hasPermission('projects_view_all')
+      );
+      allow create: if hasPermission('projects_create');
+      allow update: if hasPermission('projects_edit') || isProjectManager(projectId);
+      allow delete: if hasPermission('projects_delete');
+
+      // Milestones subcollection
+      match /milestones/{milestoneId} {
+        allow read: if isAuthenticated() && (
+          isProjectMember(projectId) ||
+          isProjectManager(projectId) ||
+          hasPermission('projects_view_all')
+        );
+        allow write: if hasPermission('projects_edit') || isProjectManager(projectId);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tasks
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /tasks/{taskId} {
+      // Task visibility policy: ONLY the assignees (direct or via role), the
+      // creator, and roles with tasks_view_all (Director / PM / Admin) may
+      // read a task. Project membership alone does NOT grant task access.
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.assigneeIds ||
+        request.auth.uid == resource.data.createdBy ||
+        hasPermission('tasks_view_all') ||
+        (resource.data.get('assignedRoleId', null) != null &&
+         getUserData() != null &&
+         resource.data.get('assignedRoleId', null) == getUserData().roleId) ||
+        (resource.data.get('assignedRoleIds', null) != null &&
+         getUserData() != null &&
+         getUserData().roleId in resource.data.get('assignedRoleIds', []))
+      );
+      allow create: if hasPermission('tasks_create');
+      allow update: if hasPermission('tasks_edit') ||
+        request.auth.uid in resource.data.assigneeIds ||
+        (resource.data.get('assignedRoleId', null) != null &&
+         getUserData() != null &&
+         resource.data.get('assignedRoleId', null) == getUserData().roleId) ||
+        (resource.data.get('assignedRoleIds', null) != null &&
+         getUserData() != null &&
+         getUserData().roleId in resource.data.get('assignedRoleIds', []));
+      allow delete: if hasPermission('tasks_delete');
+
+      // Subtasks
+      match /subtasks/{subtaskId} {
+        allow read: if isAuthenticated();
+        allow write: if hasPermission('tasks_edit') ||
+          (exists(/databases/$(database)/documents/tasks/$(taskId)) &&
+           request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.assigneeIds);
+      }
+
+      // Comments — any authenticated member of the task can read/post
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated() && request.auth.uid == resource.data.authorId;
+        allow delete: if hasPermission('tasks_delete') ||
+          request.auth.uid == resource.data.authorId;
+      }
+
+      // Time logs
+      match /timeLogs/{logId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == resource.data.userId ||
+          hasPermission('time_view_all')
+        );
+        allow create: if hasPermission('time_log');
+        allow update: if request.auth.uid == resource.data.userId;
+        allow delete: if false;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Documents
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /documents/{docId} {
+      allow read: if isAuthenticated() && (
+        hasPermission('docs_view_all') ||
+        request.auth.uid == resource.data.uploadedBy ||
+        (resource.data.projectId != null &&
+          exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.memberIds)
+      );
+      allow create: if hasPermission('docs_upload');
+      allow update: if hasPermission('docs_upload') || hasPermission('docs_approve');
+      allow delete: if (hasPermission('docs_upload') && request.auth.uid == resource.data.uploadedBy) ||
+                       hasPermission('docs_approve') || 
+                       myLevel() >= 90;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Attendance
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /attendance/{attendanceId} {
+      // Read: own records, project members of the same project, or team_manage.
+      // Project members can see who else is on site (Team → "Today On Site").
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('team_manage') ||
+        hasPermission('attendance_view_all') ||
+        (resource.data.projectId != null &&
+          exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.memberIds)
+      );
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId);
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Notifications (push / in-app)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /notifications/{notifId} {
+      // userId == '' means broadcast; userId == uid means targeted
+      allow read: if isAuthenticated() && (
+        resource.data.userId == '' ||
+        resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == '' ||
+        resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == '' ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Site Diary
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /site_diaries/{entryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.authorId ||
+        hasPermission('projects_edit')
+      );
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Chat Channels
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /chats/{channelId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.memberIds ||
+        hasPermission('chat_view')
+      );
+      allow create: if isAuthenticated() && (
+        hasPermission('chat_create_group') ||
+        hasPermission('chat_announce') ||
+        // DM channels — any authenticated user can start a DM
+        (request.resource.data.type == 'direct' &&
+          request.auth.uid in request.resource.data.memberIds) ||
+        // Project channels created automatically
+        request.resource.data.type == 'project'
+      );
+      // Members can update unread counts; admins can update everything
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.memberIds ||
+        hasPermission('chat_moderate')
+      );
+      allow delete: if hasPermission('chat_moderate');
+
+      // Messages
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (
+          exists(/databases/$(database)/documents/chats/$(channelId)) && (
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(channelId)).data.memberIds ||
+            hasPermission('chat_moderate') ||
+            (get(/databases/$(database)/documents/chats/$(channelId)).data.type == 'announcement' && hasPermission('chat_view'))
+          )
+        );
+        // Posting: must be a channel member; announcement channels additionally
+        // require the chat_announce permission (previously UI-only, so any
+        // member with chat_send could write into an announcement channel).
+        allow create: if isAuthenticated() &&
+          exists(/databases/$(database)/documents/chats/$(channelId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(channelId)).data.memberIds &&
+          (
+            (get(/databases/$(database)/documents/chats/$(channelId)).data.type == 'announcement' &&
+              hasPermission('chat_announce')) ||
+            (get(/databases/$(database)/documents/chats/$(channelId)).data.type in ['direct', 'project']) ||
+            (get(/databases/$(database)/documents/chats/$(channelId)).data.type == 'group' &&
+              hasPermission('chat_send'))
+          );
+        allow update: if isAuthenticated() && (
+          request.auth.uid == resource.data.senderId ||
+          hasPermission('chat_moderate')
+        );
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == resource.data.senderId ||
+          hasPermission('chat_moderate')
+        );
+      }
+
+      match /typing/{userId} {
+        allow read: if isAuthenticated() && (
+          exists(/databases/$(database)/documents/chats/$(channelId)) && (
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(channelId)).data.memberIds ||
+            hasPermission('chat_moderate') ||
+            (get(/databases/$(database)/documents/chats/$(channelId)).data.type == 'announcement' && hasPermission('chat_view'))
+          )
+        );
+        allow create, update, delete: if isAuthenticated() &&
+          request.auth.uid == userId && (
+            exists(/databases/$(database)/documents/chats/$(channelId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(channelId)).data.memberIds
+          );
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Performance Scores & Reviews
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /performance_scores/{userId} {
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        hasPermission('performance_view') ||
+        hasPermission('team_manage')
+      );
+      // Only the user themselves or a manager/admin can update scores
+      allow write: if isAuthenticated() && (
+        isOwner(userId) || 
+        hasPermission('tasks_approve') || 
+        hasPermission('performance_manage')
+      );
+    }
+
+    match /performance_reviews/{reviewId} {
+      // Users can read reviews about themselves, managers can read all
+      allow read: if isAuthenticated() && (
+        resource.data.revieweeId == request.auth.uid || 
+        hasPermission('performance_view') || 
+        hasPermission('team_manage') || 
+        resource.data.reviewerId == request.auth.uid
+      );
+      // Only managers can create reviews, or peers if we allow peer reviews, but reviewerId must match auth uid
+      allow create: if isAuthenticated() && request.resource.data.reviewerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /settings/performance_config {
+      allow read: if isAuthenticated();
+      allow write: if hasPermission('performance_manage') || hasPermission('settings_manage');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin: Org Settings
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if hasPermission('settings_manage');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin: Audit Logs
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /audit_logs/{logId} {
+      // Any admin with roles_manage can read; system writes come from clients with that permission
+      allow read: if hasPermission('roles_manage') || hasPermission('settings_manage');
+      allow create: if hasPermission('roles_manage') || hasPermission('team_manage') ||
+                       hasPermission('settings_manage');
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin: Invitations
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /invitations/{invId} {
+      allow read: if hasPermission('team_manage') || hasPermission('roles_manage');
+      allow create: if hasPermission('team_manage') || hasPermission('roles_manage');
+      allow update: if hasPermission('team_manage') || hasPermission('roles_manage');
+      allow delete: if hasPermission('team_manage') || hasPermission('roles_manage');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Admin: Broadcast Notifications
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /broadcast_notifications/{notifId} {
+      allow read: if hasPermission('notifications_manage') || hasPermission('roles_manage');
+      allow create: if hasPermission('notifications_manage');
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Contact Inquiries (website & mobile app)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /contact_inquiries/{inquiryId} {
+      // Anyone (including unauthenticated public) can submit — website visitors
+      // and mobile app users don't need a TMS account to enquire.
+      // Must validate basic fields to prevent abuse/spam.
+      allow create: if 
+        request.resource.data.keys().hasAll(['name', 'email', 'message', 'createdAt', 'status']) &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() < 100 &&
+        request.resource.data.email is string && request.resource.data.email.matches('^[^@]+@[^@]+\\.[^@]+$') &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() < 2000;
+
+      // Only staff with contact_view or contact_manage can read.
+      allow read: if isAuthenticated() &&
+                  (hasPermission('contact_view') || hasPermission('contact_manage'));
+
+      // Only contact_manage can update (change status, add notes) or delete.
+      allow update: if isAuthenticated() && hasPermission('contact_manage');
+      allow delete: if isAuthenticated() && hasPermission('contact_manage');
+    }
+
+  }
+}

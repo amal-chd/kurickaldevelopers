@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isProjectMember(projectId) {
+      return isAuthenticated() &&
+             firestore.exists(/databases/(default)/documents/projects/$(projectId)) &&
+             request.auth.uid in firestore.get(/databases/(default)/documents/projects/$(projectId)).data.memberIds;
+    }
+
+    // Documents (Project files)
+    // Locked down using Cross-Service Security Rules to ensure that 
+    // only active members of a project can view or upload documents to it.
+    match /projects/{projectId}/documents/{fileName} {
+      allow read: if isProjectMember(projectId);
+      allow create, update: if isProjectMember(projectId) 
+                            && request.resource.size < 50 * 1024 * 1024; // 50MB max
+      allow delete: if isProjectMember(projectId);
+    }
+    
+    // User content (Avatars, etc)
+    match /users/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId)
+                    && request.resource.size < 5 * 1024 * 1024 // 5MB max
+                    && request.resource.contentType.matches('image/.*');
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
