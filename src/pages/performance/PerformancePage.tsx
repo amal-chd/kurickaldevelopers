@@ -62,12 +62,16 @@ const PerformancePage: React.FC = () => {
   // Review type is fixed to 'peer' for now (no selector in the UI yet).
   const [reviewType] = useState<'peer' | 'manager'>('peer');
 
+  const canViewOrg = can('performance_view') || can('team_manage');
+
   const loadData = async () => {
     try {
       setLoading(true);
+      // Staff without performance_view can only read their OWN score — skip
+      // the org-wide fetch entirely (faster, no denied reads).
       const [score, scores, users, tasksList] = await Promise.all([
         getPerformanceScore(userId),
-        getAllPerformanceScores(),
+        canViewOrg ? getAllPerformanceScores() : Promise.resolve([]),
         getAllUsers(),
         getTasks()
       ]);
@@ -150,6 +154,21 @@ const PerformancePage: React.FC = () => {
   const orgRank = sortedOrgScores.findIndex(s => s.userId === userId) + 1;
   const deptRank = sortedDeptScores.findIndex(s => s.userId === userId) + 1;
 
+  // Period-aware "tasks completed" for the leaderboard: counts DONE tasks whose
+  // last update falls inside the selected window ('all' uses the lifetime
+  // aggregate from the score document).
+  const periodStart =
+    period === 'week' ? Date.now() - 7 * 86400000 :
+    period === 'month' ? Date.now() - 30 * 86400000 : 0;
+  const completedInPeriod = (uid: string, lifetime: number) => {
+    if (period === 'all') return lifetime;
+    return allTasks.filter(t =>
+      t.status === 'done' &&
+      (t.assigneeIds?.includes(uid)) &&
+      ((t.updatedAt as any)?.toMillis?.() ?? 0) >= periodStart
+    ).length;
+  };
+
   // Radar data
   const radarData = myScore ? [
     { subject: 'Productivity', A: myScore.productivityScore, fullMark: 100 },
@@ -197,8 +216,7 @@ const PerformancePage: React.FC = () => {
           if (tab === 'insights' && !isManager) return null;
           // Org-wide tabs need performance_view — without it the rules only
           // allow reading the user's OWN score, so these would render empty.
-          if ((tab === 'leaderboard' || tab === 'analytics') &&
-              !can('performance_view') && !can('team_manage')) return null;
+          if ((tab === 'leaderboard' || tab === 'analytics') && !canViewOrg) return null;
           return (
             <button
               key={tab}
@@ -228,14 +246,31 @@ const PerformancePage: React.FC = () => {
             <p className="text-sm text-slate-500 mt-1">OPI Target: 90+</p>
             
             <div className="grid grid-cols-2 gap-4 w-full mt-6 border-t pt-6 border-slate-100 dark:border-slate-700">
-              <div className="text-center">
-                <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{deptRank || '-'}</span>
-                <span className="text-xs text-slate-500 font-medium">Department Rank</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{orgRank || '-'}</span>
-                <span className="text-xs text-slate-500 font-medium">Organization Rank</span>
-              </div>
+              {canViewOrg ? (
+                <>
+                  <div className="text-center">
+                    <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{deptRank || '-'}</span>
+                    <span className="text-xs text-slate-500 font-medium">Department Rank</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-2xl font-bold text-slate-900 dark:text-white">#{orgRank || '-'}</span>
+                    <span className="text-xs text-slate-500 font-medium">Organization Rank</span>
+                  </div>
+                </>
+              ) : (
+                // Staff can't read others' scores, so ranks are unknowable —
+                // show their own meaningful personal stats instead.
+                <>
+                  <div className="text-center">
+                    <span className="block text-2xl font-bold text-slate-900 dark:text-white">🔥 {myScore.bestStreak}</span>
+                    <span className="text-xs text-slate-500 font-medium">Best Streak</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-2xl font-bold text-slate-900 dark:text-white">{myScore.badges.length}</span>
+                    <span className="text-xs text-slate-500 font-medium">Badges Earned</span>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 
@@ -328,7 +363,9 @@ const PerformancePage: React.FC = () => {
                     <th className="py-3 px-4">Rank</th>
                     <th className="py-3 px-4">Member</th>
                     <th className="py-3 px-4">OPI Score</th>
-                    <th className="py-3 px-4 text-center">Tasks Completed</th>
+                    <th className="py-3 px-4 text-center">
+                      Tasks Completed{period !== 'all' ? ` (${period})` : ''}
+                    </th>
                     <th className="py-3 px-4 text-center">Current Streak</th>
                     <th className="py-3 px-4">Earned Badges</th>
                   </tr>
@@ -361,7 +398,7 @@ const PerformancePage: React.FC = () => {
                             {score.overallPerformanceIndex}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-center">{score.totalTasksCompleted}</td>
+                        <td className="py-4 px-4 text-center">{completedInPeriod(score.userId, score.totalTasksCompleted)}</td>
                         <td className="py-4 px-4 text-center font-bold text-orange-600">🔥 {score.consecutiveSuccesses}</td>
                         <td className="py-4 px-4">
                           <div className="flex gap-1 overflow-hidden">

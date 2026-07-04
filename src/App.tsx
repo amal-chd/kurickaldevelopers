@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthInit } from './hooks/useAuth';
@@ -42,6 +42,16 @@ const queryClient = new QueryClient({
     queries: { retry: 1, refetchOnWindowFocus: false },
   },
 });
+
+// ─── Director Gate ────────────────────────────────────────────────────────────
+// The admin panel (and every /app/admin/* page) is restricted to the top-level
+// role (Director, level 100). Gating on role LEVEL survives role renames and
+// custom role setups without hardcoding a role id.
+const DirectorGate = () => {
+  const { role } = useAuthStore();
+  if ((role?.level ?? 0) >= 100) return <Outlet />;
+  return <Navigate to="/app/dashboard" replace />;
+};
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
 // Sign-in only (mirrors the mobile app): once authenticated the user goes
@@ -125,14 +135,17 @@ function App() {
               <Route path="performance" element={<PerformancePage />} />
 
               {/* Admin */}
-              <Route path="admin" element={<AdminPage />} />
-              <Route path="admin/users" element={<UserManagementPage />} />
-              <Route path="admin/roles" element={<RoleManagementPage />} />
-              <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
-              <Route path="admin/audit-log" element={<AuditLogPage />} />
-              <Route path="admin/notifications" element={<NotificationAdminPage />} />
-              <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
-              <Route path="admin/contact" element={<ContactInquiriesPage />} />
+              {/* Admin panel — Director-only (top role level ≥ 100) */}
+              <Route element={<DirectorGate />}>
+                <Route path="admin" element={<AdminPage />} />
+                <Route path="admin/users" element={<UserManagementPage />} />
+                <Route path="admin/roles" element={<RoleManagementPage />} />
+                <Route path="admin/task-assignment" element={<TaskAssignmentSettingsPage />} />
+                <Route path="admin/audit-log" element={<AuditLogPage />} />
+                <Route path="admin/notifications" element={<NotificationAdminPage />} />
+                <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
+                <Route path="admin/contact" element={<ContactInquiriesPage />} />
+              </Route>
 
               {/* Profile */}
               <Route path="profile" element={<ProfilePage />} />

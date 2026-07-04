@@ -6,6 +6,7 @@ import {
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 import { getContactInquiries } from '../../lib/firestore';
 
 const BASE_ADMIN_ITEMS = [
@@ -34,10 +35,10 @@ const AdminPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasAnyAccess =
-    can('settings_manage') || can('roles_manage') ||
-    can('attendance_view_all') || can('notifications_manage') ||
-    can('contact_view') || can('contact_manage');
+  // Admin panel is Director-only: gated on the top role level (100), so it
+  // survives role renames and custom role setups without hardcoding an id.
+  const { role } = useAuthStore();
+  const hasAnyAccess = (role?.level ?? 0) >= 100;
 
   if (!hasAnyAccess) {
     return (

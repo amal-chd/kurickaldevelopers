@@ -47,7 +47,9 @@ const TasksPage: React.FC = () => {
 
   // Only roles that approve tasks (Director / Admin / PM) see every task.
   // Field staff who can create/edit still see only the tasks assigned to them.
-  const isManager = can('tasks_approve');
+  // Only roles with tasks_view_all (Director / PM / Admin by default) see the
+  // full board; everyone else sees only tasks assigned to them or their role.
+  const isManager = can('tasks_view_all');
 
   useEffect(() => {
     const uid = firebaseUser?.uid;

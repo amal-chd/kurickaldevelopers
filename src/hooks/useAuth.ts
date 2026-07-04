@@ -239,27 +239,41 @@ export function useAuthInit() {
         // Skip setup steps if it's a transient token refresh of an already initialized user session
         if (!isSameUser || !currentStore.appUser) {
           setLoading(true);
+
+          // Maintenance steps run in the BACKGROUND — they're idempotent and
+          // must not delay first paint. (Previously this chain — forced token
+          // refresh + 300ms sleep + seed check + user-doc write — added
+          // several serial network round-trips before ANY page rendered.)
+          void (async () => {
+            try {
+              await seedRolesIfNeeded();
+              await ensureUserDoc(
+                firebaseUser.uid,
+                firebaseUser.email ?? '',
+                firebaseUser.displayName,
+              );
+            } catch (err) {
+              console.warn('Auth init setup step failed (non-fatal):', err);
+            }
+          })();
+
+          // Load app user + role from Firestore — the only awaited reads.
+          // Retry briefly on permission-denied: right after sign-in the
+          // Firestore SDK may not have picked up the fresh token yet.
           try {
-            // Force a fresh ID token so Firestore auth validation is ready.
-            await firebaseUser.getIdToken(true);
-            await new Promise((r) => setTimeout(r, 300));
-
-            // Seed roles on first use
-            await seedRolesIfNeeded();
-
-            // Auto-create/patch user doc (updates lastLoginAt)
-            await ensureUserDoc(
-              firebaseUser.uid,
-              firebaseUser.email ?? '',
-              firebaseUser.displayName,
-            );
-          } catch (err) {
-            console.warn('Auth init setup step failed (non-fatal):', err);
-          }
-
-          // Load app user + role from Firestore
-          try {
-            const appUser = await getUser(firebaseUser.uid);
+            let appUser = null;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                appUser = await getUser(firebaseUser.uid);
+                break;
+              } catch (e: any) {
+                if (e?.code === 'permission-denied' && attempt < 2) {
+                  await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+                } else {
+                  throw e;
+                }
+              }
+            }
             setAppUser(appUser);
 
             if (appUser) registerFcm(appUser.id);

@@ -19,7 +19,6 @@ import {
 import { Project, Task, AppUser, Document as TDocument, SiteDiaryEntry } from '../../types';
 import { formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
-import { where } from 'firebase/firestore';
 
 type Tab = 'overview' | 'tasks' | 'documents' | 'sitediary' | 'team';
 
@@ -47,7 +46,9 @@ const ProjectDetailPage: React.FC = () => {
         setProject(p);
         if (p) {
           const [t, u, d, s] = await Promise.all([
-            getTasks([where('projectId', '==', projectId)]).catch(() => []),
+            // Scoped fetch + client filter: staff see only THEIR tasks in this
+            // project (visibility policy); view_all roles see everything.
+            getTasks().then((all) => all.filter((tk) => tk.projectId === projectId)).catch(() => []),
             getAllUsers().catch(() => []),
             getDocuments(projectId).catch(() => []),
             getSiteDiary(projectId).catch(() => []),

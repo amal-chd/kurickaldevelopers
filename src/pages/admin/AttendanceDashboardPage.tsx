@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   Shield, Clock, MapPin, CheckCircle,
-  XCircle, AlertTriangle, ChevronLeft, ChevronRight, X
+  XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -190,6 +193,7 @@ const AttendanceDashboardPage: React.FC = () => {
   const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     getAllUsers().then(setUsers);
@@ -229,6 +233,49 @@ const AttendanceDashboardPage: React.FC = () => {
   const outsideCount = records.filter((r) => isOutsideGeofence(r)).length;
   const absentCount = users.filter((u) => !getRecord(u.id)?.checkInTime).length;
 
+  // Export the FULL attendance report (last 90 days for every staff member)
+  // as an Excel workbook.
+  const handleExportExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const rows: Record<string, string | number>[] = [];
+      for (const u of users) {
+        const hist = await getUserAttendanceHistory(u.id, 90).catch(() => [] as Attendance[]);
+        for (const rec of hist) {
+          const inT = rec.checkInTime?.toDate?.();
+          const outT = rec.checkOutTime?.toDate?.();
+          const mins = inT && outT ? differenceInMinutes(outT, inT) : null;
+          rows.push({
+            Member: u.name || u.email || u.id,
+            Email: u.email ?? '',
+            Date: rec.date ?? (inT ? format(inT, 'yyyy-MM-dd') : ''),
+            'Check In': inT ? format(inT, 'HH:mm') : '—',
+            'Check Out': outT ? format(outT, 'HH:mm') : '—',
+            'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '',
+            'Outside Geofence': isOutsideGeofence(rec) ? 'Yes' : 'No',
+          });
+        }
+      }
+      if (rows.length === 0) {
+        toast.error('No attendance records found to export.');
+        return;
+      }
+      rows.sort((a, b) => String(b.Date).localeCompare(String(a.Date)) || String(a.Member).localeCompare(String(b.Member)));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+      XLSX.writeFile(wb, `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      toast.success(`Exported ${rows.length} attendance records`);
+    } catch {
+      toast.error('Failed to export attendance report');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const isToday = date === format(new Date(), 'yyyy-MM-dd');
 
   return (
@@ -239,6 +286,16 @@ const AttendanceDashboardPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Dashboard</h2>
           <p className="text-sm text-slate-500 mt-0.5">Monitor daily check-ins, check-outs & geofence compliance</p>
         </div>
+        {/* Excel export — full 90-day report for every staff member */}
+        <Button
+          variant="outline"
+          size="sm"
+          loading={exporting}
+          leftIcon={<FileSpreadsheet className="w-4 h-4" />}
+          onClick={handleExportExcel}
+        >
+          Export Excel
+        </Button>
         {/* Date Picker */}
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
           <button onClick={() => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))} className="p-1 hover:bg-slate-100 rounded">

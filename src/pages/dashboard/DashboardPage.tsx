@@ -8,7 +8,6 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Avatar from '../../components/ui/Avatar';
 import { TaskStatusChip, PriorityChip } from '../../components/ui/StatusChip';
-import Spinner from '../../components/ui/Spinner';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { subscribeProjects, subscribeTasks, subscribeUsers, getPerformanceScore } from '../../lib/firestore';
@@ -30,7 +29,6 @@ const DashboardPage: React.FC = () => {
   // Track which of the three subscriptions have fired at least once
   const [ready, setReady] = useState({ projects: false, tasks: false, users: false });
 
-  const loading = !ready.projects || !ready.tasks || !ready.users;
 
   useEffect(() => {
     const uid = firebaseUser?.uid;
@@ -75,18 +73,21 @@ const DashboardPage: React.FC = () => {
     };
   }, [firebaseUser?.uid, appUser?.id]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-3">
-        <Spinner size="lg" />
-        <p className="text-sm text-slate-400">Loading dashboard…</p>
-      </div>
-    );
-  }
+  // Progressive rendering: the page shell paints IMMEDIATELY and each section
+  // fills in as its subscription delivers (previously the whole dashboard
+  // blocked on all three subscriptions before showing anything). On warm loads
+  // the persistent Firestore cache makes this near-instant.
+  const Skeleton = ({ rows = 3 }: { rows?: number }) => (
+    <div className="p-5 space-y-3 animate-pulse">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="h-4 bg-slate-100 rounded-lg" style={{ width: `${85 - i * 12}%` }} />
+      ))}
+    </div>
+  );
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const userId      = appUser?.id ?? '';
-  const isManager   = can('tasks_approve');
+  const isManager   = can('tasks_view_all');
 
   // Managers see all tasks; others see only their own or their role's
   const myTasks     = isManager
@@ -161,10 +162,10 @@ const DashboardPage: React.FC = () => {
   const firstName = (appUser?.name || appUser?.email || '').split(/[\s@]/)[0] || '';
 
   const STATS = [
-    { label: 'Active Tasks',      value: inProgressTasks.length,  icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
-    { label: 'Active Projects',   value: activeProjects.length,   icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
-    { label: 'Team Members',      value: users.length,            icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
-    { label: 'Pending Approvals', value: pendingApprovals.length, icon: Clock,       gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
+    { label: 'Active Tasks',      value: inProgressTasks.length,  ready: ready.tasks,    icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
+    { label: 'Active Projects',   value: activeProjects.length,   ready: ready.projects, icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
+    { label: 'Team Members',      value: users.length,            ready: ready.users,    icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
+    { label: 'Pending Approvals', value: pendingApprovals.length, ready: ready.tasks,    icon: Clock,       gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
   ];
 
   return (
@@ -204,7 +205,7 @@ const DashboardPage: React.FC = () => {
               <s.icon className="w-5 h-5 text-slate-500 group-hover:text-primary transition-colors" />
             </div>
             <div className="min-w-0">
-              <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none tracking-tight">{s.value}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none tracking-tight">{s.ready ? s.value : '—'}</p>
               <p className="text-xs text-slate-500 mt-1.5 leading-tight font-medium">{s.label}</p>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-300 absolute top-5 right-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
@@ -225,7 +226,8 @@ const DashboardPage: React.FC = () => {
           {analyticsOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
         </button>
 
-        {analyticsOpen && (
+        {analyticsOpen && !ready.tasks && <Skeleton rows={3} />}
+        {analyticsOpen && ready.tasks && (
           <div className="animate-fade-in">
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-4 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
@@ -389,7 +391,9 @@ const DashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {myTasks.length === 0 ? (
+            {!ready.tasks ? (
+              <Skeleton rows={4} />
+            ) : myTasks.length === 0 ? (
               <div className="py-14 text-center">
                 <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <CheckSquare className="w-6 h-6 text-slate-200" />
@@ -512,7 +516,9 @@ const DashboardPage: React.FC = () => {
               </button>
             </div>
 
-            {projects.length === 0 ? (
+            {!ready.projects ? (
+              <Skeleton rows={3} />
+            ) : projects.length === 0 ? (
               <div className="py-10 text-center">
                 <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                   <FolderOpen className="w-5 h-5 text-slate-200" />

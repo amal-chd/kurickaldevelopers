@@ -275,29 +275,9 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
       logPermissionError('getTasks (created query)', err);
     }
 
-    const myProjects = await getProjects();
-    const myProjectIds = myProjects.map((p) => p.id);
-
-    if (myProjectIds.length > 0) {
-      const chunks: string[][] = [];
-      for (let i = 0; i < myProjectIds.length; i += 10) {
-        chunks.push(myProjectIds.slice(i, i + 10));
-      }
-
-      await Promise.all(
-        chunks.map(async (chunk) => {
-          try {
-            const qProj = query(collection(db, 'tasks'), where('projectId', 'in', chunk));
-            const projSnap = await getDocs(qProj);
-            projSnap.docs.forEach((d) => {
-              tasksMap.set(d.id, { id: d.id, ...d.data() } as Task);
-            });
-          } catch (err: any) {
-            logPermissionError('getTasks (projects chunk query)', err);
-          }
-        })
-      );
-    }
+    // NOTE: no project-membership branch — task visibility policy is that a
+    // task is only visible to its assignees (direct or via role), its creator,
+    // and roles with tasks_view_all (Director / PM / Admin).
 
     const tasks = Array.from(tasksMap.values());
     tasks.sort((a, b) => {
@@ -388,20 +368,18 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
     );
   }
 
+  // Task visibility policy: a task is visible to its assignees (direct or via
+  // role), its creator, and roles with tasks_view_all — NOT to mere project
+  // members. Three listeners, merged.
   let assigneeTasks: Task[] = [];
   let roleTasks: Task[] = [];
   let createdTasks: Task[] = [];
-  const projectTasksMap = new Map<string, Task[]>();
-  let projectUnsubs: (() => void)[] = [];
 
   const emit = () => {
     const mergedMap = new Map<string, Task>();
     assigneeTasks.forEach((t) => mergedMap.set(t.id, t));
     roleTasks.forEach((t) => mergedMap.set(t.id, t));
     createdTasks.forEach((t) => mergedMap.set(t.id, t));
-    projectTasksMap.forEach((tasksList) => {
-      tasksList.forEach((t) => mergedMap.set(t.id, t));
-    });
 
     const tasks = Array.from(mergedMap.values());
     tasks.sort((a, b) => {
@@ -442,45 +420,10 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
     (err) => logPermissionError('subscribeTasks (created query)', err)
   );
 
-  const unsubProjects = subscribeProjects((projects) => {
-    const myProjectIds = projects.map((p) => p.id);
-
-    projectUnsubs.forEach((unsub) => unsub());
-    projectUnsubs = [];
-    projectTasksMap.clear();
-
-    if (myProjectIds.length > 0) {
-      const chunks: string[][] = [];
-      for (let i = 0; i < myProjectIds.length; i += 10) {
-        chunks.push(myProjectIds.slice(i, i + 10));
-      }
-
-      chunks.forEach((chunk, index) => {
-        const qProj = query(collection(db, 'tasks'), where('projectId', 'in', chunk));
-        const unsubProj = onSnapshot(
-          qProj,
-          (snap) => {
-            projectTasksMap.set(
-              index.toString(),
-              snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))
-            );
-            emit();
-          },
-          (err) => logPermissionError(`subscribeTasks (project chunk ${index} query)`, err)
-        );
-        projectUnsubs.push(unsubProj);
-      });
-    } else {
-      emit();
-    }
-  });
-
   return () => {
     unsubAssignee();
     unsubRole();
     unsubCreated();
-    unsubProjects();
-    projectUnsubs.forEach((unsub) => unsub());
   };
 };
 

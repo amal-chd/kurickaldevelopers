@@ -40,27 +40,19 @@ const NAV_GROUPS = [
   {
     label: 'Account',
     items: [
-      // Admin is visible to anyone with any admin sub-permission, not just settings_manage.
+      // Admin panel is restricted to the top-level role (Director, level 100).
       {
         to: '/app/admin',
         label: 'Admin',
         icon: Shield,
-        anyPerm: [
-          'settings_manage',
-          'roles_manage',
-          'team_manage',
-          'attendance_view_all',
-          'notifications_manage',
-          'contact_view',
-          'contact_manage',
-        ] as const,
+        minLevel: 100,
       },
     ],
   },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
-  const { appUser } = useAuthStore();
+  const { appUser, role } = useAuthStore();
   const { can } = usePermissions();
   const navigate = useNavigate();
   const { channels } = useChannels();
@@ -83,7 +75,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     always?: boolean;
     perm?: keyof ReturnType<typeof usePermissions>['permissions'];
     anyPerm?: readonly string[];
+    minLevel?: number;
   }) => {
+    if (item.minLevel !== undefined) return (role?.level ?? 0) >= item.minLevel;
     if (item.always) return true;
     if (item.anyPerm && item.anyPerm.length > 0) {
       return item.anyPerm.some((p) => can(p as any));
