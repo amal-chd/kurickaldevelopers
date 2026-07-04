@@ -195,6 +195,10 @@ const PerformancePage: React.FC = () => {
       <div className="border-b border-slate-200 dark:border-slate-700 flex gap-4 overflow-x-auto">
         {(['overview', 'leaderboard', 'analytics', 'badges', 'insights'] as const).map(tab => {
           if (tab === 'insights' && !isManager) return null;
+          // Org-wide tabs need performance_view — without it the rules only
+          // allow reading the user's OWN score, so these would render empty.
+          if ((tab === 'leaderboard' || tab === 'analytics') &&
+              !can('performance_view') && !can('team_manage')) return null;
           return (
             <button
               key={tab}

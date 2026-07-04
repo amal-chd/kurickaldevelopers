@@ -144,7 +144,12 @@ const CreateTaskPage: React.FC = () => {
         projectId: form.projectId,
         status: form.status,
         priority: form.priority,
-        dueDate: form.dueDate ? Timestamp.fromDate(new Date(form.dueDate)) : Timestamp.now(),
+        // No due date picked → default to end of TODAY. Using Timestamp.now()
+        // made the task overdue seconds after creation, unfairly counting it
+        // as "completed late" in the performance point system.
+        dueDate: form.dueDate
+          ? Timestamp.fromDate(new Date(`${form.dueDate}T23:59:59`))
+          : Timestamp.fromDate(new Date(new Date().setHours(23, 59, 59, 999))),
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
