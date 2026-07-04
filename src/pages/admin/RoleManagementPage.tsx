@@ -13,9 +13,9 @@ import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 const ALL_PERMISSIONS: (keyof Permissions)[] = [
-  'tasks_view', 'tasks_create', 'tasks_edit', 'tasks_delete', 'tasks_approve',
-  'projects_view', 'projects_create', 'projects_edit', 'projects_delete',
-  'docs_view', 'docs_upload', 'docs_approve',
+  'tasks_view', 'tasks_view_all', 'tasks_create', 'tasks_edit', 'tasks_delete', 'tasks_approve',
+  'projects_view', 'projects_view_all', 'projects_create', 'projects_edit', 'projects_delete',
+  'docs_view', 'docs_view_all', 'docs_upload', 'docs_approve',
   'team_view', 'team_manage', 'team_delete',
   'reports_view', 'reports_export',
   'time_log', 'time_view_all',

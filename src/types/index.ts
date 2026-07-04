@@ -3,15 +3,18 @@ import { Timestamp } from 'firebase/firestore';
 // ─── Permissions ─────────────────────────────────────────────────────────────
 export interface Permissions {
   tasks_view?: boolean;
+  tasks_view_all?: boolean;
   tasks_create?: boolean;
   tasks_edit?: boolean;
   tasks_delete?: boolean;
   tasks_approve?: boolean;
   projects_view?: boolean;
+  projects_view_all?: boolean;
   projects_create?: boolean;
   projects_edit?: boolean;
   projects_delete?: boolean;
   docs_view?: boolean;
+  docs_view_all?: boolean;
   docs_upload?: boolean;
   docs_approve?: boolean;
   team_view?: boolean;

@@ -133,7 +133,7 @@ export const getProjects = async (): Promise<Project[]> => {
     if (!uid) return [];
 
     let q;
-    if (permissions.projects_view) {
+    if (permissions.projects_view_all) {
       q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
     } else {
       q = query(collection(db, 'projects'), where('memberIds', 'array-contains', uid));
@@ -142,7 +142,7 @@ export const getProjects = async (): Promise<Project[]> => {
     const snap = await getDocs(q);
     const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
 
-    if (!permissions.projects_view) {
+    if (!permissions.projects_view_all) {
       projects.sort((a, b) => {
         const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
         const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
@@ -191,7 +191,7 @@ export const subscribeProjects = (cb: (projects: Project[]) => void) => {
   }
 
   let q;
-  if (permissions.projects_view) {
+  if (permissions.projects_view_all) {
     q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
   } else {
     q = query(collection(db, 'projects'), where('memberIds', 'array-contains', uid));
@@ -199,7 +199,7 @@ export const subscribeProjects = (cb: (projects: Project[]) => void) => {
 
   return onSnapshot(q, (snap) => {
     const projects = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Project));
-    if (!permissions.projects_view) {
+    if (!permissions.projects_view_all) {
       projects.sort((a, b) => {
         const ta = (a.createdAt as any)?.toMillis?.() || (a.createdAt as any)?.seconds * 1000 || 0;
         const tb = (b.createdAt as any)?.toMillis?.() || (b.createdAt as any)?.seconds * 1000 || 0;
@@ -219,13 +219,13 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
 
     if (!uid) return [];
 
-    if (permissions.tasks_view) {
+    if (permissions.tasks_view_all) {
       try {
         const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
         const snap = await getDocs(q);
         return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
       } catch (err: any) {
-        logPermissionError('getTasks (tasks_view query)', err);
+        logPermissionError('getTasks (tasks_view_all query)', err);
         return [];
       }
     }
@@ -369,7 +369,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
     return () => {};
   }
 
-  if (permissions.tasks_view) {
+  if (permissions.tasks_view_all) {
     const q = query(collection(db, 'tasks'), ...constraints, orderBy('createdAt', 'desc'));
     return onSnapshot(q, (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))));
   }
@@ -517,26 +517,73 @@ export const subscribeSubtasks = (taskId: string, cb: (subtasks: Subtask[]) => v
 // ─── Documents ────────────────────────────────────────────────────────────────
 export const getDocuments = async (projectId?: string): Promise<TDocument[]> => {
   try {
-    const constraints: QueryConstraint[] = [];
-    if (projectId) constraints.push(where('projectId', '==', projectId));
-    const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
-    return snap.docs.map((d) => {
+    const { firebaseUser, permissions } = useAuthStore.getState();
+    const uid = firebaseUser?.uid;
+    if (!uid) return [];
+
+    const mapDoc = (d: any) => {
       const data = d.data();
       const createdAt = data.createdAt || data.uploadedAt || null;
       const url = data.url || data.fileUrl || '';
       const size = typeof data.size === 'number' ? data.size : (data.fileSize || 0);
-      return {
-        id: d.id,
-        ...data,
-        createdAt,
-        url,
-        size
-      } as TDocument;
-    }).sort((a, b) => {
-      const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
-      const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
-      return timeB - timeA;
-    });
+      return { id: d.id, ...data, createdAt, url, size } as TDocument;
+    };
+
+    const sortDocs = (docs: TDocument[]) => {
+      return docs.sort((a, b) => {
+        const timeA = a.createdAt?.toDate?.()?.getTime() || 0;
+        const timeB = b.createdAt?.toDate?.()?.getTime() || 0;
+        return timeB - timeA;
+      });
+    };
+
+    if (permissions.docs_view_all) {
+      const constraints: QueryConstraint[] = [];
+      if (projectId) constraints.push(where('projectId', '==', projectId));
+      const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
+      return sortDocs(snap.docs.map(mapDoc));
+    }
+
+    const docsMap = new Map<string, TDocument>();
+
+    // Fetch my own uploads
+    try {
+      const constraints: QueryConstraint[] = [where('uploadedBy', '==', uid)];
+      if (projectId) constraints.push(where('projectId', '==', projectId));
+      const snap = await getDocs(query(collection(db, 'documents'), ...constraints));
+      snap.docs.forEach((d) => docsMap.set(d.id, mapDoc(d)));
+    } catch (e) {
+      logPermissionError('getDocuments (uploadedBy)', e);
+    }
+
+    // Fetch project docs
+    if (projectId) {
+      try {
+        const snap = await getDocs(query(collection(db, 'documents'), where('projectId', '==', projectId)));
+        snap.docs.forEach((d) => docsMap.set(d.id, mapDoc(d)));
+      } catch (e) {
+        logPermissionError('getDocuments (projectId)', e);
+      }
+    } else {
+      const myProjects = await getProjects();
+      const myProjectIds = myProjects.map((p) => p.id);
+      if (myProjectIds.length > 0) {
+        const chunks: string[][] = [];
+        for (let i = 0; i < myProjectIds.length; i += 10) chunks.push(myProjectIds.slice(i, i + 10));
+        await Promise.all(
+          chunks.map(async (chunk) => {
+            try {
+              const snap = await getDocs(query(collection(db, 'documents'), where('projectId', 'in', chunk)));
+              snap.docs.forEach((d) => docsMap.set(d.id, mapDoc(d)));
+            } catch (e) {
+              logPermissionError('getDocuments (projects chunk)', e);
+            }
+          })
+        );
+      }
+    }
+
+    return sortDocs(Array.from(docsMap.values()));
   } catch (err: any) {
     console.warn('Gracefully handled getDocuments error:', err);
     return [];
