@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
-  BarChart, Bar
+  BarChart, Bar, LineChart, Line
 } from 'recharts';
 import toast from 'react-hot-toast';
 import Card from '../../components/ui/Card';
@@ -20,9 +20,10 @@ import {
   recalculatePerformanceScore,
   submitPerformanceReview,
   getAllUsers,
-  getTasks
+  getTasks,
+  getPerformanceConfig
 } from '../../lib/firestore';
-import { PerformanceScore, AppUser, Task } from '../../types';
+import { PerformanceScore, AppUser, Task, PerformanceConfig } from '../../types';
 
 const COLORS = ['#334155', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6'];
 
@@ -38,6 +39,23 @@ const BADGE_METADATA: Record<string, { name: string; desc: string; icon: string;
   consistency_champion: { name: 'Consistency Champ', desc: 'Stay active on tasks for 15+ days in a month', icon: '📈', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
 };
 
+// Progress toward each badge — research-backed "goal-gradient" design: showing
+// how close a badge is drives completion far more than a bare "Locked" label.
+const badgeProgress = (id: string, s: PerformanceScore): { now: number; goal: number } | null => {
+  switch (id) {
+    case 'speed_demon':          return { now: s.totalTasksCompleted, goal: 10 };
+    case 'quality_king':         return { now: Math.min(s.avgPeerReviewScore, s.avgManagerReviewScore), goal: 4.5 };
+    case 'streak_master':        return { now: s.bestStreak, goal: 10 };
+    case 'team_player':          return { now: s.tasksHelpedOnCount, goal: 5 };
+    case 'iron_will':            return { now: s.tasksCompletedLate === 0 ? s.totalTasksCompleted : 0, goal: 8 };
+    case 'mvp':                  return { now: s.overallPerformanceIndex, goal: 90 };
+    case 'perfect_month':        return { now: s.totalTasksCompleted, goal: 5 };
+    case 'critical_hero':        return { now: s.completedByPriority.critical, goal: 3 };
+    case 'consistency_champion': return { now: s.dailyActivityDays, goal: 15 };
+    default: return null;
+  }
+};
+
 const PerformancePage: React.FC = () => {
   const { appUser } = useAuthStore();
   const { can } = usePermissions();
@@ -49,6 +67,7 @@ const PerformancePage: React.FC = () => {
   const [allScores, setAllScores] = useState<PerformanceScore[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [config, setConfig] = useState<PerformanceConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('month');
@@ -69,16 +88,18 @@ const PerformancePage: React.FC = () => {
       setLoading(true);
       // Staff without performance_view can only read their OWN score — skip
       // the org-wide fetch entirely (faster, no denied reads).
-      const [score, scores, users, tasksList] = await Promise.all([
+      const [score, scores, users, tasksList, cfg] = await Promise.all([
         getPerformanceScore(userId),
         canViewOrg ? getAllPerformanceScores() : Promise.resolve([]),
         getAllUsers(),
-        getTasks()
+        getTasks(),
+        getPerformanceConfig().catch(() => null)
       ]);
       setMyScore(score);
       setAllScores(scores);
       setAllUsers(users);
       setAllTasks(tasksList);
+      setConfig(cfg);
     } catch (e) {
       toast.error('Failed to load performance data');
     } finally {
@@ -184,9 +205,9 @@ const PerformancePage: React.FC = () => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Trophy className="w-8 h-8 text-amber-500" />
-            Performance & Points Engine
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <Trophy className="w-7 h-7 text-amber-500" />
+            Performance & Points
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Track achievements, leaderboard ranks, and complete detailed operational KPIs.
@@ -239,8 +260,19 @@ const PerformancePage: React.FC = () => {
           {/* My Score Card */}
           <Card padding={false} className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-white to-slate-50 dark:from-slate-850 dark:to-slate-800 border border-slate-100 dark:border-slate-700">
             <div className="relative w-40 h-40 flex items-center justify-center mt-4">
-              <span className="text-6xl font-black text-amber-500">{myScore.overallPerformanceIndex}</span>
-              <div className="absolute inset-0 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin" style={{ animationDuration: '3s' }} />
+              {/* Static progress ring: arc length = OPI out of 100 */}
+              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="72" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                <circle
+                  cx="80" cy="80" r="72" fill="none" stroke="#F59E0B" strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(myScore.overallPerformanceIndex / 100) * 2 * Math.PI * 72} ${2 * Math.PI * 72}`}
+                />
+              </svg>
+              <div className="text-center">
+                <span className="text-6xl font-black text-amber-500">{myScore.overallPerformanceIndex}</span>
+                <span className="block text-xs font-semibold text-slate-400 mt-1">/ 100</span>
+              </div>
             </div>
             <h3 className="text-xl font-bold mt-4">Overall Performance Index</h3>
             <p className="text-sm text-slate-500 mt-1">OPI Target: 90+</p>
@@ -328,6 +360,55 @@ const PerformancePage: React.FC = () => {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* How your score is calculated — transparency of the formula is the
+              single biggest driver of trust in scoring systems. */}
+          <Card padding={false} className="lg:col-span-3">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h3 className="font-semibold text-slate-900">How your score is calculated</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Your OPI is a weighted blend of five KPIs, minus penalties. Same formula for everyone, normalized by role difficulty.
+              </p>
+            </div>
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                {([
+                  ['Productivity', config?.scoreWeights.productivity ?? 0.25, 'Points from completed tasks (weighted by priority & complexity, anti-gaming caps on easy tasks)'],
+                  ['Reliability', config?.scoreWeights.reliability ?? 0.25, 'On-time completion rate minus penalties'],
+                  ['Efficiency', config?.scoreWeights.efficiency ?? 0.20, 'Estimated vs actual hours on tracked tasks'],
+                  ['Quality', config?.scoreWeights.quality ?? 0.20, 'Peer (40%) and manager (60%) review scores'],
+                  ['Collaboration', config?.scoreWeights.collaboration ?? 0.10, 'Shared tasks you contributed to + peer feedback'],
+                ] as [string, number, string][]).map(([label, w, desc]) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+                      <span>{label}</span>
+                      <span className="text-amber-600">{Math.round(w * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${w * 100}%` }} />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-slate-600 space-y-2">
+                <p className="font-semibold text-slate-800">Penalties that reduce your score</p>
+                <ul className="space-y-1.5 text-slate-500">
+                  <li>• Late completion: −{config?.penalties.latePerDay ?? 3} pts/day (capped at 30)</li>
+                  <li>• Missed (still overdue) deadline: −{config?.penalties.missedDeadline ?? 5} pts/day</li>
+                  <li>• Task rejected on review: −{config?.penalties.rejection ?? 15} pts</li>
+                  <li>• Task reopened: −{config?.penalties.reopening ?? 10} pts</li>
+                  <li>• Deadline extension: −{config?.penalties.deadlineExtension ?? 5} pts (escalating)</li>
+                  <li>• Inactivity beyond 3 days: −{config?.penalties.inactivityPerDay ?? 2} pts/day</li>
+                </ul>
+                <p className="font-semibold text-slate-800 pt-2">Bonuses</p>
+                <ul className="space-y-1.5 text-slate-500">
+                  <li>• On-time streaks: +10% (5), +20% (10), +35% (25 in a row)</li>
+                  <li>• Weeks focused on high/critical work: +15% each (max 4)</li>
+                </ul>
               </div>
             </div>
           </Card>
@@ -479,6 +560,30 @@ const PerformancePage: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </Card>
+
+          {/* Real on-time trend (computed by the scoring engine per recalc) */}
+          <Card padding={false} className="lg:col-span-2">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h3 className="font-semibold text-slate-900">On-Time Rate Trend</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Weekly on-time completion rate over the last four weeks</p>
+            </div>
+            <div className="p-5 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={(myScore.weeklyCompletionRates ?? []).map((rate, i, arr) => ({
+                    name: i === arr.length - 1 ? 'This week' : `${arr.length - 1 - i}w ago`,
+                    rate,
+                  }))}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip formatter={(v) => [`${v}%`, 'On-time rate']} />
+                  <Line type="monotone" dataKey="rate" stroke="#F59E0B" strokeWidth={2.5} dot={{ r: 4, fill: '#F59E0B' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -506,11 +611,25 @@ const PerformancePage: React.FC = () => {
                       {hasBadge && <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}
                     </h4>
                     <p className="text-xs text-slate-500 mt-1">{meta.desc}</p>
-                    <span className={`inline-block mt-3 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      hasBadge ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                    }`}>
-                      {hasBadge ? 'Unlocked' : 'Locked'}
-                    </span>
+                    {hasBadge ? (
+                      <span className="inline-block mt-3 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-200">
+                        Unlocked
+                      </span>
+                    ) : (() => {
+                      const prog = badgeProgress(id, myScore);
+                      const pct = prog ? Math.min(Math.round((prog.now / prog.goal) * 100), 99) : 0;
+                      return (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                            <span>Progress</span>
+                            <span>{prog ? `${prog.now} / ${prog.goal}` : 'Locked'}</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

@@ -181,8 +181,8 @@ export function calculatePerformanceScore(
     // Rejections tracking
     if (t.approvalStatus === 'rejected') {
       tasksRejected++;
-      penaltyBreakdown.rejections += config.penalties.reopening; // rejection penalty
-      totalPenaltyPoints += config.penalties.reopening;
+      penaltyBreakdown.rejections += config.penalties.rejection;
+      totalPenaltyPoints += config.penalties.rejection;
     }
 
     // Deadline extensions tracking
@@ -350,7 +350,39 @@ export function calculatePerformanceScore(
       .filter(dateStr => dateStr && new Date(dateStr) >= thirtyDaysAgo)
   ).size;
 
-  // 12. Badges Award logic
+  // 12. Real completion-rate trends (previously hardcoded placeholder data).
+  // Weekly: on-time completion rate for each of the last 4 weeks (oldest →
+  // newest). Weeks with no completions count as a neutral 100 so an idle week
+  // doesn't chart as a crash to zero.
+  const rateForRange = (start: Date, end: Date): number => {
+    const inRange = completedTasks.filter(t => {
+      const d = t.updatedAt ? t.updatedAt.toDate() : null;
+      return d && d >= start && d < end;
+    });
+    if (inRange.length === 0) return 100;
+    const onTime = inRange.filter(t => {
+      if (!t.dueDate) return true;
+      const comp = t.updatedAt ? t.updatedAt.toDate() : new Date();
+      return comp <= t.dueDate.toDate();
+    }).length;
+    return Math.round((onTime / inRange.length) * 100);
+  };
+
+  const weeklyCompletionRates: number[] = [];
+  for (let w = 3; w >= 0; w--) {
+    const end = new Date(now.getTime() - w * 7 * 86400000);
+    const start = new Date(end.getTime() - 7 * 86400000);
+    weeklyCompletionRates.push(rateForRange(start, end));
+  }
+
+  const monthlyCompletionRates: number[] = [];
+  for (let m = 3; m >= 0; m--) {
+    const end = new Date(now.getTime() - m * 30 * 86400000);
+    const start = new Date(end.getTime() - 30 * 86400000);
+    monthlyCompletionRates.push(rateForRange(start, end));
+  }
+
+  // 13. Badges Award logic
   const badges: string[] = [];
   if (completedTasks.length >= 10) {
     badges.push('speed_demon');
@@ -400,8 +432,8 @@ export function calculatePerformanceScore(
     avgManagerReviewScore,
     qualityScore,
     dailyActivityDays,
-    weeklyCompletionRates: [80, 90, 85, 95], // default historical arrays for visual charts
-    monthlyCompletionRates: [85, 88, 92, 90],
+    weeklyCompletionRates,
+    monthlyCompletionRates,
     tasksHelpedOnCount,
     collaborationScore,
     attendanceDays,

@@ -1201,19 +1201,38 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
   const user = { id: userDoc.id, ...userDoc.data() } as AppUser;
   const roleId = user.roleId || '';
 
-  const taskSnap = await getDocs(collection(db, 'tasks'));
-  const allTasks = taskSnap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
-  const userTasks = allTasks.filter(t => 
-    t.assigneeIds?.includes(userId) || 
-    t.createdBy === userId || 
-    (t.assignedRoleIds && t.assignedRoleIds.includes(roleId)) ||
-    (t.assignedRoleId && t.assignedRoleId === roleId)
-  );
+  // Scoped queries (NOT a full-collection read): the old approach fetched the
+  // entire tasks collection, which the security rules reject for staff — so a
+  // staff member completing their own task silently never updated their own
+  // score. These three targeted queries pass the rules for both self-recalc
+  // (assignee/creator/role branches) and manager-initiated recalc (view_all).
+  const taskMap = new Map<string, Task>();
+  const taskQueries = [
+    query(collection(db, 'tasks'), where('assigneeIds', 'array-contains', userId)),
+    query(collection(db, 'tasks'), where('createdBy', '==', userId)),
+    ...(roleId ? [query(collection(db, 'tasks'), where('assignedRoleIds', 'array-contains', roleId))] : []),
+  ];
+  await Promise.all(taskQueries.map(async (q2) => {
+    try {
+      const snap = await getDocs(q2);
+      snap.docs.forEach(d => taskMap.set(d.id, { id: d.id, ...d.data() } as Task));
+    } catch (e) {
+      logPermissionError('recalculatePerformanceScore (task query)', e);
+    }
+  }));
+  const userTasks = Array.from(taskMap.values());
 
   const reviewSnap = await getDocs(query(collection(db, 'performance_reviews'), where('revieweeId', '==', userId)));
   const userReviews = reviewSnap.docs.map(d => ({ id: d.id, ...d.data() } as PerformanceReview));
 
-  const attSnap = await getDocs(query(collection(db, 'attendance'), where('userId', '==', userId)));
+  // Attendance windowed to the last 30 days — the rate is "days present out
+  // of ~22 working days", so lifetime records would always saturate at 100%.
+  const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+  const attSnap = await getDocs(query(
+    collection(db, 'attendance'),
+    where('userId', '==', userId),
+    where('date', '>=', cutoff),
+  ));
   const userAttendance = attSnap.docs.map(d => ({ id: d.id, ...d.data() } as Attendance));
 
   const config = await getPerformanceConfig();

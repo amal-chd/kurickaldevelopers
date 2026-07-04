@@ -1,5 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // The app is light-only. Class strategy means stray `dark:` variants can
+  // never activate via the OS prefers-color-scheme (which rendered broken
+  // half-dark cards for users with dark-mode systems).
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
