@@ -144,14 +144,14 @@ const CreateProjectPage: React.FC = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
           {isEdit ? 'Edit Project' : 'Create Project'}
         </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Project Details</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Project Details</h3>
           <div className="space-y-4">
             <Input
               label="Project Name"
@@ -238,7 +238,7 @@ const CreateProjectPage: React.FC = () => {
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Team Members</h3>
+          <h3 className="font-semibold text-slate-900 mb-3">Team Members</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
             {users.map((user) => {
               const selected = form.memberIds.includes(user.id);
@@ -250,7 +250,7 @@ const CreateProjectPage: React.FC = () => {
                   className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-colors ${
                     selected
                       ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <Avatar name={user.name} src={user.avatarUrl} size="xs" />

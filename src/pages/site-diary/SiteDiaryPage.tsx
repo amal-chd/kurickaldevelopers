@@ -143,7 +143,7 @@ const SiteDiaryPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Site Diary</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Site Diary</h2>
         <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={() => { resetForm(); setModal(true); }}>
           New Entry
         </Button>
@@ -153,14 +153,14 @@ const SiteDiaryPage: React.FC = () => {
       <div className="flex gap-3">
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm"
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >
             <option value="">All Projects</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
@@ -180,13 +180,13 @@ const SiteDiaryPage: React.FC = () => {
           {filtered.map((entry) => (
             <Card key={entry.id} padding={false}>
               <div
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors"
                 onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
               >
                 <span className="text-2xl">{weatherIcon(entry.weather)}</span>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900">{entry.date}</p>
+                    <p className="font-semibold text-slate-900">{entry.date}</p>
                     <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                       {entry.weather}
                     </span>
@@ -196,61 +196,61 @@ const SiteDiaryPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500">{getProjectName(entry.projectId)}</p>
+                  <p className="text-xs text-slate-500">{getProjectName(entry.projectId)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); openEdit(entry); }}
-                    className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                    className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg"
                     title="Edit"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  {expanded === entry.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  {expanded === entry.id ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
               </div>
 
               {expanded === entry.id && (
-                <div className="px-4 pb-4 border-t border-gray-50 pt-3 space-y-3">
+                <div className="px-4 pb-4 border-t border-slate-50 pt-3 space-y-3">
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Progress Notes</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.progressNotes}</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Progress Notes</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{entry.progressNotes}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1">
                         <Users className="w-3 h-3" /> Worker Count
                       </p>
-                      <p className="text-sm text-gray-700">{entry.workerCount} workers</p>
+                      <p className="text-sm text-slate-700">{entry.workerCount} workers</p>
                     </div>
                     {entry.temperature != null && (
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1">
                           <Thermometer className="w-3 h-3" /> Temperature
                         </p>
-                        <p className="text-sm text-gray-700">{entry.temperature}°C</p>
+                        <p className="text-sm text-slate-700">{entry.temperature}°C</p>
                       </div>
                     )}
                   </div>
                   {entry.issuesNotes && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> Issues Notes
                       </p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.issuesNotes}</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{entry.issuesNotes}</p>
                     </div>
                   )}
                   {entry.safetyNotes && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1">
                         <Shield className="w-3 h-3" /> Safety Notes
                       </p>
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.safetyNotes}</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{entry.safetyNotes}</p>
                     </div>
                   )}
                   {entry.photoUrls?.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2 flex items-center gap-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2 flex items-center gap-1">
                         <Camera className="w-3 h-3" /> Photos ({entry.photoUrls.length})
                       </p>
                       <div className="flex gap-2 flex-wrap">
@@ -259,7 +259,7 @@ const SiteDiaryPage: React.FC = () => {
                             key={i}
                             src={url}
                             alt={`Photo ${i + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                            className="w-20 h-20 object-cover rounded-lg border border-slate-200"
                           />
                         ))}
                       </div>

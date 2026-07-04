@@ -15,7 +15,7 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; border: s
   announcement: { icon: <Megaphone className="w-4 h-4 text-purple-600" />,   bg: 'bg-purple-50', border: 'border-purple-100' },
   reminder:     { icon: <Clock className="w-4 h-4 text-amber-600" />,        bg: 'bg-amber-50',  border: 'border-amber-100' },
   update:       { icon: <Info className="w-4 h-4 text-emerald-600" />,       bg: 'bg-emerald-50',border: 'border-emerald-100' },
-  default:      { icon: <Bell className="w-4 h-4 text-gray-500" />,          bg: 'bg-gray-50',   border: 'border-gray-100' },
+  default:      { icon: <Bell className="w-4 h-4 text-slate-500" />,          bg: 'bg-slate-50',   border: 'border-slate-100' },
 };
 
 const NotificationsPage: React.FC = () => {
@@ -73,8 +73,8 @@ const NotificationsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Notifications</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Notifications</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             {unreadList.length > 0 ? `${unreadList.length} unread` : 'All caught up!'}
           </p>
         </div>
@@ -86,13 +86,13 @@ const NotificationsPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         {(['all', 'unread'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
-              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {t === 'all' ? `All (${notifications.length})` : `Unread (${unreadList.length})`}
@@ -116,10 +116,10 @@ const NotificationsPage: React.FC = () => {
               <div
                 key={n.id}
                 onClick={() => handleNotifClick(n)}
-                className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer hover:bg-gray-50/50 hover:border-gray-200 ${
+                className={`flex items-start gap-3.5 p-4 rounded-2xl border transition-all cursor-pointer hover:bg-slate-50/50 hover:border-slate-200 ${
                   !read
                     ? 'bg-primary/[0.03] border-primary/15 shadow-sm'
-                    : 'bg-white border-gray-100'
+                    : 'bg-white border-slate-100'
                 }`}
               >
                 {/* Unread dot */}
@@ -134,11 +134,11 @@ const NotificationsPage: React.FC = () => {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold leading-snug ${!read ? 'text-gray-900' : 'text-gray-700'}`}>
+                  <p className={`text-sm font-semibold leading-snug ${!read ? 'text-slate-900' : 'text-slate-700'}`}>
                     {n.title}
                   </p>
-                  <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
-                  <p className="text-xs text-gray-400 mt-1.5">{formatTimeAgo(n.createdAt)}</p>
+                  <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
+                  <p className="text-xs text-slate-400 mt-1.5">{formatTimeAgo(n.createdAt)}</p>
                 </div>
 
                 {/* Actions */}
@@ -148,7 +148,7 @@ const NotificationsPage: React.FC = () => {
                       e.stopPropagation();
                       handleMarkRead(n.id);
                     }}
-                    className="flex-shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-primary hover:bg-primary/10 transition-colors"
+                    className="flex-shrink-0 p-1.5 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Mark as read"
                   >
                     <CheckCheck className="w-4 h-4" />

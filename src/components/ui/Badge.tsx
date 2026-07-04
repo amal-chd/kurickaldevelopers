@@ -10,7 +10,7 @@ interface BadgeProps {
 
 const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', size = 'md', className }) => {
   const variants = {
-    default: 'bg-gray-100 text-gray-700',
+    default: 'bg-slate-100 text-slate-700',
     success: 'bg-green-100 text-green-700',
     warning: 'bg-amber-100 text-amber-700',
     danger: 'bg-red-100 text-red-700',

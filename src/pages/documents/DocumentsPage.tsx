@@ -151,7 +151,7 @@ const DocumentsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Documents</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Documents</h2>
         {can('docs_upload') && (
           <Button
             size="sm"
@@ -174,14 +174,14 @@ const DocumentsPage: React.FC = () => {
         </div>
         <div className="relative">
           <select
-            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm"
+            className="appearance-none px-3.5 pr-9 h-10 text-sm border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
           >
             <option value="">All Projects</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
       </div>
 
@@ -195,62 +195,62 @@ const DocumentsPage: React.FC = () => {
         <Card padding={false}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left border-b border-gray-100 bg-gray-50/60">
-                <th className="px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">File</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Project</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden sm:table-cell">Uploaded By</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Size</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Actions</th>
+              <tr className="text-left border-b border-slate-100 bg-slate-50/60">
+                <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">File</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden md:table-cell">Project</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden sm:table-cell">Uploaded By</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide hidden lg:table-cell">Size</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-slate-50">
               {filtered.map((doc) => (
-                <tr key={doc.id} className="hover:bg-gray-50/60 transition-colors">
+                <tr key={doc.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                      <div className="w-9 h-9 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
                         {getMimeIcon(doc.mimeType)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px]">{doc.name}</p>
-                        <p className="text-xs text-gray-400 lg:hidden">{formatFileSize(doc.size)}</p>
+                        <p className="font-medium text-slate-900 truncate max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-[400px] xl:max-w-[500px]">{doc.name}</p>
+                        <p className="text-xs text-slate-400 lg:hidden">{formatFileSize(doc.size)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 hidden md:table-cell text-gray-500 text-xs">{getProjectName(doc.projectId)}</td>
-                  <td className="px-4 py-3.5 hidden sm:table-cell text-gray-500 text-xs">{getUploaderName(doc.uploadedBy)}</td>
-                  <td className="px-4 py-3.5 hidden lg:table-cell text-gray-400 text-xs">{formatFileSize(doc.size)}</td>
+                  <td className="px-4 py-3.5 hidden md:table-cell text-slate-500 text-xs">{getProjectName(doc.projectId)}</td>
+                  <td className="px-4 py-3.5 hidden sm:table-cell text-slate-500 text-xs">{getUploaderName(doc.uploadedBy)}</td>
+                  <td className="px-4 py-3.5 hidden lg:table-cell text-slate-400 text-xs">{formatFileSize(doc.size)}</td>
                   <td className="px-4 py-3.5">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
                       doc.approvalStatus === 'approved' ? 'bg-emerald-50 text-emerald-700' :
                       doc.approvalStatus === 'pending'  ? 'bg-amber-50 text-amber-700' :
                       doc.approvalStatus === 'rejected' ? 'bg-red-50 text-red-600' :
-                      'bg-gray-100 text-gray-500'
+                      'bg-slate-100 text-slate-500'
                     }`}>
                       {doc.approvalStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1">
-                      <button className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" onClick={() => setPreviewDoc(doc)} title="Preview">
+                      <button className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" onClick={() => setPreviewDoc(doc)} title="Preview">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" title="Download">
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" title="Download">
                         <Download className="w-3.5 h-3.5" />
                       </a>
                       {can('docs_approve') && doc.approvalStatus === 'pending' && (
                         <>
-                          <button className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" onClick={() => handleApprove(doc)} title="Approve">
+                          <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" onClick={() => handleApprove(doc)} title="Approve">
                             <Check className="w-3.5 h-3.5" />
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleReject(doc)} title="Reject">
+                          <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleReject(doc)} title="Reject">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </>
                       )}
                       {(can('docs_approve') || (can('docs_upload') && appUser?.id === doc.uploadedBy)) && (
-                        <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleDelete(doc.id)} title="Delete">
+                        <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleDelete(doc.id)} title="Delete">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -279,15 +279,15 @@ const DocumentsPage: React.FC = () => {
       >
         <div className="space-y-4">
           <div
-            className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary transition-colors"
+            className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary transition-colors"
             onClick={() => fileRef.current?.click()}
           >
-            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">
+            <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-600">
               {selectedFile ? selectedFile.name : 'Click to choose file'}
             </p>
             {selectedFile && (
-              <p className="text-xs text-gray-400 mt-1">{formatFileSize(selectedFile.size)}</p>
+              <p className="text-xs text-slate-400 mt-1">{formatFileSize(selectedFile.size)}</p>
             )}
           </div>
           <input

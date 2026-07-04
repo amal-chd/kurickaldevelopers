@@ -54,7 +54,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'md', className, onli
         <span
           className={cn(
             'absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white',
-            online ? 'bg-green-500' : 'bg-gray-400'
+            online ? 'bg-green-500' : 'bg-slate-400'
           )}
         />
       )}

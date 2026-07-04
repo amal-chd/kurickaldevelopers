@@ -24,7 +24,7 @@ import {
 } from '../../lib/firestore';
 import { PerformanceScore, AppUser, Task } from '../../types';
 
-const COLORS = ['#1A3A5C', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6'];
+const COLORS = ['#334155', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6'];
 
 const BADGE_METADATA: Record<string, { name: string; desc: string; icon: string; color: string }> = {
   speed_demon: { name: 'Speed Demon', desc: 'Complete 10+ tasks in a single week', icon: '⚡', color: 'bg-amber-100 text-amber-800 border-amber-200' },

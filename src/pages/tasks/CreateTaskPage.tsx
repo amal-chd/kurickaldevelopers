@@ -253,12 +253,12 @@ const CreateTaskPage: React.FC = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{isEdit ? 'Edit Task' : 'Create Task'}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Task Information</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Task Information</h3>
           <div className="space-y-4">
             <Input
               label="Title"
@@ -330,7 +330,7 @@ const CreateTaskPage: React.FC = () => {
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Assign to Roles / Departments / Teams</h3>
+          <h3 className="font-semibold text-slate-900 mb-3">Assign to Roles / Departments / Teams</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
             {assignableRoles.map((roleItem) => {
               const selected = form.assignedRoleIds.includes(roleItem.id);
@@ -342,10 +342,10 @@ const CreateTaskPage: React.FC = () => {
                   className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
                     selected
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <Shield className="w-3.5 h-3.5" style={{ color: roleItem.color || '#1A3A5C' }} />
+                  <Shield className="w-3.5 h-3.5" style={{ color: roleItem.color || '#0F172A' }} />
                   <span className="text-xs font-medium truncate">{roleItem.name}</span>
                 </button>
               );
@@ -354,14 +354,14 @@ const CreateTaskPage: React.FC = () => {
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-3">Assignees</h3>
+          <h3 className="font-semibold text-slate-900 mb-3">Assignees</h3>
           {assignmentRestricted && (
-            <p className="text-xs text-gray-500 mb-3 -mt-1">
+            <p className="text-xs text-slate-500 mb-3 -mt-1">
               You can assign this task only to the roles your Director has allowed.
             </p>
           )}
           {assignableUsers.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">
+            <p className="text-sm text-slate-400 py-4 text-center">
               Your role isn't allowed to assign tasks to anyone. Ask your Director to update the assignment rules.
             </p>
           ) : (
@@ -376,7 +376,7 @@ const CreateTaskPage: React.FC = () => {
                   className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
                     selected
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <Avatar name={user.name} src={user.avatarUrl} size="xs" />

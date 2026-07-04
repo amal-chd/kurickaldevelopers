@@ -421,7 +421,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
       } else if (typeof data === 'boolean') {
         valColor = 'text-amber-600 dark:text-amber-400';
       } else if (data === null) {
-        valColor = 'text-gray-500';
+        valColor = 'text-slate-500';
       }
 
       return (
@@ -438,13 +438,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
     return (
       <div className="pl-4 font-mono text-xs py-0.5" style={{ marginLeft: depth > 0 ? '8px' : '0' }}>
-        <div className="flex items-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1 select-none" onClick={() => setCollapsed(!collapsed)}>
-          <span className="text-gray-400 text-[10px] mr-1">{collapsed ? '▶' : '▼'}</span>
+        <div className="flex items-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 select-none" onClick={() => setCollapsed(!collapsed)}>
+          <span className="text-slate-400 text-[10px] mr-1">{collapsed ? '▶' : '▼'}</span>
           {label && <span className="text-purple-600 dark:text-purple-400 mr-1">{label}:</span>}
-          <span className="text-gray-500">{bracketOpen} <span className="text-xs text-gray-400">({keys.length} items)</span></span>
+          <span className="text-slate-500">{bracketOpen} <span className="text-xs text-slate-400">({keys.length} items)</span></span>
         </div>
         {!collapsed && (
-          <div className="border-l border-gray-200 dark:border-gray-700 ml-2">
+          <div className="border-l border-slate-200 dark:border-slate-700 ml-2">
             {keys.map((k: any, i: number) => (
               <JsonTree 
                 key={i} 
@@ -455,7 +455,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
             ))}
           </div>
         )}
-        {!collapsed && <div className="pl-4 text-gray-500">{bracketClose}</div>}
+        {!collapsed && <div className="pl-4 text-slate-500">{bracketClose}</div>}
         {collapsed && <span className="hidden"></span>}
       </div>
     );
@@ -469,28 +469,28 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
       return row.some(cell => cell.toLowerCase().includes(csvSearchQuery.toLowerCase()));
     });
 
-    if (filteredRows.length === 0) return <div className="text-center py-8 text-gray-500">No matches found</div>;
+    if (filteredRows.length === 0) return <div className="text-center py-8 text-slate-500">No matches found</div>;
 
     const headers = filteredRows[0];
     const dataRows = filteredRows.slice(1);
 
     return (
       <div className="overflow-auto max-h-[70vh] border rounded-xl">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-left text-xs">
-          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-left text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0">
             <tr>
               {headers.map((h, i) => (
-                <th key={i} className="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300 uppercase border-b border-r dark:border-gray-700">
+                <th key={i} className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 uppercase border-b border-r dark:border-slate-700">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {dataRows.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                 {row.map((cell, cIdx) => (
-                  <td key={cIdx} className="px-4 py-2 border-r dark:border-gray-700 dark:text-gray-300 font-mono whitespace-nowrap">
+                  <td key={cIdx} className="px-4 py-2 border-r dark:border-slate-700 dark:text-slate-300 font-mono whitespace-nowrap">
                     {cell}
                   </td>
                 ))}
@@ -509,7 +509,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
     const sheet = officeContent.Sheets[xlsxActiveSheet];
     const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
-    if (json.length === 0) return <div className="text-center py-8 text-gray-500">Empty worksheet</div>;
+    if (json.length === 0) return <div className="text-center py-8 text-slate-500">Empty worksheet</div>;
 
     const filteredJson = json.filter((row, idx) => {
       if (idx === 0) return true; // headers
@@ -519,23 +519,23 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
     return (
       <div className="overflow-auto max-h-[60vh] border rounded-xl">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 text-left">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 text-left">
             <tr>
               {filteredJson[0]?.map((h, i) => (
-                <th key={i} className="px-4 py-2 font-semibold text-gray-700 dark:text-gray-300 border-b border-r dark:border-gray-700">
+                <th key={i} className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 border-b border-r dark:border-slate-700">
                   {String(h)}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {filteredJson.slice(1).map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left">
+              <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-left">
                 {filteredJson[0]?.map((_, cIdx) => {
                   const cell = row[cIdx];
                   return (
-                    <td key={cIdx} className="px-4 py-2 border-r dark:border-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <td key={cIdx} className="px-4 py-2 border-r dark:border-slate-700 dark:text-slate-300 whitespace-nowrap">
                       {cell !== undefined && cell !== null ? String(cell) : ''}
                     </td>
                   );
@@ -549,16 +549,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
   };
 
   return createPortal(
-    <div className={`fixed inset-0 z-[9999] flex flex-col ${isDarkMode ? 'dark bg-gray-950 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-200`}>
+    <div className={`fixed inset-0 z-[9999] flex flex-col ${isDarkMode ? 'dark bg-slate-950 text-white' : 'bg-slate-100 text-slate-900'} transition-colors duration-200`}>
       {/* Top Header Bar */}
-      <header className="h-16 px-4 flex items-center justify-between border-b bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm flex-shrink-0 z-10">
+      <header className="h-16 px-4 flex items-center justify-between border-b bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm flex-shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 rounded-xl bg-primary/10 text-primary flex-shrink-0">
             <FileText className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <h1 className="font-semibold truncate max-w-xs md:max-w-md text-sm md:text-base">{doc.name}</h1>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               {((doc.size || 0) / (1024 * 1024)).toFixed(2)} MB • {doc.mimeType}
             </p>
           </div>
@@ -567,7 +567,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5">
           <button 
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             onClick={() => setIsDarkMode(!isDarkMode)}
             title="Toggle Dark Mode"
           >
@@ -575,7 +575,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           </button>
           
           <button 
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors hidden sm:inline-flex"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors hidden sm:inline-flex"
             onClick={handlePrint}
             title="Print"
           >
@@ -583,7 +583,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           </button>
 
           <button 
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             onClick={handleShare}
             title="Share or Copy Link"
           >
@@ -593,16 +593,16 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           <a 
             href={doc.url} 
             download={doc.name}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             title="Download file"
           >
             <Download className="w-4 h-4" />
           </a>
 
-          <div className="h-6 w-[1px] bg-gray-200 dark:bg-gray-800 mx-1"></div>
+          <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
           <button 
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 rounded-xl transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 rounded-xl transition-colors"
             onClick={onClose}
             title="Close viewer"
           >
@@ -615,20 +615,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Search Sidebar (for PDF searches only) */}
         {doc.mimeType === 'application/pdf' && pdfSearchResults.length > 0 && (
-          <div className="w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0 overflow-hidden">
-            <div className="p-3 border-b dark:border-gray-800 flex justify-between items-center">
-              <span className="font-semibold text-xs uppercase tracking-wider text-gray-400">Search Results</span>
+          <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 overflow-hidden">
+            <div className="p-3 border-b dark:border-slate-800 flex justify-between items-center">
+              <span className="font-semibold text-xs uppercase tracking-wider text-slate-400">Search Results</span>
               <button className="text-xs text-primary hover:underline" onClick={() => setPdfSearchResults([])}>Clear</button>
             </div>
-            <div className="flex-1 overflow-auto divide-y dark:divide-gray-800">
+            <div className="flex-1 overflow-auto divide-y dark:divide-slate-800">
               {pdfSearchResults.map((res, i) => (
                 <button 
                   key={i} 
-                  className={`w-full text-left p-3 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 flex flex-col gap-1 transition-colors ${pageNum === res.page ? 'bg-primary/5 border-l-2 border-primary' : ''}`}
+                  className={`w-full text-left p-3 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col gap-1 transition-colors ${pageNum === res.page ? 'bg-primary/5 border-l-2 border-primary' : ''}`}
                   onClick={() => setPageNum(res.page)}
                 >
                   <span className="font-semibold text-primary">Page {res.page}</span>
-                  <span className="text-gray-600 dark:text-gray-400 line-clamp-2">{res.text}</span>
+                  <span className="text-slate-600 dark:text-slate-400 line-clamp-2">{res.text}</span>
                 </button>
               ))}
             </div>
@@ -637,9 +637,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
         {/* Left ZIP File Sidebar */}
         {officeType === 'zip' && zipFiles.length > 0 && (
-          <div className="w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0 overflow-hidden">
-            <div className="p-3 border-b dark:border-gray-800 flex items-center justify-between">
-              <span className="font-semibold text-xs uppercase tracking-wider text-gray-400">ZIP File Entries</span>
+          <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 overflow-hidden">
+            <div className="p-3 border-b dark:border-slate-800 flex items-center justify-between">
+              <span className="font-semibold text-xs uppercase tracking-wider text-slate-400">ZIP File Entries</span>
               <Folder className="w-4 h-4 text-amber-500" />
             </div>
             <div className="flex-1 overflow-auto p-2 space-y-1">
@@ -651,8 +651,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                     zipSelectedFileContent?.name === f.path 
                       ? 'bg-primary text-white' 
                       : f.isDir 
-                        ? 'text-gray-400 cursor-default' 
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        ? 'text-slate-400 cursor-default' 
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}
                   onClick={() => previewZipFile(f.path)}
                 >
@@ -670,13 +670,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           {loading ? (
             <div className="flex flex-col items-center gap-3">
               <Spinner size="lg" />
-              <p className="text-sm text-gray-400">Rendering document content...</p>
+              <p className="text-sm text-slate-400">Rendering document content...</p>
             </div>
           ) : error ? (
-            <div className="max-w-md text-center p-6 bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-2xl shadow-sm space-y-4">
+            <div className="max-w-md text-center p-6 bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
               <h2 className="font-semibold text-lg">Failed to Preview</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{error}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{error}</p>
               <a 
                 href={doc.url} 
                 download={doc.name} 
@@ -696,7 +696,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
             >
               {/* PDF Previewer */}
               {doc.mimeType === 'application/pdf' && (
-                <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-gray-500/20 rounded-xl relative">
+                <div className="flex-1 w-full flex items-center justify-center overflow-auto p-4 bg-slate-500/20 rounded-xl relative">
                   <canvas 
                     ref={pdfCanvasRef} 
                     className="shadow-lg bg-white rounded-lg max-w-full"
@@ -709,15 +709,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
               {officeType === 'docx' && (
                 <div 
                   ref={docxContainerRef} 
-                  className="flex-1 w-full bg-white text-gray-800 overflow-auto p-8 rounded-xl shadow-inner max-w-4xl"
+                  className="flex-1 w-full bg-white text-slate-800 overflow-auto p-8 rounded-xl shadow-inner max-w-4xl"
                   style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
                 />
               )}
 
               {/* XLSX Previewer */}
               {officeType === 'xlsx' && (
-                <Card className="w-full max-w-5xl h-full flex flex-col bg-white dark:bg-gray-900">
-                  <div className="flex flex-wrap items-center justify-between border-b dark:border-gray-800 pb-3 gap-2">
+                <Card className="w-full max-w-5xl h-full flex flex-col bg-white dark:bg-slate-900">
+                  <div className="flex flex-wrap items-center justify-between border-b dark:border-slate-800 pb-3 gap-2">
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none max-w-full md:max-w-xl">
                       {xlsxSheets.map((sheet) => (
                         <button
@@ -725,7 +725,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                           className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                             xlsxActiveSheet === sheet 
                               ? 'bg-primary text-white' 
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                           }`}
                           onClick={() => setXlsxActiveSheet(sheet)}
                         >
@@ -739,9 +739,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                         placeholder="Search sheet..."
                         value={xlsxSearchQuery}
                         onChange={(e) => setXlsxSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 h-8 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 rounded-lg focus:outline-none dark:text-white"
+                        className="w-full pl-8 pr-3 h-8 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 rounded-lg focus:outline-none dark:text-white"
                       />
-                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
                   </div>
                   <div className="flex-1 p-2 overflow-auto">
@@ -753,23 +753,23 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
               {/* PPTX Previewer */}
               {officeType === 'pptx' && pptxSlides.length > 0 && (
                 <div className="w-full max-w-3xl flex flex-col items-center gap-4">
-                  <div className="w-full aspect-[4/3] bg-white dark:bg-gray-900 rounded-2xl shadow-lg border dark:border-gray-800 p-8 flex flex-col justify-center relative overflow-hidden">
-                    <div className="absolute top-4 right-4 text-xs font-bold text-gray-400">
+                  <div className="w-full aspect-[4/3] bg-white dark:bg-slate-900 rounded-2xl shadow-lg border dark:border-slate-800 p-8 flex flex-col justify-center relative overflow-hidden">
+                    <div className="absolute top-4 right-4 text-xs font-bold text-slate-400">
                       Slide {activeSlide + 1} of {pptxSlides.length}
                     </div>
                     <div className="space-y-4 max-h-full overflow-auto">
                       {pptxSlides[activeSlide]?.map((line, idx) => (
-                        <p key={idx} className={idx === 0 ? "text-2xl font-bold text-primary dark:text-white border-b dark:border-gray-850 pb-2" : "text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-2"}>
+                        <p key={idx} className={idx === 0 ? "text-2xl font-bold text-primary dark:text-white border-b dark:border-slate-850 pb-2" : "text-sm text-slate-700 dark:text-slate-300 leading-relaxed pl-2"}>
                           {line}
                         </p>
-                      )) || <div className="text-center text-gray-400">No content on this slide</div>}
+                      )) || <div className="text-center text-slate-400">No content on this slide</div>}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
                       disabled={activeSlide === 0}
                       onClick={() => setActiveSlide(prev => prev - 1)}
-                      className="p-2 bg-white dark:bg-gray-900 border dark:border-gray-800 disabled:opacity-40 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 transition-colors shadow-sm"
+                      className="p-2 bg-white dark:bg-slate-900 border dark:border-slate-800 disabled:opacity-40 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors shadow-sm"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -777,7 +777,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                     <button 
                       disabled={activeSlide === pptxSlides.length - 1}
                       onClick={() => setActiveSlide(prev => prev + 1)}
-                      className="p-2 bg-white dark:bg-gray-900 border dark:border-gray-800 disabled:opacity-40 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-850 transition-colors shadow-sm"
+                      className="p-2 bg-white dark:bg-slate-900 border dark:border-slate-800 disabled:opacity-40 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors shadow-sm"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -787,25 +787,25 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
               {/* ZIP Sub-preview workspace */}
               {officeType === 'zip' && (
-                <div className="w-full h-full flex flex-col bg-white dark:bg-gray-950 p-4 rounded-xl">
+                <div className="w-full h-full flex flex-col bg-white dark:bg-slate-950 p-4 rounded-xl">
                   {zipSelectedFileLoading ? (
                     <div className="m-auto flex flex-col items-center gap-3">
                       <Spinner />
-                      <p className="text-xs text-gray-400">Unzipping file entry...</p>
+                      <p className="text-xs text-slate-400">Unzipping file entry...</p>
                     </div>
                   ) : zipSelectedFileContent ? (
                     <div className="h-full flex flex-col gap-2 relative">
-                      <div className="flex items-center justify-between border-b dark:border-gray-850 pb-2 flex-shrink-0">
+                      <div className="flex items-center justify-between border-b dark:border-slate-850 pb-2 flex-shrink-0">
                         <span className="font-semibold text-xs text-primary">{zipSelectedFileContent.name}</span>
                         <button 
-                          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg"
+                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg"
                           onClick={() => setZipSelectedFileContent(null)}
                         >
-                          <X className="w-4 h-4 text-gray-400" />
+                          <X className="w-4 h-4 text-slate-400" />
                         </button>
                       </div>
                       
-                      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl">
+                      <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl">
                         {zipSelectedFileContent.type === 'image' ? (
                           <img src={zipSelectedFileContent.content} alt={zipSelectedFileContent.name} className="max-w-full max-h-96 object-contain mx-auto rounded-lg" />
                         ) : zipSelectedFileContent.type === 'audio' ? (
@@ -813,14 +813,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                         ) : zipSelectedFileContent.type === 'video' ? (
                           <video src={zipSelectedFileContent.content} controls className="max-w-full max-h-96 mx-auto rounded-lg" />
                         ) : (
-                          <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{zipSelectedFileContent.content}</pre>
+                          <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{zipSelectedFileContent.content}</pre>
                         )}
                       </div>
                     </div>
                   ) : (
                     <div className="m-auto text-center space-y-2">
-                      <Folder className="w-12 h-12 text-gray-300 mx-auto" />
-                      <p className="text-xs text-gray-400">Select a file from the ZIP archive sidebar to preview it</p>
+                      <Folder className="w-12 h-12 text-slate-300 mx-auto" />
+                      <p className="text-xs text-slate-400">Select a file from the ZIP archive sidebar to preview it</p>
                     </div>
                   )}
                 </div>
@@ -828,9 +828,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
               {/* TXT Previewer */}
               {officeType === 'text' && (
-                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-gray-900 border dark:border-gray-800 p-8 rounded-2xl shadow-sm overflow-auto">
+                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 p-8 rounded-2xl shadow-sm overflow-auto">
                   <pre 
-                    className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed"
+                    className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed"
                     style={{ fontSize: `${zoom * 0.75}rem` }}
                   >
                     {textRawContent}
@@ -840,8 +840,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
               {/* CSV Previewer */}
               {officeType === 'csv' && (
-                <Card className="w-full max-w-5xl h-full flex flex-col bg-white dark:bg-gray-900">
-                  <div className="flex justify-between items-center border-b dark:border-gray-800 pb-3 mb-3">
+                <Card className="w-full max-w-5xl h-full flex flex-col bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center border-b dark:border-slate-800 pb-3 mb-3">
                     <span className="font-semibold text-sm">CSV Table Viewer</span>
                     <div className="relative w-48">
                       <input 
@@ -849,9 +849,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                         placeholder="Filter rows..."
                         value={csvSearchQuery}
                         onChange={(e) => setCsvSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 h-8 text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 rounded-lg focus:outline-none dark:text-white"
+                        className="w-full pl-8 pr-3 h-8 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 rounded-lg focus:outline-none dark:text-white"
                       />
-                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>
                   </div>
                   <div className="flex-1">
@@ -862,19 +862,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
               {/* JSON Collapsible Explorer */}
               {officeType === 'json' && (
-                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-gray-900 border dark:border-gray-800 p-6 rounded-2xl shadow-sm overflow-auto text-left">
+                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 p-6 rounded-2xl shadow-sm overflow-auto text-left">
                   {jsonParsed ? (
                     <JsonTree data={jsonParsed} />
                   ) : (
-                    <pre className="text-xs font-mono text-gray-700 dark:text-gray-300 whitespace-pre">{textRawContent}</pre>
+                    <pre className="text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre">{textRawContent}</pre>
                   )}
                 </div>
               )}
 
               {/* XML Viewer */}
               {officeType === 'xml' && (
-                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-gray-900 border dark:border-gray-800 p-6 rounded-2xl shadow-sm overflow-auto text-left">
-                  <pre className="text-xs font-mono text-gray-750 dark:text-gray-300 whitespace-pre-wrap">{textRawContent}</pre>
+                <div className="flex-1 w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 p-6 rounded-2xl shadow-sm overflow-auto text-left">
+                  <pre className="text-xs font-mono text-slate-750 dark:text-slate-300 whitespace-pre-wrap">{textRawContent}</pre>
                 </div>
               )}
 
@@ -913,13 +913,13 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
               {/* Audio Player */}
               {doc.mimeType.startsWith('audio/') && blobUrl && (
-                <Card className="w-full max-w-md bg-white dark:bg-gray-900 border dark:border-gray-800 p-6 rounded-3xl shadow-xl flex flex-col items-center gap-6">
+                <Card className="w-full max-w-md bg-white dark:bg-slate-900 border dark:border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col items-center gap-6">
                   <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl animate-pulse">
                     📻
                   </div>
                   <div className="text-center">
-                    <h3 className="font-bold text-gray-900 dark:text-white truncate max-w-xs">{doc.name}</h3>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Audio Recording</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white truncate max-w-xs">{doc.name}</h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Audio Recording</p>
                   </div>
                   <audio 
                     ref={audioRef}
@@ -936,14 +936,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
       {/* Floating Toolbar Controls (only visible if preview is successful and not media type) */}
       {!loading && !error && (
-        <div className="h-14 px-4 flex items-center justify-between border-t bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 flex-shrink-0 z-10">
+        <div className="h-14 px-4 flex items-center justify-between border-t bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 flex-shrink-0 z-10">
           {/* Zoom controls */}
           <div className="flex items-center gap-1">
             {/* Show zoom controls only for zoomable formats */}
             {(doc.mimeType.startsWith('image/') || doc.mimeType === 'application/pdf' || officeType === 'docx' || officeType === 'text') && (
               <>
                 <button 
-                  className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
                   onClick={zoomOut}
                   title="Zoom Out"
                 >
@@ -953,14 +953,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                   {Math.round(zoom * 100)}%
                 </span>
                 <button 
-                  className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
                   onClick={zoomIn}
                   title="Zoom In"
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
                 <button 
-                  className="p-1.5 text-xs text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg ml-1 font-semibold"
+                  className="p-1.5 text-xs text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg ml-1 font-semibold"
                   onClick={resetZoom}
                 >
                   Reset
@@ -971,7 +971,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
             {/* Rotator only for image and video */}
             {(doc.mimeType.startsWith('image/') || doc.mimeType.startsWith('video/')) && (
               <button 
-                className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl ml-2"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl ml-2"
                 onClick={() => setRotation(prev => (prev + 90) % 360)}
                 title="Rotate 90°"
               >
@@ -984,7 +984,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           {doc.mimeType === 'application/pdf' && pdfDoc && (
             <div className="flex items-center gap-2">
               <button 
-                className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl disabled:opacity-40"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl disabled:opacity-40"
                 onClick={() => setPageNum(prev => Math.max(prev - 1, 1))}
                 disabled={pageNum <= 1}
                 title="Previous Page"
@@ -1002,14 +1002,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                     const v = parseInt(e.target.value);
                     if (v >= 1 && v <= numPages) setPageNum(v);
                   }}
-                  className="w-10 text-center h-7 border border-gray-250 dark:border-gray-700 bg-white dark:bg-gray-850 rounded-lg dark:text-white focus:outline-none"
+                  className="w-10 text-center h-7 border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-850 rounded-lg dark:text-white focus:outline-none"
                 />
-                <span className="text-gray-400">/</span>
+                <span className="text-slate-400">/</span>
                 <span>{numPages}</span>
               </div>
 
               <button 
-                className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl disabled:opacity-40"
+                className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl disabled:opacity-40"
                 onClick={() => setPageNum(prev => Math.min(prev + 1, numPages))}
                 disabled={pageNum >= numPages}
                 title="Next Page"
@@ -1028,9 +1028,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                 value={pdfSearchQuery}
                 onChange={(e) => setPdfSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handlePdfSearch()}
-                className="w-full pl-8 pr-7 h-8 text-xs border border-gray-250 dark:border-gray-700 bg-white dark:bg-gray-850 rounded-lg focus:outline-none dark:text-white"
+                className="w-full pl-8 pr-7 h-8 text-xs border border-slate-250 dark:border-slate-700 bg-white dark:bg-slate-850 rounded-lg focus:outline-none dark:text-white"
               />
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               {pdfSearchQuery && (
                 <button 
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary hover:underline font-semibold"
@@ -1044,7 +1044,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
           {/* Media Playback speed controls (Audio/Video only) */}
           {(doc.mimeType.startsWith('video/') || doc.mimeType.startsWith('audio/')) && (videoRef.current || audioRef.current) && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               <span>Speed:</span>
               <select
                 value={playbackSpeed}
@@ -1054,7 +1054,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                   if (videoRef.current) videoRef.current.playbackRate = spd;
                   if (audioRef.current) audioRef.current.playbackRate = spd;
                 }}
-                className="border rounded px-1.5 py-0.5 h-7 bg-white dark:bg-gray-850 text-gray-700 dark:text-gray-300 border-gray-250 dark:border-gray-700"
+                className="border rounded px-1.5 py-0.5 h-7 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 border-slate-250 dark:border-slate-700"
               >
                 <option value="0.5">0.5x</option>
                 <option value="1.0">1.0x</option>
@@ -1066,7 +1066,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
           {/* Bottom space filler for alignment if controls don't apply */}
           {!(doc.mimeType === 'application/pdf' || doc.mimeType.startsWith('image/') || doc.mimeType.startsWith('video/') || doc.mimeType.startsWith('audio/') || officeType === 'docx' || officeType === 'text') && (
-            <span className="text-xs text-gray-400">Ready to view in-app</span>
+            <span className="text-xs text-slate-400">Ready to view in-app</span>
           )}
         </div>
       )}

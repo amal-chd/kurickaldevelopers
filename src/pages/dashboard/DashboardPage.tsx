@@ -78,7 +78,7 @@ const DashboardPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3">
         <Spinner size="lg" />
-        <p className="text-sm text-gray-400">Loading dashboard…</p>
+        <p className="text-sm text-slate-400">Loading dashboard…</p>
       </div>
     );
   }
@@ -172,10 +172,10 @@ const DashboardPage: React.FC = () => {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
             {greeting}{firstName ? `, ${firstName}` : ''}!
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Here's what's happening on your projects today.</p>
+          <p className="text-slate-500 text-sm mt-1">Here's what's happening on your projects today.</p>
         </div>
         <div className="flex gap-2 flex-shrink-0 flex-wrap">
           {can('tasks_create') && (
@@ -454,7 +454,7 @@ const DashboardPage: React.FC = () => {
                   <div className="p-1.5 bg-amber-50 rounded-lg">
                     <Trophy className="w-4 h-4 text-amber-600" />
                   </div>
-                  <h3 className="font-semibold text-gray-900">My Performance</h3>
+                  <h3 className="font-semibold text-slate-900">My Performance</h3>
                 </div>
                 <button
                   onClick={() => navigate('/app/performance')}
@@ -469,14 +469,14 @@ const DashboardPage: React.FC = () => {
                     <span className="text-xl font-black text-amber-650">{perfScore.overallPerformanceIndex}</span>
                   </div>
                   <div>
-                    <span className="text-xs font-semibold text-gray-400 block uppercase">Overall OPI</span>
-                    <span className="text-sm font-bold text-gray-800">
+                    <span className="text-xs font-semibold text-slate-400 block uppercase">Overall OPI</span>
+                    <span className="text-sm font-bold text-slate-800">
                       {perfScore.overallPerformanceIndex >= 90 ? '🏆 Elite Performer' : perfScore.overallPerformanceIndex >= 75 ? '⭐ Strong Performer' : '👍 Consistent'}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 block font-medium font-bold">Streak</span>
+                  <span className="text-xs text-slate-400 block font-medium font-bold">Streak</span>
                   <span className="text-lg font-black text-orange-650">🔥 {perfScore.consecutiveSuccesses}</span>
                 </div>
               </div>

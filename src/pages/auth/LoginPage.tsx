@@ -139,22 +139,22 @@ const LoginPage: React.FC = () => {
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
+      <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
         <div className="w-full max-w-[400px]">
 
           {/* Mobile logo */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <img src="/logo.png" alt="Task Pilot" className="w-14 h-14 rounded-2xl object-cover shadow-xl mb-3" />
-            <h1 className="text-2xl font-bold text-gray-900">Task Pilot</h1>
-            <p className="text-gray-500 text-sm">Construction Task Management</p>
+            <h1 className="text-2xl font-bold text-slate-900">Task Pilot</h1>
+            <p className="text-slate-500 text-sm">Construction Task Management</p>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 p-8">
+          <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
 
             {/* Heading */}
             <div className="mb-7">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Sign in to your account</h2>
-              <p className="text-sm text-gray-500 mt-1">Welcome back. Enter your credentials to continue.</p>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+              <p className="text-sm text-slate-500 mt-1">Welcome back. Enter your credentials to continue.</p>
             </div>
 
             {/* Sign In form */}
@@ -181,7 +181,7 @@ const LoginPage: React.FC = () => {
                   leftIcon={<Lock className="w-4 h-4" />}
                   rightIcon={
                     <button type="button" onClick={() => setShowPass((p) => !p)}
-                      className="text-gray-400 hover:text-gray-600 transition-colors" tabIndex={-1}>
+                      className="text-slate-400 hover:text-slate-600 transition-colors" tabIndex={-1}>
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   }
@@ -200,9 +200,9 @@ const LoginPage: React.FC = () => {
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-xs text-gray-400 font-medium">or</span>
-              <div className="flex-1 h-px bg-gray-100" />
+              <div className="flex-1 h-px bg-slate-100" />
+              <span className="text-xs text-slate-400 font-medium">or</span>
+              <div className="flex-1 h-px bg-slate-100" />
             </div>
 
             {/* Google */}
@@ -210,7 +210,7 @@ const LoginPage: React.FC = () => {
               type="button"
               onClick={handleGoogle}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm font-medium text-gray-700 disabled:opacity-50 shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-sm font-medium text-slate-700 disabled:opacity-50 shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -224,7 +224,7 @@ const LoginPage: React.FC = () => {
 
           </div>
 
-          <p className="text-center text-gray-400 text-xs mt-6">
+          <p className="text-center text-slate-400 text-xs mt-6">
             © {new Date().getFullYear()} Kurickal Developers LLP · All rights reserved
           </p>
         </div>

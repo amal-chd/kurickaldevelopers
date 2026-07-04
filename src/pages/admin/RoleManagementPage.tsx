@@ -38,7 +38,7 @@ const RoleManagementPage: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    color: '#1A3A5C',
+    color: '#0F172A',
     level: '1',
     permissions: {} as Permissions,
   });
@@ -48,7 +48,7 @@ const RoleManagementPage: React.FC = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ name: '', description: '', color: '#1A3A5C', level: '1', permissions: {} });
+    setForm({ name: '', description: '', color: '#0F172A', level: '1', permissions: {} });
     setEditing(null);
   };
 

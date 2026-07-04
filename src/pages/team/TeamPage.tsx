@@ -123,7 +123,7 @@ const TeamPage: React.FC = () => {
                   {role && (
                     <span
                       className="inline-block mt-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: role.color ?? '#1A3A5C' }}
+                      style={{ backgroundColor: role.color ?? '#0F172A' }}
                     >
                       {role.name}
                     </span>

@@ -75,7 +75,7 @@ const MemberDetailPage: React.FC = () => {
   }, [userId]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
-  if (!member) return <div className="text-center py-16 text-gray-500">Member not found</div>;
+  if (!member) return <div className="text-center py-16 text-slate-500">Member not found</div>;
 
   const role = roles.find((r) => r.id === member.roleId);
 
@@ -143,7 +143,7 @@ const MemberDetailPage: React.FC = () => {
           </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-slate-200">
         {[
           { id: 'info', label: 'Info' },
           { id: 'tasks', label: `Tasks (${tasks.length})` },
@@ -156,7 +156,7 @@ const MemberDetailPage: React.FC = () => {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t.id
                 ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             {t.label}
@@ -166,16 +166,16 @@ const MemberDetailPage: React.FC = () => {
 
       {tab === 'info' && role && (
         <Card>
-          <h3 className="font-semibold text-gray-900 mb-4">Role & Permissions</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">Role & Permissions</h3>
           <div className="mb-3">
-            <p className="text-sm font-medium text-gray-700">Role: {role.name}</p>
-            {role.description && <p className="text-xs text-gray-500 mt-1">{role.description}</p>}
+            <p className="text-sm font-medium text-slate-700">Role: {role.name}</p>
+            {role.description && <p className="text-xs text-slate-500 mt-1">{role.description}</p>}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.entries(role.permissions).map(([key, val]) => (
               <div
                 key={key}
-                className={`text-xs px-2 py-1 rounded-lg ${val ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'}`}
+                className={`text-xs px-2 py-1 rounded-lg ${val ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-400'}`}
               >
                 {key.replace(/_/g, ' ')}
               </div>
@@ -186,23 +186,23 @@ const MemberDetailPage: React.FC = () => {
 
       {tab === 'tasks' && (
         <Card padding={false}>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-slate-50">
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer"
                 onClick={() => navigate(`/app/tasks/${task.id}`)}
               >
-                <CheckSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <CheckSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-                  <p className="text-xs text-gray-500">Due {formatDate(task.dueDate)}</p>
+                  <p className="text-sm font-medium text-slate-900 truncate">{task.title}</p>
+                  <p className="text-xs text-slate-500">Due {formatDate(task.dueDate)}</p>
                 </div>
                 <TaskStatusChip status={task.memberProgress?.[userId || '']?.status ?? task.status} />
               </div>
             ))}
             {tasks.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-8">No tasks assigned</p>
+              <p className="text-sm text-slate-400 text-center py-8">No tasks assigned</p>
             )}
           </div>
         </Card>
@@ -210,13 +210,13 @@ const MemberDetailPage: React.FC = () => {
 
       {tab === 'attendance' && (
         <Card padding={false}>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-slate-50">
             {attendance.map((a) => (
               <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">{a.date}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm font-semibold text-slate-900">{a.date}</p>
+                  <p className="text-xs text-slate-500">
                     In: {formatTime(a.checkInTime)} · Out: {formatTime(a.checkOutTime)}
                     {a.checkInTime && <span className="ml-2">· {getDuration(a.checkInTime, a.checkOutTime)}</span>}
                   </p>
@@ -230,7 +230,7 @@ const MemberDetailPage: React.FC = () => {
               </div>
             ))}
             {attendance.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-8">No attendance history</p>
+              <p className="text-sm text-slate-400 text-center py-8">No attendance history</p>
             )}
           </div>
         </Card>
@@ -242,39 +242,39 @@ const MemberDetailPage: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-lg text-gray-900">Performance Metrics</h3>
-                  <p className="text-xs text-gray-500">Overall Performance Index (OPI)</p>
+                  <h3 className="font-bold text-lg text-slate-900">Performance Metrics</h3>
+                  <p className="text-xs text-slate-500">Overall Performance Index (OPI)</p>
                 </div>
                 <div className="text-right">
                   <span className="text-3xl font-black text-amber-500">{performance.overallPerformanceIndex}</span>
-                  <span className="block text-[10px] text-gray-400 font-bold uppercase">OPI Score</span>
+                  <span className="block text-[10px] text-slate-400 font-bold uppercase">OPI Score</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 border-t pt-4 border-gray-100">
-                <div className="p-3 bg-gray-50 rounded-xl text-center">
-                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Productivity</span>
-                  <span className="text-lg font-bold text-gray-800">{performance.productivityScore}%</span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 border-t pt-4 border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-xl text-center">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Productivity</span>
+                  <span className="text-lg font-bold text-slate-800">{performance.productivityScore}%</span>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-xl text-center">
-                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Reliability</span>
-                  <span className="text-lg font-bold text-gray-800">{performance.reliabilityScore}%</span>
+                <div className="p-3 bg-slate-50 rounded-xl text-center">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Reliability</span>
+                  <span className="text-lg font-bold text-slate-800">{performance.reliabilityScore}%</span>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-xl text-center">
-                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Efficiency</span>
-                  <span className="text-lg font-bold text-gray-800">{performance.efficiencyScore}%</span>
+                <div className="p-3 bg-slate-50 rounded-xl text-center">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Efficiency</span>
+                  <span className="text-lg font-bold text-slate-800">{performance.efficiencyScore}%</span>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-xl text-center">
-                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Quality</span>
-                  <span className="text-lg font-bold text-gray-800">{performance.qualityScore}%</span>
+                <div className="p-3 bg-slate-50 rounded-xl text-center">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Quality</span>
+                  <span className="text-lg font-bold text-slate-800">{performance.qualityScore}%</span>
                 </div>
-                <div className="p-3 bg-gray-50 rounded-xl text-center">
-                  <span className="text-[10px] text-gray-400 font-bold block uppercase">Collab</span>
-                  <span className="text-lg font-bold text-gray-800">{performance.collaborationScore}%</span>
+                <div className="p-3 bg-slate-50 rounded-xl text-center">
+                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Collab</span>
+                  <span className="text-lg font-bold text-slate-800">{performance.collaborationScore}%</span>
                 </div>
               </div>
 
-              <div className="border-t pt-4 border-gray-100">
+              <div className="border-t pt-4 border-slate-100">
                 <h4 className="text-sm font-bold mb-3">Earned Badges ({performance.badges.length})</h4>
                 <div className="flex flex-wrap gap-2">
                   {performance.badges.map(b => (
@@ -283,32 +283,32 @@ const MemberDetailPage: React.FC = () => {
                     </span>
                   ))}
                   {performance.badges.length === 0 && (
-                    <span className="text-xs text-gray-400 font-medium">No achievements earned yet.</span>
+                    <span className="text-xs text-slate-400 font-medium">No achievements earned yet.</span>
                   )}
                 </div>
               </div>
 
-              <div className="border-t pt-4 border-gray-100 grid grid-cols-2 gap-4">
+              <div className="border-t pt-4 border-slate-100 grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-xs text-gray-400 block font-medium">Tasks Completed On-Time</span>
+                  <span className="text-xs text-slate-400 block font-medium">Tasks Completed On-Time</span>
                   <span className="text-sm font-bold text-green-600">{performance.tasksCompletedOnTime}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-400 block font-medium">Tasks Completed Late</span>
+                  <span className="text-xs text-slate-400 block font-medium">Tasks Completed Late</span>
                   <span className="text-sm font-bold text-red-650">{performance.tasksCompletedLate}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-400 block font-medium">Active Overdue Tasks</span>
+                  <span className="text-xs text-slate-400 block font-medium">Active Overdue Tasks</span>
                   <span className="text-sm font-bold text-rose-600">{performance.tasksOverdue}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-400 block font-medium">Consecutive Streak</span>
+                  <span className="text-xs text-slate-400 block font-medium">Consecutive Streak</span>
                   <span className="text-sm font-bold text-orange-600">🔥 {performance.consecutiveSuccesses}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-8">No performance score calculated yet.</p>
+            <p className="text-sm text-slate-400 text-center py-8">No performance score calculated yet.</p>
           )}
         </Card>
       )}

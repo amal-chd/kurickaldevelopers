@@ -102,7 +102,7 @@ const ProfilePage: React.FC = () => {
         {/* Cover gradient */}
         <div
           className="h-28 relative"
-          style={{ background: `linear-gradient(135deg, ${role?.color ?? '#1A3A5C'}, ${role?.color ?? '#1A3A5C'}cc 55%, ${role?.color ?? '#2C5F8F'}88)` }}
+          style={{ background: `linear-gradient(135deg, ${role?.color ?? '#0F172A'}, ${role?.color ?? '#0F172A'}cc 55%, ${role?.color ?? '#334155'}88)` }}
         >
           <div className="absolute inset-0 opacity-10" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
@@ -120,7 +120,7 @@ const ProfilePage: React.FC = () => {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary-600 transition-colors shadow-md border-2 border-white"
+                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center hover:bg-slate-800 transition-colors shadow-md border-2 border-white"
               >
                 {uploading ? (
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -163,12 +163,12 @@ const ProfilePage: React.FC = () => {
             </div>
           ) : (
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{appUser.name || appUser.email}</h3>
+              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{appUser.name || appUser.email}</h3>
               <div className="flex items-center flex-wrap gap-2 mt-2">
                 {role && (
                   <span
                     className="inline-block text-xs font-semibold px-3 py-1 rounded-full text-white shadow-sm"
-                    style={{ backgroundColor: role.color ?? '#1A3A5C' }}
+                    style={{ backgroundColor: role.color ?? '#0F172A' }}
                   >
                     {role.name}
                   </span>
@@ -179,16 +179,16 @@ const ProfilePage: React.FC = () => {
                   {appUser.isActive ? '● Active' : '○ Inactive'}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
+              <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-500">
                 {appUser.email && (
                   <span className="flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-gray-400" />
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
                     {appUser.email}
                   </span>
                 )}
                 {appUser.phone && (
                   <span className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                    <Phone className="w-3.5 h-3.5 text-slate-400" />
                     {appUser.phone}
                   </span>
                 )}
@@ -206,8 +206,8 @@ const ProfilePage: React.FC = () => {
               <Shield className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">My Permissions</h3>
-              <p className="text-xs text-gray-400">{permissionKeys.length} permissions granted</p>
+              <h3 className="font-semibold text-slate-900">My Permissions</h3>
+              <p className="text-xs text-slate-400">{permissionKeys.length} permissions granted</p>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -228,21 +228,21 @@ const ProfilePage: React.FC = () => {
             <Bell className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">Notification Settings</h3>
-            <p className="text-xs text-gray-400">Choose what updates you want to receive</p>
+            <h3 className="font-semibold text-slate-900">Notification Settings</h3>
+            <p className="text-xs text-slate-400">Choose what updates you want to receive</p>
           </div>
         </div>
 
         <div className="space-y-4">
           {/* Announcements Toggle */}
-          <div className="flex items-center justify-between pb-3 border-b border-gray-50">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-50">
             <div className="flex gap-3">
               <div className="p-2 bg-purple-50 rounded-xl h-fit border border-purple-100 flex-shrink-0">
                 <Megaphone className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <p className="font-medium text-sm text-gray-900">Group Announcements</p>
-                <p className="text-xs text-gray-400">Broad updates and group-wide notifications</p>
+                <p className="font-medium text-sm text-slate-900">Group Announcements</p>
+                <p className="text-xs text-slate-400">Broad updates and group-wide notifications</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -252,19 +252,19 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleTogglePreference('announcements', e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
           {/* Chats Toggle */}
-          <div className="flex items-center justify-between pb-3 border-b border-gray-50">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-50">
             <div className="flex gap-3">
               <div className="p-2 bg-blue-50 rounded-xl h-fit border border-blue-100 flex-shrink-0">
                 <MessageSquare className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <p className="font-medium text-sm text-gray-900">Chat Messages</p>
-                <p className="text-xs text-gray-400">Push notifications for direct and group chats</p>
+                <p className="font-medium text-sm text-slate-900">Chat Messages</p>
+                <p className="text-xs text-slate-400">Push notifications for direct and group chats</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -274,7 +274,7 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleTogglePreference('chats', e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -285,8 +285,8 @@ const ProfilePage: React.FC = () => {
                 <CheckSquare className="w-4 h-4 text-emerald-600" />
               </div>
               <div>
-                <p className="font-medium text-sm text-gray-900">Task Assignments</p>
-                <p className="text-xs text-gray-400">Reminders for assignments and status updates</p>
+                <p className="font-medium text-sm text-slate-900">Task Assignments</p>
+                <p className="text-xs text-slate-400">Reminders for assignments and status updates</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -296,7 +296,7 @@ const ProfilePage: React.FC = () => {
                 onChange={(e) => handleTogglePreference('tasks', e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         </div>
@@ -306,8 +306,8 @@ const ProfilePage: React.FC = () => {
       <Card className="!p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium text-gray-900 text-sm">Sign Out</p>
-            <p className="text-xs text-gray-400 mt-0.5">You'll need to sign in again to access the app</p>
+            <p className="font-medium text-slate-900 text-sm">Sign Out</p>
+            <p className="text-xs text-slate-400 mt-0.5">You'll need to sign in again to access the app</p>
           </div>
           <Button variant="danger" size="sm" leftIcon={<LogOut className="w-4 h-4" />} onClick={handleLogout}>
             Sign Out

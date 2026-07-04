@@ -228,9 +228,9 @@ interface StepResult { label: string; status: StepStatus; note?: string; }
 const StatusIcon: React.FC<{ status: StepStatus }> = ({ status }) => {
   if (status === 'running') return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
   if (status === 'done')    return <CheckCircle className="w-4 h-4 text-green-500" />;
-  if (status === 'skipped') return <CheckCircle className="w-4 h-4 text-gray-400" />;
+  if (status === 'skipped') return <CheckCircle className="w-4 h-4 text-slate-400" />;
   if (status === 'error')   return <XCircle className="w-4 h-4 text-red-500" />;
-  return <div className="w-4 h-4 rounded-full border-2 border-gray-300" />;
+  return <div className="w-4 h-4 rounded-full border-2 border-slate-300" />;
 };
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -366,7 +366,7 @@ const SetupPage: React.FC = () => {
   const userOffset = 1 + ROLES.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#060f1e] via-[#1A3A5C] to-[#0d2540] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#020617] via-[#0F172A] to-[#1E293B] flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="flex flex-col items-center mb-8 text-center">
@@ -394,35 +394,35 @@ const SetupPage: React.FC = () => {
           {steps.length > 0 && (
             <div className="mb-6 space-y-1.5 max-h-80 overflow-y-auto pr-1">
               {/* Admin bootstrap */}
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Bootstrap Admin</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Bootstrap Admin</p>
               {steps.slice(0, 1).map((step, i) => (
                 <div key={i} className="flex items-start gap-2.5 py-1">
                   <StatusIcon status={step.status} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700 leading-tight">{step.label}</p>
-                    {step.note && <p className="text-xs text-gray-400">{step.note}</p>}
+                    <p className="text-sm text-slate-700 leading-tight">{step.label}</p>
+                    {step.note && <p className="text-xs text-slate-400">{step.note}</p>}
                   </div>
                 </div>
               ))}
               {/* Roles */}
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1">Roles</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-3 mb-1">Roles</p>
               {steps.slice(roleOffset, roleOffset + ROLES.length).map((step, i) => (
                 <div key={i} className="flex items-start gap-2.5 py-1">
                   <StatusIcon status={step.status} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700 leading-tight">{step.label}</p>
-                    {step.note && <p className="text-xs text-gray-400">{step.note}</p>}
+                    <p className="text-sm text-slate-700 leading-tight">{step.label}</p>
+                    {step.note && <p className="text-xs text-slate-400">{step.note}</p>}
                   </div>
                 </div>
               ))}
               {/* Other users */}
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3 mb-1">Other Users</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-3 mb-1">Other Users</p>
               {steps.slice(userOffset).map((step, i) => (
                 <div key={i} className="flex items-start gap-2.5 py-1">
                   <StatusIcon status={step.status} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700 leading-tight">{step.label}</p>
-                    {step.note && <p className="text-xs text-gray-400">{step.note}</p>}
+                    <p className="text-sm text-slate-700 leading-tight">{step.label}</p>
+                    {step.note && <p className="text-xs text-slate-400">{step.note}</p>}
                   </div>
                 </div>
               ))}
@@ -473,7 +473,7 @@ const SetupPage: React.FC = () => {
               {hasErrors && (
                 <button
                   onClick={() => { setDone(false); setSteps([]); }}
-                  className="flex-1 py-3 px-4 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-center text-sm"
+                  className="flex-1 py-3 px-4 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors text-center text-sm"
                 >
                   Run Setup Again
                 </button>

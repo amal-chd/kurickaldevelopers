@@ -14,7 +14,7 @@ import { Task, Project, AppUser } from '../../types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const COLORS = ['#1A3A5C', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6', '#06B6D4'];
+const COLORS = ['#334155', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const ReportsPage: React.FC = () => {
   const { can } = usePermissions();
