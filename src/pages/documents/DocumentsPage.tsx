@@ -134,13 +134,19 @@ const DocumentsPage: React.FC = () => {
   const handleDelete = async (docId: string) => {
     if (!window.confirm('Delete this document?')) return;
     const target = documents.find((d) => d.id === docId);
-    await deleteDocument(docId);
-    // Best-effort: also remove the underlying file from Supabase Storage.
-    if (target?.storageBucket && target?.storagePath) {
-      deleteFromSupabase(target.storageBucket, target.storagePath).catch(() => {});
+    
+    try {
+      await deleteDocument(docId);
+      // Best-effort: also remove the underlying file from Supabase Storage.
+      if (target?.storageBucket && target?.storagePath) {
+        deleteFromSupabase(target.storageBucket, target.storagePath).catch(() => {});
+      }
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      toast.success('Deleted');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to delete document (permission denied)');
     }
-    setDocuments((prev) => prev.filter((d) => d.id !== docId));
-    toast.success('Deleted');
   };
 
   const approvalBadge = (status: string) => {
@@ -253,9 +259,11 @@ const DocumentsPage: React.FC = () => {
                           </button>
                         </>
                       )}
-                      <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleDelete(doc.id)} title="Delete">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {(can('docs_approve') || (can('docs_upload') && appUser?.id === doc.uploadedBy)) && (
+                        <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" onClick={() => handleDelete(doc.id)} title="Delete">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
