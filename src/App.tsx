@@ -84,7 +84,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>}>
           <Routes>
             {/* Landing */}

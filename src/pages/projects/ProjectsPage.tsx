@@ -86,8 +86,8 @@ const ProjectsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Projects</h2>
           <p className="text-sm text-slate-500 mt-0.5">{projects.length} total</p>
         </div>

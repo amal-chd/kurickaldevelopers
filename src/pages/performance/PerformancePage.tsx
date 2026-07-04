@@ -643,24 +643,34 @@ const PerformancePage: React.FC = () => {
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
             <h3 className="font-semibold text-slate-900 dark:text-white">At-Risk Team Members (OPI &lt; 70)</h3>
           </div>
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {allScores.filter(s => s.overallPerformanceIndex < 70).map(s => {
-              const u = allUsers.find(user => user.id === s.userId);
-              if (!u) return null;
-              return (
-                <div key={s.userId} className="p-4 rounded-xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/20 dark:bg-rose-950/10 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar src={u.avatarUrl} name={u.name} size="sm" />
-                    <div>
-                      <h4 className="font-bold">{u.name}</h4>
-                      <p className="text-xs text-slate-500">OPI: {s.overallPerformanceIndex}</p>
+          {allScores.filter(s => s.overallPerformanceIndex < 70).length === 0 ? (
+            <div className="py-14 text-center">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <Trophy className="w-6 h-6 text-emerald-500" />
+              </div>
+              <p className="text-sm font-semibold text-slate-700">No at-risk members</p>
+              <p className="text-xs text-slate-400 mt-1">Everyone is performing at or above the 70 OPI threshold.</p>
+            </div>
+          ) : (
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allScores.filter(s => s.overallPerformanceIndex < 70).map(s => {
+                const u = allUsers.find(user => user.id === s.userId);
+                if (!u) return null;
+                return (
+                  <div key={s.userId} className="p-4 rounded-xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/20 dark:bg-rose-950/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar src={u.avatarUrl} name={u.name} size="sm" />
+                      <div>
+                        <h4 className="font-bold">{u.name}</h4>
+                        <p className="text-xs text-slate-500">OPI: {s.overallPerformanceIndex}</p>
+                      </div>
                     </div>
+                    <Badge variant="danger">Review Needed</Badge>
                   </div>
-                  <Badge variant="danger">Review Needed</Badge>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 

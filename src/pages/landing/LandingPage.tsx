@@ -234,7 +234,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
             <h2 className="text-3xl lg:text-4xl font-semibold text-white">Featured Projects</h2>
             <p className="text-[13px] text-blue-100/60 max-w-md leading-relaxed">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+              A selection of developments delivered across residential, commercial, and infrastructure — built to specification, on schedule, and to the standard our clients expect.
             </p>
           </div>
 
