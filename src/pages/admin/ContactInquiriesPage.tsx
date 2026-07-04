@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Smartphone, Clock, Phone, Mail, MessageSquare,
-  CheckCheck, XCircle, Inbox, StickyNote, Trash2, Search, Filter,
+  CheckCheck, XCircle, Inbox, StickyNote, Trash2, Search,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';

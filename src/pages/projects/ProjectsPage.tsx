@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 import { Plus, FolderOpen, Users, Calendar, TrendingUp, Search } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import Input from '../../components/ui/Input';
@@ -10,7 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
 import { getProjects, getTasks, getAllUsers } from '../../lib/firestore';
 import { Project, Task, AppUser } from '../../types';
-import { formatDate, projectStatusLabel } from '../../lib/utils';
+import { formatDate } from '../../lib/utils';
 
 const STATUS_STYLES: Record<string, { label: string; badge: string; bar: string; border: string }> = {
   planning:  { label: 'Planning',   badge: 'bg-purple-50 text-purple-700 border-purple-100',  bar: 'bg-purple-400',  border: 'border-t-purple-400' },

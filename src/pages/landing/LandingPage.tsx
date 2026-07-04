@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, Menu, X, CheckCircle, HardHat,
-  Home, ArrowRight, Wrench, Target, Leaf, BarChart
+  Home, Wrench, Target, Leaf, BarChart
 } from 'lucide-react';
 import { createContactInquiry } from '../../lib/firestore';
 import toast from 'react-hot-toast';

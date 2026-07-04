@@ -2,11 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Send, Plus, Search, MessageSquare, Smile, CornerUpLeft, Edit2, Trash2,
-  Copy, ChevronLeft, Megaphone, Users, User, Hash, CheckCheck,
-  AtSign, X, CheckSquare, Lock, Shield, Info,
+  Copy, ChevronLeft, Megaphone, Users, User, Hash, CheckCheck, X, CheckSquare, Lock, Info,
 } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
@@ -17,7 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useChannels, useMessages, useTypingIndicators, useChatActions } from '../../hooks/useChat';
 import {
-  subscribeUsers, getAllUsers, getChannel, createChannelWithId, getTasks,
+  subscribeUsers, getChannel, createChannelWithId, getTasks,
   createChannel, archiveChannel,
 } from '../../lib/firestore';
 import { uploadToSupabase, STORAGE_BUCKETS } from '../../lib/storage';

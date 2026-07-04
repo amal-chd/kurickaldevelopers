@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
-import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';

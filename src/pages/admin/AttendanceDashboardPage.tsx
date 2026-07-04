@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Shield, Calendar, Users, Clock, MapPin, CheckCircle,
+  Shield, Clock, MapPin, CheckCircle,
   XCircle, AlertTriangle, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import Card from '../../components/ui/Card';

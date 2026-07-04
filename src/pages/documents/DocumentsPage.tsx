@@ -1,21 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Upload, FileText, Search, Download, Eye, Trash2, Check, X, ChevronDown } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
-import Avatar from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { getDocuments, createDocument, deleteDocument, updateDocument, getProjects, getAllUsers } from '../../lib/firestore';
 import { uploadToSupabase, deleteFromSupabase, STORAGE_BUCKETS } from '../../lib/storage';
 import { Document as TDocument, Project, AppUser } from '../../types';
-import { formatDate, formatFileSize, getMimeIcon } from '../../lib/utils';
+import { formatFileSize, getMimeIcon } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { DocumentViewer } from './DocumentViewer';
 
@@ -147,13 +144,6 @@ const DocumentsPage: React.FC = () => {
       console.error(err);
       toast.error('Failed to delete document (permission denied)');
     }
-  };
-
-  const approvalBadge = (status: string) => {
-    const map: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
-      approved: 'success', pending: 'warning', rejected: 'danger', none: 'default',
-    };
-    return map[status] ?? 'default';
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;

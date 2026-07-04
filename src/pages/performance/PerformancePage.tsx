@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Trophy, TrendingUp, Zap, Award, Target, Users, Clock, ArrowRight,
-  ShieldAlert, RefreshCw, Star, Sparkles, Filter, ChevronRight, MessageSquare, ThumbsUp
+  Trophy, RefreshCw, Sparkles, MessageSquare
 } from 'lucide-react';
 import {
-  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+  ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
   BarChart, Bar
 } from 'recharts';
 import toast from 'react-hot-toast';
@@ -19,7 +17,6 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   getPerformanceScore,
   getAllPerformanceScores,
-  getPerformanceConfig,
   recalculatePerformanceScore,
   submitPerformanceReview,
   getAllUsers,
@@ -62,7 +59,8 @@ const PerformancePage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [reviewScore, setReviewScore] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState<string>('');
-  const [reviewType, setReviewType] = useState<'peer' | 'manager'>('peer');
+  // Review type is fixed to 'peer' for now (no selector in the UI yet).
+  const [reviewType] = useState<'peer' | 'manager'>('peer');
 
   const loadData = async () => {
     try {
@@ -88,6 +86,9 @@ const PerformancePage: React.FC = () => {
     if (userId) {
       loadData();
     }
+    // loadData is stable in behaviour and depends only on userId; including it
+    // would re-fetch on every render since it's recreated each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const handleRecalculate = async () => {

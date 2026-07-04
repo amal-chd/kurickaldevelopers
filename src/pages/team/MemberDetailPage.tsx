@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, Clock, CheckSquare, MessageSquare, X } from 'lucide-react';
+import { Mail, Phone, Calendar, CheckSquare, MessageSquare, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
@@ -12,7 +12,6 @@ import { AppUser, Role, Task, Attendance, PerformanceScore } from '../../types';
 import { formatDate, formatTime, getDuration } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { getDmChannelId } from '../../lib/utils';
-import { where } from 'firebase/firestore';
 
 const MemberDetailPage: React.FC = () => {
   const { id: userId } = useParams<{ id: string }>();

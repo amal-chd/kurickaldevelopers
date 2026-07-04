@@ -112,7 +112,7 @@ export function calculatePerformanceScore(
   });
 
   // Apply diminishing returns to weekly low-priority tasks (Anti-Gaming)
-  Object.entries(lowPriorityByWeek).forEach(([weekKey, tasks]) => {
+  Object.entries(lowPriorityByWeek).forEach(([, tasks]) => {
     tasks.forEach((t, index) => {
       const basePoints = config.priorityWeights.low;
       const complexityMultiplier = t.estimatedHours > 0 ? Math.min(Math.max(t.estimatedHours / 4, 0.5), 3.0) : 1.0;
@@ -274,7 +274,8 @@ export function calculatePerformanceScore(
   }
 
   // 4. Time Metrics & Efficiency
-  let totalEstHours = 0;
+  // (accumulated for potential reporting; only the ratio sum feeds the score)
+  let _totalEstHours = 0;
   let totalActHours = 0;
   let efficiencyRatiosSum = 0;
   let efficiencyTasksCount = 0;
@@ -285,7 +286,7 @@ export function calculatePerformanceScore(
     const actHours = progress?.actualHours || 0;
     
     if (t.estimatedHours > 0 && actHours > 0) {
-      totalEstHours += t.estimatedHours;
+      _totalEstHours += t.estimatedHours;
       totalActHours += actHours;
       const ratio = t.estimatedHours / actHours;
       efficiencyRatiosSum += Math.min(ratio, 2.0); // Cap individual ratio at 2.0

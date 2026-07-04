@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
 import { Search, Users, UserPlus, Mail, Phone, ChevronDown } from 'lucide-react';
-import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';

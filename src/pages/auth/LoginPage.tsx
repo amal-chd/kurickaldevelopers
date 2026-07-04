@@ -9,7 +9,6 @@ import {
 import { auth } from '../../firebase/config';
 import {
   Mail, Lock, Eye, EyeOff,
-  ArrowRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';

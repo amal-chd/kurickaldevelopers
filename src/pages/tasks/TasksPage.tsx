@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
-import { TaskStatusChip, PriorityChip, CompletionStatusChip } from '../../components/ui/StatusChip';
+import { PriorityChip, CompletionStatusChip } from '../../components/ui/StatusChip';
 import Avatar from '../../components/ui/Avatar';
 import Input from '../../components/ui/Input';
 import { useAuthStore } from '../../store/authStore';

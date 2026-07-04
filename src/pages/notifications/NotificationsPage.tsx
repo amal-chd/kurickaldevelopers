@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, CheckCheck, Info, AlertCircle, Megaphone, Clock, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, Info, AlertCircle, Megaphone, Clock } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';

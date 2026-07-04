@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Edit, Trash2, Users, CheckSquare, FileText, BookOpen,
+import { Edit, Trash2, Users, CheckSquare, FileText, BookOpen,
   Calendar, DollarSign, TrendingUp, X
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -17,7 +16,7 @@ import {
   deleteProject,
 } from '../../lib/firestore';
 import { Project, Task, AppUser, Document as TDocument, SiteDiaryEntry } from '../../types';
-import { formatDate, projectStatusLabel, projectStatusColor } from '../../lib/utils';
+import { formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import { where } from 'firebase/firestore';
 

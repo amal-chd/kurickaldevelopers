@@ -2,12 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, ZoomIn, ZoomOut, RotateCw, FileText, Download, Share2, Printer, 
-  ChevronLeft, ChevronRight, Search, Play, Pause, Volume2, Moon, Sun, 
-  Folder, File, Eye, ListFilter, AlertCircle
+  ChevronLeft, ChevronRight, Search, Moon, Sun, 
+  Folder, File, AlertCircle
 } from 'lucide-react';
 import { loadPdfJS, loadJSZip, loadDocxPreview, loadSheetJS } from '../../lib/lazyLoad';
 import { getCachedDocument, addRecentDocument } from '../../lib/documentCache';
-import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import Card from '../../components/ui/Card';
 import toast from 'react-hot-toast';
@@ -83,6 +82,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
   // Load and cache file
   useEffect(() => {
     let active = true;
+    // Track the URL created by THIS effect run so cleanup revokes the right
+    // one. (Revoking the `blobUrl` state here would read a stale closure —
+    // null on first run — leaking every object URL.)
+    let createdUrl: string | null = null;
     setLoading(true);
     setError(null);
 
@@ -92,6 +95,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
         if (!active) return;
         setFileBlob(blob);
         const bUrl = URL.createObjectURL(blob);
+        createdUrl = bUrl;
         setBlobUrl(bUrl);
 
         // Determine how to parse based on mimetype / extension
@@ -198,10 +202,14 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
     return () => {
       active = false;
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
       }
     };
+    // Intentionally keyed on doc.url only: the effect re-runs per document.
+    // doc.mimeType/doc.name always change together with doc.url, and blobUrl
+    // is produced BY this effect (tracked via createdUrl above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.url]);
 
   // Handle PDF page rendering on canvas

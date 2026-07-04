@@ -158,9 +158,6 @@ const DEFAULT_ROLES = [
   },
 ];
 
-// Known director email — this account always gets the director role on first sign-up
-const DIRECTOR_EMAIL = 'thomas@kurickaldevelopers.com';
-
 // Role assigned by email when no admin has manually set a role yet
 const EMAIL_ROLE_MAP: Record<string, string> = {
   'thomas@kurickaldevelopers.com': 'director',

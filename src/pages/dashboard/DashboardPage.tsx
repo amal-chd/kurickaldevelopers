@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare, FolderOpen, Users, Clock, Plus, ArrowRight,
-  TrendingUp, AlertCircle, Zap, Calendar, RefreshCw, Trophy,
+  TrendingUp, AlertCircle, Zap, Calendar, Trophy,
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -29,9 +29,6 @@ const DashboardPage: React.FC = () => {
   // Track which of the three subscriptions have fired at least once
   const [ready, setReady] = useState({ projects: false, tasks: false, users: false });
 
-  const markReady = (key: keyof typeof ready) =>
-    setReady((prev) => ({ ...prev, [key]: true }));
-
   const loading = !ready.projects || !ready.tasks || !ready.users;
 
   useEffect(() => {
@@ -40,6 +37,11 @@ const DashboardPage: React.FC = () => {
 
     // Reset ready state when changing user
     setReady({ projects: false, tasks: false, users: false });
+
+    // Defined inside the effect so the subscription callbacks never capture a
+    // stale closure (and the exhaustive-deps rule is satisfied).
+    const markReady = (key: 'projects' | 'tasks' | 'users') =>
+      setReady((prev) => ({ ...prev, [key]: true }));
 
     // onSnapshot subscriptions automatically re-run when the auth token
     // refreshes, so they recover from the initial permission-denied race

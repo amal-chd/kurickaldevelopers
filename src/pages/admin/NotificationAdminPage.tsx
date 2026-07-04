@@ -6,7 +6,6 @@ import Input from '../../components/ui/Input';
 import EmptyState from '../../components/ui/EmptyState';
 import Avatar from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
-import { useAuthStore } from '../../store/authStore';
 import { createNotification, getAllUsers, getAllRoles } from '../../lib/firestore';
 import { notifyPush } from '../../lib/push';
 import { AppUser, AppNotification, Role } from '../../types';
@@ -24,7 +23,6 @@ const NOTIFICATION_TYPES = [
 
 const NotificationAdminPage: React.FC = () => {
   const { can } = usePermissions();
-  const { appUser } = useAuthStore();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [recentNotifs, setRecentNotifs] = useState<AppNotification[]>([]);

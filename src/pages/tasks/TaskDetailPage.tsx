@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
+import { Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
   CheckSquare, Plus, Check, AlertCircle, ChevronDown, X
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -15,16 +14,16 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
   getTask, getAllUsers, getSubtasks, addSubtask, updateSubtask, deleteSubtask,
-  updateTask, deleteTask, getProject, sendMessage, getChannel, createChannelWithId,
-  createNotification, getRole, getAllRoles,
+  updateTask, deleteTask, getProject, sendMessage, getChannel,
+  createNotification, getAllRoles,
 } from '../../lib/firestore';
 import { Task, Subtask, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
-import { formatDate, formatDateTime, taskStatusLabel, getDmChannelId, calculateCompletionDetails, formatDelay } from '../../lib/utils';
+import { formatDate, taskStatusLabel, calculateCompletionDetails, formatDelay } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
 import { isAfter } from 'date-fns';
-import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },

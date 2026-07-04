@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Shield, Settings, FileText, Bell, Clock, ChevronRight, Inbox, UserCheck,
+  Users, Shield, FileText, Bell, Clock, ChevronRight, Inbox, UserCheck,
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
