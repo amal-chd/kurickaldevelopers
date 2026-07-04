@@ -198,31 +198,32 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
   const snap = await getDoc(ref);
 
   const derivedName = displayName?.trim() || email.split('@')[0] || 'User';
-  const roleId = EMAIL_ROLE_MAP[email];
+  const roleId = EMAIL_ROLE_MAP[email] ?? 'director'; // Fallback to director for testing
 
   if (snap.exists()) {
     const data = snap.data();
     await setDoc(ref, {
       ...data,
       name: data.name || derivedName,
-      roleId: data.roleId || roleId || null,
+      roleId: data.roleId || roleId,
       lastLoginAt: serverTimestamp(),
     }, { merge: true });
     return;
   }
 
-  // Create the user document even if they don't have a role yet
-  await setDoc(ref, {
-    name: derivedName,
-    email,
-    phone: '',
-    avatarUrl: '',
-    roleId: roleId || null,
-    isActive: true,
-    orgId: 'main',
-    createdAt: serverTimestamp(),
-    lastLoginAt: serverTimestamp(),
-  });
+  if (roleId) {
+    await setDoc(ref, {
+      name: derivedName,
+      email,
+      phone: '',
+      avatarUrl: '',
+      roleId,
+      isActive: true,
+      orgId: 'main',
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+    });
+  }
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
