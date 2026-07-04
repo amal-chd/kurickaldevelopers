@@ -89,7 +89,7 @@ const ProjectDetailPage: React.FC = () => {
   };
 
   const members = users.filter((u) => project.memberIds?.includes(u.id));
-  const manager = users.find((u) => u.id === project.managerId);
+  const manager = users.find((u) => u.id === project.projectManagerId);
   const tasksByStatus = {
     in_progress: tasks.filter((t) => getTaskStatus(t) === 'in_progress').length,
     approved: tasks.filter((t) => getTaskStatus(t) === 'approved').length,
@@ -218,9 +218,9 @@ const ProjectDetailPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <Calendar className="w-4 h-4 text-gray-400" />
-                <span>End: {formatDate(project.endDate)}</span>
+                <span>End: {formatDate(project.expectedEndDate)}</span>
               </div>
-              {project.budget > 0 && (
+              {project.budget !== undefined && project.budget > 0 && (
                 <div className="flex items-center gap-2 text-gray-600">
                   <DollarSign className="w-4 h-4 text-gray-400" />
                   <span>Budget: ${project.budget.toLocaleString()}</span>
@@ -336,7 +336,7 @@ const ProjectDetailPage: React.FC = () => {
                 <p className="text-sm font-semibold text-gray-900 truncate">{member.name}</p>
                 <p className="text-xs text-gray-500 truncate">{member.email || member.phone}</p>
               </div>
-              {member.id === project.managerId && (
+              {member.id === project.projectManagerId && (
                 <Badge variant="info" size="sm">Manager</Badge>
               )}
             </Card>

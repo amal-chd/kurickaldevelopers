@@ -24,6 +24,7 @@ const ALL_PERMISSIONS: (keyof Permissions)[] = [
   'chat_view', 'chat_send', 'chat_create_group', 'chat_announce', 'chat_moderate',
   'attendance_view_all',
   'contact_view', 'contact_manage',
+  'performance_view', 'performance_manage',
 ];
 
 const RoleManagementPage: React.FC = () => {

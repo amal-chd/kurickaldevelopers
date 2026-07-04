@@ -4,7 +4,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getUser, getRole } from '../lib/firestore';
-import { registerFcm } from '../lib/fcm';
+import { registerFcm, clearFcmToken } from '../lib/fcm';
 
 // ─── Default roles seeded on first boot ─────────────────────────────────────
 
@@ -308,5 +308,9 @@ export function useAuthInit() {
 }
 
 export async function logout() {
+  // Detach this browser's push token first (best-effort) so a shared device
+  // stops receiving the signed-out user's notifications.
+  const uid = auth.currentUser?.uid;
+  if (uid) await clearFcmToken(uid);
   await signOut(auth);
 }

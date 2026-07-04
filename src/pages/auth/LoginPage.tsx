@@ -104,7 +104,7 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex">
 
       {/* ── Left branding panel ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 bg-gradient-to-br from-[#060f1e] via-[#1A3A5C] to-[#0d2540] p-12 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 bg-gradient-to-br from-[#020617] via-[#0F172A] to-[#1E293B] p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
           backgroundSize: '48px 48px',

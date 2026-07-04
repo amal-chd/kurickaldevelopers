@@ -57,14 +57,14 @@ export interface AppUser {
   name: string;
   email: string;
   phone: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   roleId: string;
   isActive: boolean;
   orgId: string;
-  createdAt?: any;
-  lastLoginAt?: any;
+  createdAt?: Timestamp;
+  lastLoginAt?: Timestamp;
   projectIds?: string[];
-  notificationsEnabled?: boolean;
+  fcmToken?: string;
   biometricEnabled?: boolean;
   preferences?: {
     announcements: boolean;
@@ -74,20 +74,26 @@ export interface AppUser {
 }
 
 // ─── Project ──────────────────────────────────────────────────────────────────
-export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+export type ProjectStatus = 'active' | 'on_hold' | 'completed';
+export type HealthStatus = 'green' | 'amber' | 'red';
 
 export interface Project {
   id: string;
   name: string;
   description: string;
+  siteAddress: string;
+  clientName: string;
   status: ProjectStatus;
-  // Optional: a project without a defined start/end date is valid (open-ended).
-  startDate?: Timestamp;
-  endDate?: Timestamp;
+  startDate: Timestamp;
+  expectedEndDate: Timestamp;
+  actualEndDate?: Timestamp;
   memberIds: string[];
-  managerId: string;
-  budget: number;
-  createdAt?: Timestamp;
+  projectManagerId: string;
+  progressPercent: number;
+  healthStatus: HealthStatus;
+  budget?: number;
+  createdAt: Timestamp;
+  siteCoordinates?: { latitude: number, longitude: number };
 }
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
@@ -107,17 +113,28 @@ export interface Task {
   title: string;
   description: string;
   projectId: string;
+  milestoneId?: string;
   assigneeIds: string[];
   assignedRoleId?: string;
   assignedRoleIds?: string[];
   createdBy: string;
   status: TaskStatus;
   priority: TaskPriority;
-  // Optional: tasks created without a due date are valid (e.g. ongoing work).
-  dueDate?: Timestamp;
+  dueDate: Timestamp;
   estimatedHours: number;
+  actualHours?: number;
   tags: string[];
+  dependsOn?: string[];
+  isRecurring?: boolean;
+  recurrenceRule?: string;
+  isTemplate?: boolean;
+  attachmentUrls?: string[];
+  photoUrls?: string[];
   approvalStatus: ApprovalStatus;
+  approvedBy?: string;
+  approvedAt?: Timestamp;
+  slaDeadline?: Timestamp;
+  slaBreached?: boolean;
   memberProgress?: Record<string, {
     status: TaskStatus;
     updatedAt?: Timestamp;
@@ -127,8 +144,8 @@ export interface Task {
     completionStatus?: 'completed' | 'completed_on_time' | 'completed_late';
     delaySeconds?: number;
   }>;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   completedAt?: Timestamp;
   completionStatus?: 'completed' | 'completed_on_time' | 'completed_late';
   delaySeconds?: number;

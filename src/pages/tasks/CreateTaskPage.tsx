@@ -138,21 +138,21 @@ const CreateTaskPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Omit dueDate entirely when blank rather than writing undefined/now —
-      // Firestore rejects undefined, and Timestamp.now() fabricated overdue tasks.
-      const data: Omit<Task, 'id' | 'dueDate'> & { dueDate?: Task['dueDate'] } = {
+      const data: Omit<Task, 'id'> = {
         title: form.title.trim(),
         description: form.description.trim(),
         projectId: form.projectId,
         status: form.status,
         priority: form.priority,
-        ...(form.dueDate ? { dueDate: Timestamp.fromDate(new Date(form.dueDate)) } : {}),
+        dueDate: form.dueDate ? Timestamp.fromDate(new Date(form.dueDate)) : Timestamp.now(),
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
         assignedRoleIds: form.assignedRoleIds,
         createdBy: appUser.id,
         approvalStatus: 'none' as const,
+        createdAt: isEdit && taskId ? (await getTask(taskId))?.createdAt || Timestamp.now() : Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
 
       if (isEdit && taskId) {

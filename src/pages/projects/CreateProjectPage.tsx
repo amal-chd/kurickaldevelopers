@@ -28,12 +28,15 @@ const CreateProjectPage: React.FC = () => {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    status: 'planning' as ProjectStatus,
+    siteAddress: '',
+    clientName: '',
+    status: 'active' as ProjectStatus,
     startDate: '',
-    endDate: '',
+    expectedEndDate: '',
     budget: '',
-    managerId: '',
+    projectManagerId: '',
     memberIds: [] as string[],
+    healthStatus: 'green' as any,
   });
 
   useEffect(() => {
@@ -46,12 +49,15 @@ const CreateProjectPage: React.FC = () => {
           setForm({
             name: p.name,
             description: p.description,
+            siteAddress: p.siteAddress || '',
+            clientName: p.clientName || '',
             status: p.status,
             startDate: p.startDate?.toDate().toISOString().split('T')[0] ?? '',
-            endDate: p.endDate?.toDate().toISOString().split('T')[0] ?? '',
+            expectedEndDate: p.expectedEndDate?.toDate().toISOString().split('T')[0] ?? '',
             budget: String(p.budget ?? ''),
-            managerId: p.managerId,
+            projectManagerId: p.projectManagerId,
             memberIds: p.memberIds ?? [],
+            healthStatus: p.healthStatus || 'green',
           });
         }
       }
@@ -75,39 +81,41 @@ const CreateProjectPage: React.FC = () => {
       toast.error('Project name is required');
       return;
     }
-    if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
-      toast.error('End date cannot be before the start date');
+    if (form.startDate && form.expectedEndDate && new Date(form.expectedEndDate) < new Date(form.startDate)) {
+      toast.error('Expected end date cannot be before the start date');
       return;
     }
     setLoading(true);
     try {
       // Omit start/end date entirely when blank — Firestore rejects undefined,
       // and Timestamp.now() defaults previously polluted project timelines.
-      const data: Omit<Project, 'id' | 'startDate' | 'endDate'> &
-        Pick<Project, 'startDate' | 'endDate'> = {
+      const data: Omit<Project, 'id' | 'startDate' | 'expectedEndDate'> &
+        Pick<Project, 'startDate' | 'expectedEndDate'> = {
         name: form.name.trim(),
         description: form.description.trim(),
+        siteAddress: form.siteAddress.trim(),
+        clientName: form.clientName.trim(),
         status: form.status,
-        ...(form.startDate ? { startDate: Timestamp.fromDate(new Date(form.startDate)) } : {}),
-        ...(form.endDate ? { endDate: Timestamp.fromDate(new Date(form.endDate)) } : {}),
+        ...(form.startDate ? { startDate: Timestamp.fromDate(new Date(form.startDate)) } : { startDate: Timestamp.now() }),
+        ...(form.expectedEndDate ? { expectedEndDate: Timestamp.fromDate(new Date(form.expectedEndDate)) } : { expectedEndDate: Timestamp.now() }),
         budget: Number(form.budget) || 0,
-        managerId: form.managerId || appUser.id,
-        // Always keep the manager (and creator) in the member list so they
-        // retain access — membership is the canonical access signal.
+        projectManagerId: form.projectManagerId || appUser.id,
+        progressPercent: isEdit && projectId ? (await getProject(projectId))?.progressPercent || 0 : 0,
+        healthStatus: form.healthStatus,
+        createdAt: isEdit && projectId ? (await getProject(projectId))?.createdAt || Timestamp.now() : Timestamp.now(),
         memberIds: Array.from(
-          new Set([...form.memberIds, form.managerId || appUser.id, appUser.id].filter(Boolean)),
+          new Set([...form.memberIds, form.projectManagerId || appUser.id, appUser.id].filter(Boolean)),
         ),
       };
 
       if (isEdit && projectId) {
         await updateProject(projectId, data);
-        // Keep the project chat membership in sync with the project members.
-        await syncProjectChannel(projectId, data.name, data.memberIds, data.managerId).catch(() => {});
+        await syncProjectChannel(projectId, data.name, data.memberIds, data.projectManagerId).catch(() => {});
         toast.success('Project updated');
         navigate(`/app/projects/${projectId}`);
       } else {
         const id = await createProject(data);
-        await syncProjectChannel(id, data.name, data.memberIds, data.managerId).catch(() => {});
+        await syncProjectChannel(id, data.name, data.memberIds, data.projectManagerId).catch(() => {});
         toast.success('Project created');
         navigate(`/app/projects/${id}`);
       }
@@ -160,18 +168,42 @@ const CreateProjectPage: React.FC = () => {
               rows={3}
             />
             <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Site Address"
+                placeholder="Site Address"
+                value={form.siteAddress}
+                onChange={(e) => setForm((p) => ({ ...p, siteAddress: e.target.value }))}
+              />
+              <Input
+                label="Client Name"
+                placeholder="Client Name"
+                value={form.clientName}
+                onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <Select
                 label="Status"
                 value={form.status}
                 onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as ProjectStatus }))}
                 options={[
-                  { value: 'planning', label: 'Planning' },
                   { value: 'active', label: 'Active' },
                   { value: 'on_hold', label: 'On Hold' },
                   { value: 'completed', label: 'Completed' },
-                  { value: 'cancelled', label: 'Cancelled' },
                 ]}
               />
+              <Select
+                label="Health Status"
+                value={form.healthStatus}
+                onChange={(e) => setForm((p) => ({ ...p, healthStatus: e.target.value as any }))}
+                options={[
+                  { value: 'green', label: 'Green (On Track)' },
+                  { value: 'amber', label: 'Amber (At Risk)' },
+                  { value: 'red', label: 'Red (Delayed)' },
+                ]}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Budget ($)"
                 type="number"
@@ -179,6 +211,13 @@ const CreateProjectPage: React.FC = () => {
                 value={form.budget}
                 onChange={(e) => setForm((p) => ({ ...p, budget: e.target.value }))}
                 min="0"
+              />
+              <Select
+                label="Project Manager"
+                value={form.projectManagerId}
+                onChange={(e) => setForm((p) => ({ ...p, projectManagerId: e.target.value }))}
+                options={users.map((u) => ({ value: u.id, label: u.name }))}
+                placeholder="Select manager"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -189,19 +228,12 @@ const CreateProjectPage: React.FC = () => {
                 onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
               />
               <Input
-                label="End Date"
+                label="Expected End Date"
                 type="date"
-                value={form.endDate}
-                onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
+                value={form.expectedEndDate}
+                onChange={(e) => setForm((p) => ({ ...p, expectedEndDate: e.target.value }))}
               />
             </div>
-            <Select
-              label="Manager"
-              value={form.managerId}
-              onChange={(e) => setForm((p) => ({ ...p, managerId: e.target.value }))}
-              options={users.map((u) => ({ value: u.id, label: u.name }))}
-              placeholder="Select manager"
-            />
           </div>
         </Card>
 

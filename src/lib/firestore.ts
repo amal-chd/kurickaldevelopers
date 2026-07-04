@@ -722,10 +722,10 @@ export const syncProjectChannel = async (
   projectId: string,
   projectName: string,
   memberIds: string[],
-  managerId: string,
+  projectManagerId: string,
 ): Promise<void> => {
   const id = projectChannelId(projectId);
-  const members = Array.from(new Set([...memberIds, managerId].filter(Boolean)));
+  const members = Array.from(new Set([...memberIds, projectManagerId].filter(Boolean)));
   const existing = await getChannel(id);
   if (existing) {
     await updateChannel(id, { name: projectName, memberIds: members });
@@ -733,9 +733,9 @@ export const syncProjectChannel = async (
     await createChannelWithId(id, {
       type: 'project',
       name: projectName,
-      createdBy: managerId,
+      createdBy: projectManagerId,
       memberIds: members,
-      adminIds: managerId ? [managerId] : [],
+      adminIds: projectManagerId ? [projectManagerId] : [],
       lastMessageText: 'Project channel created',
       lastMessageBy: '',
       unreadCounts: {},

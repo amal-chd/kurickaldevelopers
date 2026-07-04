@@ -78,7 +78,6 @@ const ReportsPage: React.FC = () => {
 
   // Project status distribution (not date-filtered; projects are long-lived)
   const projectStatusData = [
-    { name: 'Planning', value: projects.filter((p) => p.status === 'planning').length },
     { name: 'Active', value: projects.filter((p) => p.status === 'active').length },
     { name: 'On Hold', value: projects.filter((p) => p.status === 'on_hold').length },
     { name: 'Completed', value: projects.filter((p) => p.status === 'completed').length },

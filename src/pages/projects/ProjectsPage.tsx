@@ -20,7 +20,9 @@ const STATUS_STYLES: Record<string, { label: string; badge: string; bar: string;
   cancelled: { label: 'Cancelled',  badge: 'bg-red-50 text-red-600 border-red-100',           bar: 'bg-red-400',     border: 'border-t-red-400' },
 };
 
-const STATUS_FILTERS = ['all', 'active', 'planning', 'on_hold', 'completed', 'cancelled'];
+// Filter chips match the current ProjectStatus union. STATUS_STYLES keeps
+// legacy entries so old documents with retired statuses still render.
+const STATUS_FILTERS = ['all', 'active', 'on_hold', 'completed'];
 
 const ProjectsPage: React.FC = () => {
   const { can } = usePermissions();
@@ -68,7 +70,7 @@ const ProjectsPage: React.FC = () => {
   const scopedProjects = canViewAll
     ? projects
     : projects.filter(
-        (p) => p.memberIds?.includes(appUser?.id ?? '') || p.managerId === appUser?.id,
+        (p) => p.memberIds?.includes(appUser?.id ?? '') || p.projectManagerId === appUser?.id,
       );
 
   const filtered = scopedProjects.filter((p) => {
@@ -146,9 +148,9 @@ const ProjectsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((project) => {
-            const progress = getProgress(project.id);
-            const style = STATUS_STYLES[project.status] ?? STATUS_STYLES.planning;
-            const manager = users.find((u) => u.id === project.managerId);
+            const progress = project.progressPercent || getProgress(project.id);
+            const style = STATUS_STYLES[project.status] ?? STATUS_STYLES.active;
+            const manager = users.find((u) => u.id === project.projectManagerId);
             const taskCount = tasks.filter((t) => t.projectId === project.id).length;
 
             return (
@@ -195,10 +197,10 @@ const ProjectsPage: React.FC = () => {
                       <TrendingUp className="w-3.5 h-3.5" />
                       {taskCount} tasks
                     </span>
-                    {project.endDate && (
+                    {project.expectedEndDate && (
                       <span className="flex items-center gap-1.5 ml-auto">
                         <Calendar className="w-3.5 h-3.5" />
-                        {formatDate(project.endDate)}
+                        {formatDate(project.expectedEndDate)}
                       </span>
                     )}
                   </div>

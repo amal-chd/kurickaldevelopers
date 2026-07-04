@@ -8,7 +8,10 @@ import { app, db } from '../firebase/config';
 // is disabled gracefully — in-app notifications still work.
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
 
-let _registered = false;
+// Track which uid this browser's token is registered to, so signing out and
+// back in as a DIFFERENT user re-registers the token on the new user's doc
+// (otherwise pushes would keep going to the previous account).
+let _registeredUid: string | null = null;
 
 /**
  * Registers this browser for FCM push and stores its token on the user doc so
@@ -17,7 +20,7 @@ let _registered = false;
  */
 export async function registerFcm(uid: string): Promise<void> {
   try {
-    if (_registered || !uid || !VAPID_KEY) return;
+    if (_registeredUid === uid || !uid || !VAPID_KEY) return;
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (!('serviceWorker' in navigator)) return;
     if (!(await isSupported())) return;
@@ -45,7 +48,7 @@ export async function registerFcm(uid: string): Promise<void> {
     });
     if (token) {
       await setDoc(doc(db, 'users', uid), { fcmToken: token }, { merge: true });
-      _registered = true;
+      _registeredUid = uid;
     }
 
     // Foreground messages don't fire the SW handler — surface them as a toast.
@@ -55,5 +58,19 @@ export async function registerFcm(uid: string): Promise<void> {
     });
   } catch (err) {
     console.warn('FCM registration failed (push disabled):', err);
+  }
+}
+
+/**
+ * Best-effort: detach this browser's push token from the user doc on logout,
+ * so a shared device doesn't keep receiving the previous user's notifications.
+ */
+export async function clearFcmToken(uid: string): Promise<void> {
+  try {
+    if (!uid) return;
+    await setDoc(doc(db, 'users', uid), { fcmToken: '' }, { merge: true });
+    _registeredUid = null;
+  } catch {
+    // Non-fatal — token cleanup must never block sign-out.
   }
 }
