@@ -100,23 +100,20 @@ function App() {
               <Route path="dashboard" element={<DashboardPage />} />
 
               {/* Tasks */}
-              <Route path="tasks" element={<TasksPage />}>
-                <Route path=":id" element={<TaskDetailPage />} />
-              </Route>
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="tasks/:id" element={<TaskDetailPage />} />
               <Route path="tasks/create" element={<CreateTaskPage />} />
               <Route path="tasks/:taskId/edit" element={<CreateTaskPage />} />
 
               {/* Projects */}
-              <Route path="projects" element={<ProjectsPage />}>
-                <Route path=":id" element={<ProjectDetailPage />} />
-              </Route>
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="projects/:id" element={<ProjectDetailPage />} />
               <Route path="projects/create" element={<CreateProjectPage />} />
               <Route path="projects/:projectId/edit" element={<CreateProjectPage />} />
 
               {/* Team */}
-              <Route path="team" element={<TeamPage />}>
-                <Route path=":id" element={<MemberDetailPage />} />
-              </Route>
+              <Route path="team" element={<TeamPage />} />
+              <Route path="team/:id" element={<MemberDetailPage />} />
 
               {/* Other */}
               <Route path="documents" element={<DocumentsPage />} />

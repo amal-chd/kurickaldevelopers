@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus, FolderOpen, Users, Calendar, TrendingUp, Search } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
@@ -218,7 +218,7 @@ const ProjectsPage: React.FC = () => {
           })}
         </div>
       )}
-      <Outlet />
+
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus, List, LayoutGrid, Search, AlertCircle, CheckSquare, Calendar, ChevronDown } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -339,7 +339,7 @@ const TasksPage: React.FC = () => {
           </Card>
         </div>
       )}
-      <Outlet />
+
     </div>
   );
 };

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line,
+  PieChart, Pie, Cell, Legend, AreaChart, Area
 } from 'recharts';
-import { Download, AlertCircle } from 'lucide-react';
+import { Download, AlertCircle, TrendingUp, Users, FolderOpen, Target, Calendar, CheckCircle } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -14,7 +14,25 @@ import { Task, Project, AppUser } from '../../types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const COLORS = ['#334155', '#F59E0B', '#22C55E', '#EF4444', '#8B5CF6', '#06B6D4'];
+// Modern Tailwind-inspired palette
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white border border-slate-100 p-3 rounded-xl shadow-lg shadow-slate-200/50">
+        <p className="font-semibold text-slate-800 text-sm mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center justify-between gap-4 text-sm font-medium">
+            <span style={{ color: entry.color || entry.fill }}>{entry.name}:</span>
+            <span className="text-slate-900">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 const ReportsPage: React.FC = () => {
   const { can } = usePermissions();
@@ -27,8 +45,6 @@ const ReportsPage: React.FC = () => {
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
-    // Gate the fetch behind the permission so users without reports_view don't
-    // trigger Firestore reads that would either fail or return empty.
     if (!canView) {
       setLoading(false);
       return;
@@ -51,9 +67,9 @@ const ReportsPage: React.FC = () => {
 
   if (!canView) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-full min-h-[50vh]">
         <EmptyState
-          icon={<AlertCircle className="w-8 h-8" />}
+          icon={<AlertCircle className="w-12 h-12 text-rose-500" />}
           title="Access Denied"
           description="You don't have permission to view reports."
         />
@@ -61,37 +77,35 @@ const ReportsPage: React.FC = () => {
     );
   }
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+  if (loading) return <div className="flex items-center justify-center h-full min-h-[50vh]"><Spinner size="lg" /></div>;
 
-  // Apply the date-range filter to the data feeding all charts.
   const rangeStart = startOfDay(new Date(startDate));
   const rangeEnd = endOfDay(new Date(endDate));
   const inRange = (d?: Date | null) => !!d && d >= rangeStart && d <= rangeEnd;
   const filteredTasks = tasks.filter((t) => inRange(t.createdAt?.toDate()));
 
-  // Task completion by status (filtered by date range)
+  // Task Status Data
   const taskStatusData = [
     { name: 'In Progress', value: filteredTasks.filter((t) => t.status === 'in_progress').length, fill: COLORS[0] },
-    { name: 'Approved', value: filteredTasks.filter((t) => t.status === 'approved').length, fill: COLORS[1] },
-    { name: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length, fill: COLORS[2] },
+    { name: 'Approved', value: filteredTasks.filter((t) => t.status === 'approved').length, fill: COLORS[2] },
+    { name: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length, fill: COLORS[1] },
   ];
 
-  // Project status distribution (not date-filtered; projects are long-lived)
+  // Project Status Data
   const projectStatusData = [
-    { name: 'Active', value: projects.filter((p) => p.status === 'active').length },
-    { name: 'On Hold', value: projects.filter((p) => p.status === 'on_hold').length },
-    { name: 'Completed', value: projects.filter((p) => p.status === 'completed').length },
+    { name: 'Active', value: projects.filter((p) => p.status === 'active').length, fill: COLORS[0] },
+    { name: 'On Hold', value: projects.filter((p) => p.status === 'on_hold').length, fill: COLORS[2] },
+    { name: 'Completed', value: projects.filter((p) => p.status === 'completed').length, fill: COLORS[1] },
   ].filter((d) => d.value > 0);
 
-  // Tasks per member (filtered)
+  // Member Productivity
   const memberProductivity = users.map((u) => ({
     name: (u.name || u.email || 'User').split(' ')[0],
     tasks: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id)).length,
     done: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id) && t.status === 'done').length,
   })).filter((m) => m.tasks > 0).sort((a, b) => b.tasks - a.tasks).slice(0, 10);
 
-  // Task activity trend across the selected date range, bucketed daily
-  // (capped at 30 buckets to keep the chart readable).
+  // Daily Buckets (Task Activity Trend)
   const rangeDays = Math.min(
     30,
     Math.max(1, Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / 86400000) + 1),
@@ -111,11 +125,11 @@ const ReportsPage: React.FC = () => {
     };
   });
 
-  // Priority distribution (filtered)
+  // Priority Data
   const priorityData = [
     { name: 'Low', value: filteredTasks.filter((t) => t.priority === 'low').length, fill: COLORS[5] },
     { name: 'Medium', value: filteredTasks.filter((t) => t.priority === 'medium').length, fill: COLORS[0] },
-    { name: 'High', value: filteredTasks.filter((t) => t.priority === 'high').length, fill: COLORS[1] },
+    { name: 'High', value: filteredTasks.filter((t) => t.priority === 'high').length, fill: COLORS[2] },
     { name: 'Critical', value: filteredTasks.filter((t) => t.priority === 'critical').length, fill: COLORS[3] },
   ].filter((d) => d.value > 0);
 
@@ -155,189 +169,260 @@ const ReportsPage: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('CSV exported');
+    toast.success('CSV exported successfully');
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Reports & Analytics</h2>
-        {can('reports_export') && (
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-4 h-4" />} onClick={handleExportCsv}>
-            Export CSV
-          </Button>
-        )}
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto animate-fade-in">
+      
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 p-8 rounded-3xl shadow-lg">
+        <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+          <TrendingUp className="w-64 h-64 text-white" />
+        </div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="text-white">
+            <h1 className="text-3xl font-extrabold tracking-tight mb-2">Reports & Analytics</h1>
+            <p className="text-blue-50 font-medium max-w-xl text-sm leading-relaxed">
+              Visualize your team's productivity, track project health, and export detailed task data for deep analysis.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            {can('reports_export') && (
+              <Button
+                size="md"
+                leftIcon={<Download className="w-4 h-4 text-indigo-600" />}
+                onClick={handleExportCsv}
+                className="bg-white text-indigo-600 hover:bg-slate-50 border-none shadow-md whitespace-nowrap"
+              >
+                Export CSV
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Date filter */}
-      <Card className="flex flex-wrap items-center gap-3">
-        <p className="text-sm font-medium text-slate-700">Date Range:</p>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-slate-800"
-        />
-        <span className="text-slate-400 text-sm">to</span>
-        <input
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="px-3.5 h-10 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xs transition-all text-slate-800"
-        />
-      </Card>
+      {/* Filter Bar */}
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-4 w-fit">
+        <div className="flex items-center gap-2 pl-3">
+          <Calendar className="w-4 h-4 text-slate-400" />
+          <span className="text-sm font-semibold text-slate-700">Date Range</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
+          <span className="text-slate-400 text-sm font-medium">to</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
+        </div>
+      </div>
 
-      {/* Summary stats */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Tasks', value: totalTasks, color: 'text-blue-600', dot: 'bg-blue-500' },
-          { label: 'Completion Rate', value: `${completionRate}%`, color: 'text-emerald-600', dot: 'bg-emerald-500' },
-          { label: 'Active Projects', value: projects.filter((p) => p.status === 'active').length, color: 'text-violet-600', dot: 'bg-violet-500' },
-          { label: 'Team Members', value: users.length, color: 'text-amber-600', dot: 'bg-amber-500' },
+          { label: 'Total Tasks', value: totalTasks, icon: Target, gradient: 'from-blue-500 to-indigo-500' },
+          { label: 'Completion Rate', value: `${completionRate}%`, icon: CheckCircle, gradient: 'from-emerald-500 to-teal-500' },
+          { label: 'Active Projects', value: projects.filter((p) => p.status === 'active').length, icon: FolderOpen, gradient: 'from-violet-500 to-purple-500' },
+          { label: 'Team Members', value: users.length, icon: Users, gradient: 'from-amber-500 to-orange-500' },
         ].map((s) => (
-          <Card key={s.label} className="relative overflow-hidden">
-            <span className={`absolute top-0 left-0 h-full w-1 ${s.dot}`} />
-            <p className={`text-3xl font-bold tracking-tight ${s.color}`}>{s.value}</p>
-            <p className="text-sm text-slate-500 mt-1 font-medium">{s.label}</p>
+          <Card key={s.label} className="group hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden border-none shadow-sm">
+            <div className={`absolute inset-0 opacity-10 bg-gradient-to-br ${s.gradient}`} />
+            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${s.gradient} rounded-full blur-3xl opacity-20 -mr-8 -mt-8`} />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className={`p-3 rounded-2xl bg-gradient-to-br ${s.gradient} shadow-sm text-white`}>
+                <s.icon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-3xl font-black text-slate-900 tracking-tight">{s.value}</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</p>
+              </div>
+            </div>
           </Card>
         ))}
       </div>
 
+      {/* Main Activity Chart */}
+      <Card className="hover:shadow-card-hover transition-all duration-300">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+          <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-indigo-500" /> Task Activity Trend
+          </h3>
+        </div>
+        <div className="h-[350px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={dailyBuckets} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS[0]} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={COLORS[0]} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorDone" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={COLORS[1]} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={COLORS[1]} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 500 }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 500 }} dx={-10} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 600 }} />
+              <Area type="monotone" dataKey="created" name="Tasks Created" stroke={COLORS[0]} strokeWidth={3} fillOpacity={1} fill="url(#colorCreated)" />
+              <Area type="monotone" dataKey="done" name="Tasks Completed" stroke={COLORS[1]} strokeWidth={3} fillOpacity={1} fill="url(#colorDone)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Task Status Distribution */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Task Status Distribution</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={taskStatusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {taskStatusData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Project Status */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Project Status</h3>
-          {projectStatusData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={projectStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                  labelLine={false}
-                >
-                  {projectStatusData.map((_, idx) => (
-                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+        
+        {/* Status Distribution */}
+        <Card className="hover:shadow-card-hover transition-all duration-300">
+          <h3 className="font-bold text-lg text-slate-900 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2">
+            <Target className="w-5 h-5 text-indigo-500" /> Task Status Overview
+          </h3>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={taskStatusData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 500 }} dx={-10} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
+                <Bar dataKey="value" name="Tasks" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                  {taskStatusData.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.fill} />
                   ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No project data</div>
-          )}
-        </Card>
-
-        {/* Task Trend (across selected date range) */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Task Activity</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={dailyBuckets}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="created" stroke={COLORS[0]} name="Created" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="done" stroke={COLORS[2]} name="Completed" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          </div>
         </Card>
 
         {/* Team Productivity */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Team Productivity</h3>
+        <Card className="hover:shadow-card-hover transition-all duration-300">
+          <h3 className="font-bold text-lg text-slate-900 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2">
+            <Users className="w-5 h-5 text-emerald-500" /> Top Performers
+          </h3>
           {memberProductivity.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={memberProductivity} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={60} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="tasks" name="Assigned" fill={COLORS[0]} radius={[0, 4, 4, 0]} />
-                <Bar dataKey="done" name="Done" fill={COLORS[2]} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={memberProductivity} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#475569', fontWeight: 600 }} width={70} />
+                  <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip />} />
+                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px', fontSize: '13px', fontWeight: 600 }} />
+                  <Bar dataKey="tasks" name="Assigned" fill={COLORS[0]} radius={[0, 4, 4, 0]} maxBarSize={16} />
+                  <Bar dataKey="done" name="Completed" fill={COLORS[1]} radius={[0, 4, 4, 0]} maxBarSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No data</div>
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm italic">No team productivity data</div>
           )}
         </Card>
 
-        {/* Priority Distribution */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Task Priority Distribution</h3>
+        {/* Priority Donut */}
+        <Card className="hover:shadow-card-hover transition-all duration-300">
+          <h3 className="font-bold text-lg text-slate-900 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-500" /> Priority Distribution
+          </h3>
           {priorityData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie
-                  data={priorityData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {priorityData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={priorityData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={4}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {priorityData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 600 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-60 flex items-center justify-center text-slate-400 text-sm">No data</div>
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm italic">No priority data available</div>
           )}
         </Card>
 
-        {/* Per-project task summary */}
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Tasks per Project</h3>
-          <div className="space-y-3">
-            {projects.slice(0, 6).map((p) => {
+        {/* Projects Donut */}
+        <Card className="hover:shadow-card-hover transition-all duration-300">
+          <h3 className="font-bold text-lg text-slate-900 mb-6 pb-4 border-b border-slate-100 flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-violet-500" /> Project Status
+          </h3>
+          {projectStatusData.length > 0 ? (
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={projectStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={4}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {projectStatusData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '13px', fontWeight: 600 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-60 flex items-center justify-center text-slate-400 text-sm italic">No active projects</div>
+          )}
+        </Card>
+
+        {/* Projects Breakdown (Progress Bars) */}
+        <Card className="hover:shadow-card-hover transition-all duration-300 lg:col-span-2">
+          <h3 className="font-bold text-lg text-slate-900 mb-6 pb-4 border-b border-slate-100">
+            Project Completion Breakdown
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+            {projects.slice(0, 8).map((p) => {
               const ptasks = tasks.filter((t) => t.projectId === p.id);
               const done = ptasks.filter((t) => t.status === 'done').length;
               const pct = ptasks.length > 0 ? Math.round((done / ptasks.length) * 100) : 0;
               return (
-                <div key={p.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700 truncate">{p.name}</span>
-                    <span className="text-slate-500 flex-shrink-0 ml-2">{done}/{ptasks.length}</span>
+                <div key={p.id} className="group">
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="font-semibold text-slate-800 truncate group-hover:text-primary transition-colors">{p.name}</span>
+                    <span className="text-xs font-bold text-slate-500 flex-shrink-0 ml-2 bg-slate-100 px-2 py-1 rounded-md">{done} / {ptasks.length}</span>
                   </div>
-                  <div className="bg-slate-100 rounded-full h-2">
+                  <div className="bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner">
                     <div
-                      className="bg-primary h-2 rounded-full"
+                      className="bg-gradient-to-r from-primary to-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
               );
             })}
+            {projects.length === 0 && (
+              <div className="col-span-2 text-center py-8 text-slate-400 italic text-sm">No projects found.</div>
+            )}
           </div>
         </Card>
       </div>

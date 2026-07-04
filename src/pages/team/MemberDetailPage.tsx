@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Mail, Phone, Calendar, CheckSquare, MessageSquare, X } from 'lucide-react';
+import { Mail, Phone, Calendar, CheckSquare, MessageSquare, ArrowLeft, Trophy, Target } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Avatar from '../../components/ui/Avatar';
@@ -24,41 +25,26 @@ const MemberDetailPage: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [performance, setPerformance] = useState<PerformanceScore | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'info' | 'tasks' | 'attendance' | 'performance'>('info');
+  const [tab, setTab] = useState<'info' | 'tasks' | 'attendance'>('info');
 
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
       try {
-        // Fetch core user first
         const u = await getUser(userId);
         setMember(u);
-
         if (u) {
-          // Fetch secondary resources in parallel, individual safe fallbacks
           const [r, t, a, p] = await Promise.all([
-            getAllRoles().catch((err) => {
-              console.warn('MemberDetail: failed to load roles:', err);
-              return [];
-            }),
+            getAllRoles().catch(() => []),
             getTasks().then((allTasks) =>
-              allTasks.filter((t) =>
-                t.assigneeIds?.includes(userId) ||
-                t.assignedRoleIds?.includes(u.roleId ?? '') ||
-                (t.assignedRoleId && t.assignedRoleId === u.roleId)
+              allTasks.filter((task) =>
+                task.assigneeIds?.includes(userId) ||
+                task.assignedRoleIds?.includes(u.roleId ?? '') ||
+                (task.assignedRoleId && task.assignedRoleId === u.roleId)
               )
-            ).catch((err) => {
-              console.warn('MemberDetail: failed to load tasks:', err);
-              return [];
-            }),
-            getUserAttendanceHistory(userId, 30).catch((err) => {
-              console.warn('MemberDetail: failed to load attendance history:', err);
-              return [];
-            }),
-            getPerformanceScore(userId).catch((err) => {
-              console.warn('MemberDetail: failed to load performance score:', err);
-              return null;
-            }),
+            ).catch(() => []),
+            getUserAttendanceHistory(userId, 30).catch(() => []),
+            getPerformanceScore(userId).catch(() => null),
           ]);
           setRoles(r);
           setTasks(t);
@@ -74,7 +60,7 @@ const MemberDetailPage: React.FC = () => {
     load();
   }, [userId]);
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+  if (loading) return <div className="flex items-center justify-center h-full min-h-[50vh]"><Spinner size="lg" /></div>;
   if (!member) return <div className="text-center py-16 text-slate-500">Member not found</div>;
 
   const role = roles.find((r) => r.id === member.roleId);
@@ -85,233 +71,250 @@ const MemberDetailPage: React.FC = () => {
     navigate(`/app/chat/${dmId}`);
   };
 
+  const chartData = performance ? [
+    { subject: 'Productivity', score: performance.productivityScore },
+    { subject: 'Reliability', score: performance.reliabilityScore },
+    { subject: 'Efficiency', score: performance.efficiencyScore },
+    { subject: 'Quality', score: performance.qualityScore },
+    { subject: 'Collab', score: performance.collaborationScore },
+  ] : [];
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" 
-        onClick={() => navigate('/app/team')} 
-      />
-      {/* Drawer */}
-      <div className="relative w-full max-w-3xl bg-slate-50 h-full shadow-2xl animate-slide-in-right overflow-y-auto flex flex-col border-l border-slate-200/60">
-        <div className="p-6 space-y-6 flex-1">
-          {/* Header */}
-          <div className="flex items-start justify-between pb-4 mb-2 border-b border-slate-200/60">
-            <div className="flex items-center gap-4">
-              <Avatar name={member.name} src={member.avatarUrl} size="lg" />
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{member.name}</h1>
-                {role && (
-                  <span
-                    className="inline-block mt-1 text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded text-white"
-                    style={{ backgroundColor: role.color }}
-                  >
-                    {role.name}
-                  </span>
+    <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in space-y-6">
+      
+      {/* Back Button */}
+      <button 
+        onClick={() => navigate('/app/team')}
+        className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back to Team
+      </button>
+
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 p-8 rounded-3xl shadow-lg">
+        <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+          <Target className="w-64 h-64 text-white" />
+        </div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <Avatar name={member.name} src={member.avatarUrl} size="xl" className="ring-4 ring-white/30 shadow-xl" />
+            <div className="text-white">
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-3xl font-extrabold tracking-tight">{member.name}</h1>
+                <Badge variant={member.isActive ? 'success' : 'danger'} className="bg-white/20 text-white border-none backdrop-blur-md">
+                  {member.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              {role && (
+                <div className="text-blue-100 font-medium tracking-wide mb-3">{role.name}</div>
+              )}
+              <div className="flex flex-wrap gap-4 text-sm font-medium text-blue-50">
+                {member.email && (
+                  <span className="flex items-center gap-1.5"><Mail className="w-4 h-4" />{member.email}</span>
                 )}
-                <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-slate-500 font-medium">
-                  {member.email && (
-                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{member.email}</span>
-                  )}
-                  {member.phone && (
-                    <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{member.phone}</span>
-                  )}
-                </div>
+                {member.phone && (
+                  <span className="flex items-center gap-1.5"><Phone className="w-4 h-4" />{member.phone}</span>
+                )}
               </div>
             </div>
-            <div className="flex gap-2 items-center">
-              <Badge variant={member.isActive ? 'success' : 'danger'}>
-                {member.isActive ? 'Active' : 'Inactive'}
-              </Badge>
-              {appUser?.id !== userId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  leftIcon={<MessageSquare className="w-4 h-4" />}
-                  onClick={handleMessage}
-                >
-                  Message
-                </Button>
-              )}
-              <button 
-                onClick={() => navigate('/app/team')}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors ml-2"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
           </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
-        {[
-          { id: 'info', label: 'Info' },
-          { id: 'tasks', label: `Tasks (${tasks.length})` },
-          { id: 'attendance', label: `Attendance (${attendance.length})` },
-          { id: 'performance', label: 'Performance' },
-        ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id as typeof tab)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+          {appUser?.id !== userId && (
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<MessageSquare className="w-4 h-4" />}
+              onClick={handleMessage}
+              className="shadow-sm"
+            >
+              Message Member
+            </Button>
+          )}
+        </div>
       </div>
 
-      {tab === 'info' && role && (
-        <Card>
-          <h3 className="font-semibold text-slate-900 mb-4">Role & Permissions</h3>
-          <div className="mb-3">
-            <p className="text-sm font-medium text-slate-700">Role: {role.name}</p>
-            {role.description && <p className="text-xs text-slate-500 mt-1">{role.description}</p>}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(role.permissions).map(([key, val]) => (
-              <div
-                key={key}
-                className={`text-xs px-2 py-1 rounded-lg ${val ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-400'}`}
-              >
-                {key.replace(/_/g, ' ')}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {tab === 'tasks' && (
-        <Card padding={false}>
-          <div className="divide-y divide-slate-50">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer"
-                onClick={() => navigate(`/app/tasks/${task.id}`)}
-              >
-                <CheckSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{task.title}</p>
-                  <p className="text-xs text-slate-500">Due {formatDate(task.dueDate)}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column: Performance Analytics */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="hover:shadow-card-hover transition-all duration-300">
+            <h3 className="font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" /> Performance Analytics
+            </h3>
+            {performance ? (
+              <div className="space-y-6">
+                <div className="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="block text-4xl font-black text-amber-500 mb-1">{performance.overallPerformanceIndex}</span>
+                  <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Overall Score</span>
                 </div>
-                <TaskStatusChip status={task.memberProgress?.[userId || '']?.status ?? task.status} />
+
+                <div className="h-64 w-full -ml-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name={member.name} dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-900">Task Completion Stats</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-green-50 rounded-xl">
+                      <span className="text-xs font-semibold text-green-700 uppercase">On Time</span>
+                      <p className="text-xl font-bold text-green-800">{performance.tasksCompletedOnTime}</p>
+                    </div>
+                    <div className="p-3 bg-rose-50 rounded-xl">
+                      <span className="text-xs font-semibold text-rose-700 uppercase">Late</span>
+                      <p className="text-xl font-bold text-rose-800">{performance.tasksCompletedLate}</p>
+                    </div>
+                    <div className="p-3 bg-orange-50 rounded-xl">
+                      <span className="text-xs font-semibold text-orange-700 uppercase">Streak</span>
+                      <p className="text-xl font-bold text-orange-800">{performance.consecutiveSuccesses} 🔥</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Badges</span>
+                      <p className="text-xl font-bold text-slate-800">{performance.badges.length}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ))}
-            {tasks.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-8">No tasks assigned</p>
+            ) : (
+              <div className="text-center py-16 px-4">
+                <Target className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                <p className="text-sm text-slate-500 font-medium">No performance data yet</p>
+              </div>
             )}
-          </div>
-        </Card>
-      )}
+          </Card>
+        </div>
 
-      {tab === 'attendance' && (
-        <Card padding={false}>
-          <div className="divide-y divide-slate-50">
-            {attendance.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3">
-                <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">{a.date}</p>
-                  <p className="text-xs text-slate-500">
-                    In: {formatTime(a.checkInTime)} · Out: {formatTime(a.checkOutTime)}
-                    {a.checkInTime && <span className="ml-2">· {getDuration(a.checkInTime, a.checkOutTime)}</span>}
-                  </p>
-                </div>
-                {a.isWithinGeofence === false && (
-                  <Badge variant="warning" size="sm">Outside</Badge>
-                )}
-                {!a.checkOutTime && a.checkInTime && (
-                  <Badge variant="success" size="sm">On Site</Badge>
-                )}
-              </div>
+        {/* Right Column: Deep Dives (Tabs) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex gap-2 p-1.5 bg-slate-50 rounded-2xl border border-slate-200/60 overflow-x-auto w-fit shadow-sm">
+            {[
+              { id: 'info', label: 'Role & Info' },
+              { id: 'tasks', label: `Active Tasks (${tasks.length})` },
+              { id: 'attendance', label: `Attendance` },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id as typeof tab)}
+                className={`px-6 py-2.5 text-sm font-semibold whitespace-nowrap transition-all duration-300 rounded-xl ${
+                  tab === t.id
+                    ? 'bg-white text-slate-900 shadow border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/50'
+                }`}
+              >
+                {t.label}
+              </button>
             ))}
-            {attendance.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-8">No attendance history</p>
-            )}
           </div>
-        </Card>
-      )}
 
-      {tab === 'performance' && (
-        <Card>
-          {performance ? (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-900">Performance Metrics</h3>
-                  <p className="text-xs text-slate-500">Overall Performance Index (OPI)</p>
+          <div className="min-h-[400px]">
+            {tab === 'info' && role && (
+              <Card className="hover:shadow-card-hover transition-all duration-300">
+                <h3 className="font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
+                  Role Details
+                </h3>
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                  <p className="font-semibold text-slate-900 text-lg mb-1">{role.name}</p>
+                  {role.description && <p className="text-sm text-slate-500">{role.description}</p>}
                 </div>
-                <div className="text-right">
-                  <span className="text-3xl font-black text-amber-500">{performance.overallPerformanceIndex}</span>
-                  <span className="block text-[10px] text-slate-400 font-bold uppercase">OPI Score</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 border-t pt-4 border-slate-100">
-                <div className="p-3 bg-slate-50 rounded-xl text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Productivity</span>
-                  <span className="text-lg font-bold text-slate-800">{performance.productivityScore}%</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Reliability</span>
-                  <span className="text-lg font-bold text-slate-800">{performance.reliabilityScore}%</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Efficiency</span>
-                  <span className="text-lg font-bold text-slate-800">{performance.efficiencyScore}%</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Quality</span>
-                  <span className="text-lg font-bold text-slate-800">{performance.qualityScore}%</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Collab</span>
-                  <span className="text-lg font-bold text-slate-800">{performance.collaborationScore}%</span>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 border-slate-100">
-                <h4 className="text-sm font-bold mb-3">Earned Badges ({performance.badges.length})</h4>
-                <div className="flex flex-wrap gap-2">
-                  {performance.badges.map(b => (
-                    <span key={b} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                      🏆 {b.replace(/_/g, ' ').toUpperCase()}
-                    </span>
+                
+                <h4 className="text-sm font-bold text-slate-900 mb-4">Assigned Permissions</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(role.permissions).map(([key, val]) => (
+                    <div
+                      key={key}
+                      className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border ${
+                        val 
+                          ? 'bg-green-50/50 text-green-700 border-green-100 font-semibold' 
+                          : 'bg-slate-50/50 text-slate-400 border-slate-100'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${val ? 'bg-green-500' : 'bg-slate-300'}`} />
+                      {key.replace(/_/g, ' ')}
+                    </div>
                   ))}
-                  {performance.badges.length === 0 && (
-                    <span className="text-xs text-slate-400 font-medium">No achievements earned yet.</span>
+                </div>
+              </Card>
+            )}
+
+            {tab === 'tasks' && (
+              <Card padding={false} className="hover:shadow-card-hover transition-all duration-300 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="font-bold text-lg text-slate-900">Assigned Tasks</h3>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/app/tasks/${task.id}`)}
+                    >
+                      <div className="p-2 bg-slate-100 rounded-lg">
+                        <CheckSquare className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 truncate mb-1">{task.title}</p>
+                        <p className="text-sm text-slate-500">Due {formatDate(task.dueDate)}</p>
+                      </div>
+                      <TaskStatusChip status={task.memberProgress?.[userId || '']?.status ?? task.status} />
+                    </div>
+                  ))}
+                  {tasks.length === 0 && (
+                    <div className="text-center py-16">
+                      <CheckSquare className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                      <p className="text-sm text-slate-500 font-medium">No active tasks</p>
+                    </div>
                   )}
                 </div>
-              </div>
+              </Card>
+            )}
 
-              <div className="border-t pt-4 border-slate-100 grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Tasks Completed On-Time</span>
-                  <span className="text-sm font-bold text-green-600">{performance.tasksCompletedOnTime}</span>
+            {tab === 'attendance' && (
+              <Card padding={false} className="hover:shadow-card-hover transition-all duration-300 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="font-bold text-lg text-slate-900">Recent Attendance (30 days)</h3>
                 </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Tasks Completed Late</span>
-                  <span className="text-sm font-bold text-red-650">{performance.tasksCompletedLate}</span>
+                <div className="divide-y divide-slate-100">
+                  {attendance.map((a) => (
+                    <div key={a.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900 mb-1">{a.date}</p>
+                        <div className="flex items-center gap-3 text-sm text-slate-500">
+                          <span>In: <strong className="text-slate-700">{formatTime(a.checkInTime)}</strong></span>
+                          {a.checkOutTime && (
+                            <>
+                              <span>Out: <strong className="text-slate-700">{formatTime(a.checkOutTime)}</strong></span>
+                              <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">{getDuration(a.checkInTime, a.checkOutTime)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {a.isWithinGeofence === false && (
+                        <Badge variant="warning" size="md">Outside Geofence</Badge>
+                      )}
+                      {!a.checkOutTime && a.checkInTime && (
+                        <Badge variant="success" size="md" className="animate-pulse">Active Now</Badge>
+                      )}
+                    </div>
+                  ))}
+                  {attendance.length === 0 && (
+                    <div className="text-center py-16">
+                      <Calendar className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                      <p className="text-sm text-slate-500 font-medium">No attendance records found</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Active Overdue Tasks</span>
-                  <span className="text-sm font-bold text-rose-600">{performance.tasksOverdue}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block font-medium">Consecutive Streak</span>
-                  <span className="text-sm font-bold text-orange-600">🔥 {performance.consecutiveSuccesses}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 text-center py-8">No performance score calculated yet.</p>
-          )}
-        </Card>
-      )}
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>

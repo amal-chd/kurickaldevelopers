@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Search, Users, UserPlus, Mail, Phone, ChevronDown } from 'lucide-react';
 import Avatar from '../../components/ui/Avatar';
 import Spinner from '../../components/ui/Spinner';
@@ -157,7 +157,7 @@ const TeamPage: React.FC = () => {
           })}
         </div>
       )}
-      <Outlet />
+
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare, FolderOpen, Users, Clock, Plus, ArrowRight,
-  TrendingUp, AlertCircle, Zap, Calendar, Trophy,
+  TrendingUp, AlertCircle, Zap, Calendar, Trophy, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -25,6 +25,7 @@ const DashboardPage: React.FC = () => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [users, setUsers]       = useState<AppUser[]>([]);
   const [perfScore, setPerfScore] = useState<PerformanceScore | null>(null);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   // Track which of the three subscriptions have fired at least once
   const [ready, setReady] = useState({ projects: false, tasks: false, users: false });
@@ -213,14 +214,20 @@ const DashboardPage: React.FC = () => {
 
       {/* ── Completion Analytics ── */}
       <Card padding={false} className="overflow-hidden border border-slate-200/60 shadow-sm bg-white rounded-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+        <button 
+          onClick={() => setAnalyticsOpen(!analyticsOpen)} 
+          className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors"
+        >
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-slate-500" />
             <h3 className="font-bold text-slate-900">Task Completion Analytics</h3>
           </div>
-        </div>
+          {analyticsOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+        </button>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 bg-white">
+        {analyticsOpen && (
+          <div className="animate-fade-in">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-4 bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50">
             <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold flex-shrink-0">
               ✓
@@ -347,6 +354,8 @@ const DashboardPage: React.FC = () => {
             </table>
           </div>
         </div>
+        </div>
+        )}
       </Card>
 
       {/* ── Main grid ── */}
