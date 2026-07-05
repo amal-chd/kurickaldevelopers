@@ -40,7 +40,7 @@ const AppLayout: React.FC = () => {
           {/* Keyed by route so every page navigation gets a smooth entrance.
               overflow-x-hidden + min-w-0 guard against accidental horizontal
               scroll on mobile from decorative/absolute elements. */}
-          <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full min-w-0 flex flex-col overflow-x-hidden">
+          <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full min-w-0 flex flex-col overflow-x-hidden [&>*]:min-w-0">
             <Outlet />
           </div>
         </main>

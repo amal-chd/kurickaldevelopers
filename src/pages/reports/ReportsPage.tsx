@@ -176,7 +176,7 @@ const ReportsPage: React.FC = () => {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto animate-fade-in">
       
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 p-8 rounded-3xl shadow-lg">
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-500 p-6 sm:p-8 rounded-3xl shadow-lg">
         <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
           <TrendingUp className="w-64 h-64 text-white" />
         </div>
@@ -190,10 +190,11 @@ const ReportsPage: React.FC = () => {
           <div className="flex gap-3">
             {can('reports_export') && (
               <Button
+                variant="outline"
                 size="md"
                 leftIcon={<Download className="w-4 h-4 text-indigo-600" />}
                 onClick={handleExportCsv}
-                className="bg-white text-indigo-600 hover:bg-slate-50 border-none shadow-md whitespace-nowrap"
+                className="!bg-white !text-indigo-600 hover:!bg-slate-50 border-none shadow-md whitespace-nowrap"
               >
                 Export CSV
               </Button>
@@ -203,24 +204,24 @@ const ReportsPage: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-4 w-fit">
-        <div className="flex items-center gap-2 pl-3">
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4 w-full sm:w-fit">
+        <div className="flex items-center gap-2 sm:pl-3">
           <Calendar className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-semibold text-slate-700">Date Range</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full xs:w-auto min-w-0 px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
-          <span className="text-slate-400 text-sm font-medium">to</span>
+          <span className="text-slate-400 text-sm font-medium flex-shrink-0 text-center">to</span>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full xs:w-auto min-w-0 px-3 h-9 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
         </div>
       </div>
@@ -236,13 +237,13 @@ const ReportsPage: React.FC = () => {
           <Card key={s.label} className="group hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden border-none shadow-sm">
             <div className={`absolute inset-0 opacity-10 bg-gradient-to-br ${s.gradient}`} />
             <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${s.gradient} rounded-full blur-3xl opacity-20 -mr-8 -mt-8`} />
-            <div className="relative z-10 flex items-center gap-4">
-              <div className={`p-3 rounded-2xl bg-gradient-to-br ${s.gradient} shadow-sm text-white`}>
-                <s.icon className="w-6 h-6" />
+            <div className="relative z-10 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4 min-w-0">
+              <div className={`p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br ${s.gradient} shadow-sm text-white flex-shrink-0`}>
+                <s.icon className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <p className="text-3xl font-black text-slate-900 tracking-tight">{s.value}</p>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</p>
+              <div className="min-w-0">
+                <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{s.value}</p>
+                <p className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5 leading-tight">{s.label}</p>
               </div>
             </div>
           </Card>

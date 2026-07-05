@@ -9,6 +9,16 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    screens: {
+      // Phone-first: xs catches larger phones (475px+) so two-up rows (e.g.
+      // date ranges) can sit side-by-side before the default sm (640px).
+      'xs': '475px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         // Brand — refined modern slate/navy

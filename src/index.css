@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Recharts' ResponsiveContainer reports its rendered width as its min-content
+   size, which forces flex/grid parents (and padded page roots) wider than the
+   viewport on mobile. Pinning min-width:0 lets charts shrink to their real
+   container width instead of pushing the page wider. Fixes right-edge clipping
+   of stat cards / date filters on chart pages (Reports, Performance, etc.). */
+.recharts-responsive-container { min-width: 0 !important; }
+
 @layer base {
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
   html {
