@@ -167,7 +167,7 @@ const CreateProjectPage: React.FC = () => {
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
               rows={3}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Site Address"
                 placeholder="Site Address"
@@ -181,7 +181,7 @@ const CreateProjectPage: React.FC = () => {
                 onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select
                 label="Status"
                 value={form.status}
@@ -203,7 +203,7 @@ const CreateProjectPage: React.FC = () => {
                 ]}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Budget ($)"
                 type="number"
@@ -220,7 +220,7 @@ const CreateProjectPage: React.FC = () => {
                 placeholder="Select manager"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Start Date"
                 type="date"

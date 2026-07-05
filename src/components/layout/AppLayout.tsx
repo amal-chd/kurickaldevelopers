@@ -38,9 +38,12 @@ const AppLayout: React.FC = () => {
         <TopBar onMenuClick={() => setSidebarOpen(true)} title={title} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden w-full">
           {/* Keyed by route so every page navigation gets a smooth entrance.
-              overflow-x-hidden + min-w-0 guard against accidental horizontal
-              scroll on mobile from decorative/absolute elements. */}
-          <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full min-w-0 flex flex-col overflow-x-hidden [&>*]:min-w-0">
+              A plain block container (not flex) so page content can never
+              stretch the wrapper wider than the viewport — inner min-content
+              (tab bars, native date inputs, tables) is clipped/scrolled
+              internally via overflow-x-hidden instead of pushing the page
+              wide. This is the root-cause guard against mobile h-scroll. */}
+          <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full min-w-0 overflow-x-hidden">
             <Outlet />
           </div>
         </main>

@@ -274,7 +274,7 @@ const CreateTaskPage: React.FC = () => {
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
               rows={3}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select
                 label="Project"
                 value={form.projectId}
@@ -293,7 +293,7 @@ const CreateTaskPage: React.FC = () => {
                 ]}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select
                 label="Priority"
                 value={form.priority}

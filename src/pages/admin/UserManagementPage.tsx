@@ -174,7 +174,8 @@ const UserManagementPage: React.FC = () => {
       </div>
 
       <Card padding={false}>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[420px]">
           <thead>
             <tr className="text-left border-b border-slate-100 bg-slate-50/60">
               <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">User</th>
@@ -232,6 +233,7 @@ const UserManagementPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+        </div>
         {filtered.length === 0 && (
           <EmptyState icon={<Search className="w-8 h-8" />} title="No users found" description="Try adjusting your search." />
         )}

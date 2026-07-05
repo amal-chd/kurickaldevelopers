@@ -216,7 +216,7 @@ const SiteDiaryPage: React.FC = () => {
                     <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Progress Notes</p>
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{entry.progressNotes}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1">
                         <Users className="w-3 h-3" /> Worker Count
@@ -288,7 +288,7 @@ const SiteDiaryPage: React.FC = () => {
         }
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Date"
               type="date"
@@ -318,7 +318,7 @@ const SiteDiaryPage: React.FC = () => {
             rows={4}
             required
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Worker Count"
               type="number"

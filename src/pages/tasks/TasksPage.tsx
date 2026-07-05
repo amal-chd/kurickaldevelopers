@@ -267,7 +267,8 @@ const TasksPage: React.FC = () => {
             {filteredTasks.length === 0 ? (
               <EmptyState icon={<CheckSquare className="w-8 h-8" />} title="No tasks found" description="Try adjusting your filters or create a new task." />
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[520px]">
                 <thead>
                   <tr className="text-left border-b border-slate-100 bg-slate-50/60">
                     <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wide">Task</th>
@@ -337,6 +338,7 @@ const TasksPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </Card>
         </div>
