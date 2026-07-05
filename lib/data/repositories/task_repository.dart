@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/task_model.dart';
 import '../models/subtask_model.dart';
@@ -33,13 +34,13 @@ class TaskRepository {
   }
 
   void _logStreamError(String streamName, Object error, String userId, {String? roleId}) {
+    // debugPrint is a no-op in release builds, so these diagnostics never
+    // reach production logs (unlike print()).
     if (error is FirebaseException) {
-      // ignore: avoid_print
-      print('[AUTHORIZATION ERROR] Mobile TaskRepository stream "$streamName" failed: '
+      debugPrint('[AUTHORIZATION ERROR] Mobile TaskRepository stream "$streamName" failed: '
             'code=${error.code}, message=${error.message}, userId=$userId, roleId=$roleId');
     } else {
-      // ignore: avoid_print
-      print('[API ERROR] Mobile TaskRepository stream "$streamName" failed: $error, userId=$userId, roleId=$roleId');
+      debugPrint('[API ERROR] Mobile TaskRepository stream "$streamName" failed: $error, userId=$userId, roleId=$roleId');
     }
   }
 
