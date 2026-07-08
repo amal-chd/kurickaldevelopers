@@ -3,7 +3,7 @@ import { Menu, Bell, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import Avatar from '../ui/Avatar';
-import { useChannels } from '../../hooks/useChat';
+import { useNotifications } from '../../hooks/useNotifications';
 import { format } from 'date-fns';
 
 interface TopBarProps {
@@ -38,12 +38,9 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { appUser } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const { channels } = useChannels();
-
-  const totalUnread = channels.reduce((sum, ch) => {
-    if (!appUser) return sum;
-    return sum + (ch.unreadCounts?.[appUser.id] ?? 0);
-  }, 0);
+  // The bell reflects unread NOTIFICATIONS (chat has its own unread indicator
+  // on the sidebar) — previously it was wrongly driven by chat unread counts.
+  const { unreadCount } = useNotifications();
 
   // Resolve dynamic routes (e.g. /app/tasks/:id, /app/tasks/:taskId/edit)
   const resolveCrumbs = (path: string): string[] => {
@@ -93,8 +90,10 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5" />
-        {totalUnread > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full ring-2 ring-white animate-pulse" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-danger text-white text-[10px] font-bold rounded-full ring-2 ring-white flex items-center justify-center">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
         )}
       </button>
 
