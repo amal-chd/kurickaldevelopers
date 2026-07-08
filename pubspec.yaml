@@ -1,7 +1,7 @@
 name: task_pilot
 description: "Task Pilot - Construction Task Management System for Kurickal Developers LLP"
 publish_to: 'none'
-version: 1.0.11+15
+version: 1.0.12+16
 
 environment:
   sdk: ^3.9.2

@@ -56,7 +56,25 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Use the real upload keystore when key.properties is present
+            // (production releases). Fall back to debug signing when it's
+            // absent so CI / local release builds still succeed instead of
+            // failing on a null keystore.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+
+            // Don't block the release build on a network upload to Firebase.
+            // The Crashlytics mapping upload runs during bundleRelease and can
+            // fail on transient TLS/network errors (bad_record_mac). Code is
+            // not minified/obfuscated, so the mapping file adds nothing here;
+            // if minification is ever enabled, upload it out-of-band with
+            // `./gradlew :app:uploadCrashlyticsMappingFileRelease`.
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
         }
     }
 }
