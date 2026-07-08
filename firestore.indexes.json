@@ -47,7 +47,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "recipientId",
+          "fieldPath": "userId",
           "order": "ASCENDING"
         },
         {

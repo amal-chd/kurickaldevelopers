@@ -52,6 +52,47 @@ service cloud.firestore {
                get(projPath).data.get('managerId', ''));
     }
 
+    // ── Self role-assignment guard (prevents privilege escalation) ──
+    // A user may only ever give THEMSELVES the role bootstrapped for their
+    // authenticated email (mirrors the client EMAIL_ROLE_MAP) — never an
+    // arbitrary/elevated role. Everyone else is created role-less and must be
+    // assigned a role by a team_manage admin (which enforces the level cap).
+    function bootstrapRoleFor(email) {
+      return email == 'thomas@kurickaldevelopers.com' ? 'director'
+           : email == 'meena@kurickaldevelopers.com'  ? 'admin'
+           : email == 'ravi@kurickaldevelopers.com'   ? 'project_manager'
+           : email == 'arjun@kurickaldevelopers.com'  ? 'site_engineer'
+           : email == 'priya@kurickaldevelopers.com'  ? 'site_engineer'
+           : email == 'suresh@kurickaldevelopers.com' ? 'foreman'
+           : email == 'biju@kurickaldevelopers.com'   ? 'labour'
+           : email == 'anitha@kurickaldevelopers.com' ? 'accounts'
+           : '';
+    }
+    function roleAllowedForSelf(roleId) {
+      return roleId == null || roleId == '' ||
+             roleId == bootstrapRoleFor(request.auth.token.email);
+    }
+
+    // ── Task read authorization (shared by tasks + their subcollections) ──
+    // Same policy as the tasks read rule: assignees (direct or via role),
+    // creator, or a tasks_view_all holder. Used to stop subcollections
+    // (comments/subtasks) from leaking task data the parent rule hides.
+    function canReadTask(taskId) {
+      let tPath = /databases/$(database)/documents/tasks/$(taskId);
+      return isAuthenticated() && exists(tPath) &&
+        (
+          request.auth.uid in get(tPath).data.assigneeIds ||
+          request.auth.uid == get(tPath).data.createdBy ||
+          hasPermission('tasks_view_all') ||
+          (get(tPath).data.get('assignedRoleId', null) != null &&
+           getUserData() != null &&
+           get(tPath).data.get('assignedRoleId', null) == getUserData().roleId) ||
+          (get(tPath).data.get('assignedRoleIds', null) != null &&
+           getUserData() != null &&
+           getUserData().roleId in get(tPath).data.get('assignedRoleIds', []))
+        );
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Users
     // ─────────────────────────────────────────────────────────────────────────
@@ -59,17 +100,27 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
 
-      // A new user can create their own profile on sign-up
-      allow create: if isOwner(userId);
+      // A new user can create their own profile on sign-up — but may only
+      // self-assign the role bootstrapped for their email (usually none).
+      // Prevents anyone (e.g. any Google account) from creating their user
+      // doc with roleId:'director' and escalating to full control.
+      allow create: if isOwner(userId) &&
+                    roleAllowedForSelf(request.resource.data.get('roleId', null));
 
-      // Self-update: may change name/phone/avatar/fcmToken – NOT roleId/isActive (unless they don't have a role yet)
+      // Self-update: may change name/phone/avatar/fcmToken. May NOT change
+      // isActive, and may only set roleId to their bootstrap role (never an
+      // arbitrary/elevated one — closes the "role-less user promotes self"
+      // escalation the old rule allowed).
       // team_manage: may update any field for any user EXCEPT escalating roleId above their own level
       allow update: if isAuthenticated() && (
         // Owner updating their own non-sensitive fields
-        (isOwner(userId) && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId', 'isActive']) ||
-          (!resource.data.keys().hasAny(['roleId']) || resource.data.roleId == null || resource.data.roleId == '')
-        )) ||
+        (isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive']) &&
+          (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId']) ||
+            roleAllowedForSelf(request.resource.data.get('roleId', null))
+          )
+        ) ||
         // team_manage updating other users (role change constrained)
         (hasPermission('team_manage') && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId']) ||
@@ -173,18 +224,20 @@ service cloud.firestore {
          getUserData().roleId in resource.data.get('assignedRoleIds', []));
       allow delete: if hasPermission('tasks_delete');
 
-      // Subtasks
+      // Subtasks — only users who can see the parent task (matches the task
+      // read policy; previously any authenticated user could read them).
       match /subtasks/{subtaskId} {
-        allow read: if isAuthenticated();
+        allow read: if canReadTask(taskId);
         allow write: if hasPermission('tasks_edit') ||
           (exists(/databases/$(database)/documents/tasks/$(taskId)) &&
            request.auth.uid in get(/databases/$(database)/documents/tasks/$(taskId)).data.assigneeIds);
       }
 
-      // Comments — any authenticated member of the task can read/post
+      // Comments — only users who can see the parent task may read/post
+      // (previously any authenticated user could, leaking task discussion).
       match /comments/{commentId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
+        allow read: if canReadTask(taskId);
+        allow create: if canReadTask(taskId);
         allow update: if isAuthenticated() && request.auth.uid == resource.data.authorId;
         allow delete: if hasPermission('tasks_delete') ||
           request.auth.uid == resource.data.authorId;
@@ -252,13 +305,20 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid
       );
       allow create: if isAuthenticated();
+      // Targeted notif: the recipient may update it freely (e.g. mark read).
+      // Broadcast (userId == ''): any user may ONLY touch the isRead map to
+      // mark it read for themselves — not edit its title/body. Previously any
+      // user could rewrite or delete a company-wide broadcast.
       allow update: if isAuthenticated() && (
-        resource.data.userId == '' ||
-        resource.data.userId == request.auth.uid
+        resource.data.userId == request.auth.uid ||
+        (resource.data.userId == '' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']))
       );
+      // Targeted notif: recipient may delete their own. Broadcast: only a
+      // notifications_manage admin may delete it.
       allow delete: if isAuthenticated() && (
-        resource.data.userId == '' ||
-        resource.data.userId == request.auth.uid
+        resource.data.userId == request.auth.uid ||
+        (resource.data.userId == '' && hasPermission('notifications_manage'))
       );
     }
 
