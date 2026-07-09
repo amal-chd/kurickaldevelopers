@@ -84,7 +84,7 @@
         },
         {
           "fieldPath": "date",
-          "order": "ASCENDING"
+          "order": "DESCENDING"
         }
       ]
     },
