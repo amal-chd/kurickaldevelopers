@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -10,7 +10,7 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
 import { getAllUsers, getAllRoles, updateUser, deleteUser, addAuditLog } from '../../lib/firestore';
-import { deleteUserAccount } from '../../lib/push';
+import { deleteUserAccount, resetUserPassword } from '../../lib/push';
 import { AppUser, Role } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -31,6 +31,12 @@ const UserManagementPage: React.FC = () => {
   const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState('');
   const [saving, setSaving] = useState(false);
+  const [passwordUser, setPasswordUser] = useState<AppUser | null>(null);
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   // Permission gate at the top so unauthorised users get a clean message
   // instead of a stream of permission-denied errors from Firestore.
@@ -103,6 +109,45 @@ const UserManagementPage: React.FC = () => {
       toast.error('Failed to update user');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openPasswordReset = (user: AppUser) => {
+    setPasswordUser(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setPasswordModal(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!passwordUser || !appUser) return;
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await resetUserPassword(passwordUser.id, newPassword);
+      await addAuditLog({
+        action: 'password_reset',
+        userId: appUser.id,
+        userName: appUser.name,
+        targetId: passwordUser.id,
+        targetType: 'user',
+        details: `Admin reset password for ${passwordUser.name}`,
+        createdAt: serverTimestamp() as any,
+      });
+      setPasswordModal(false);
+      toast.success(`Password reset for ${passwordUser.name}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -211,6 +256,9 @@ const UserManagementPage: React.FC = () => {
                     <button className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors" onClick={() => openEdit(user)} title="Edit">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    <button className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors" onClick={() => openPasswordReset(user)} title="Reset Password">
+                      <KeyRound className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       className={`p-2 rounded-xl transition-colors ${user.isActive ? 'text-slate-400 hover:text-red-500 hover:bg-red-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
                       onClick={() => toggleActive(user)}
@@ -261,6 +309,53 @@ const UserManagementPage: React.FC = () => {
             options={roles.map((r) => ({ value: r.id, label: r.name }))}
             placeholder="Select role"
           />
+        </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        open={passwordModal}
+        onClose={() => setPasswordModal(false)}
+        title={`Reset Password — ${passwordUser?.name}`}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setPasswordModal(false)}>Cancel</Button>
+            <Button onClick={handleResetPassword} loading={resettingPassword}>Reset Password</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Set a new password for <span className="font-semibold text-slate-700">{passwordUser?.name}</span>. The previous password is not required.
+          </p>
+          <div className="relative">
+            <Input
+              label="New Password"
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Min 6 characters"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <Input
+            label="Confirm Password"
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Re-enter password"
+          />
+          {newPassword && confirmPassword && newPassword !== confirmPassword && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              Passwords do not match
+            </p>
+          )}
         </div>
       </Modal>
     </div>

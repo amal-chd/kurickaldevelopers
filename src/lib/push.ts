@@ -54,3 +54,31 @@ export async function deleteUserAccount(targetUid: string): Promise<void> {
     }
   }
 }
+
+export async function resetUserPassword(targetUid: string, newPassword: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  const token = await user.getIdToken();
+  const res = await fetch('https://ximaqbhnykyxxgiqbwoh.supabase.co/functions/v1/send-push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      event: 'reset_password',
+      targetUid,
+      newPassword,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      throw new Error(data.error || 'Failed to reset password');
+    } catch (e) {
+      if (e instanceof Error && e.message !== 'Failed to reset password') throw e;
+      throw new Error(`Failed to reset password (${res.status})`);
+    }
+  }
+}

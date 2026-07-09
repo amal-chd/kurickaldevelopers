@@ -458,6 +458,67 @@ serve(async (req) => {
         await batch.commit();
       }
 
+
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Reset Password Event ──
+    if (event === "reset_password") {
+      const { targetUid, newPassword } = body;
+      if (!targetUid || !newPassword) {
+        return new Response(JSON.stringify({ error: "targetUid and newPassword required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify caller permissions
+      const callerSnap = await db.collection("users").doc(caller.uid).get();
+      const roleId = callerSnap.exists ? callerSnap.data()?.roleId : null;
+      let allowed = false;
+      let callerLevel = 0;
+      if (roleId) {
+        const roleSnap = await db.collection("roles").doc(roleId).get();
+        const perms = roleSnap.exists ? (roleSnap.data()?.permissions ?? {}) : {};
+        allowed = perms.team_manage === true || perms.roles_manage === true;
+        callerLevel = roleSnap.exists ? (roleSnap.data()?.level ?? 0) : 0;
+      }
+
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Not allowed to reset passwords" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Hierarchy guard: cannot reset password for a user whose role outranks yours
+      const targetSnap = await db.collection("users").doc(targetUid).get();
+      if (targetSnap.exists) {
+        const targetRoleId = targetSnap.data()?.roleId;
+        if (targetRoleId) {
+          const targetRoleSnap = await db.collection("roles").doc(targetRoleId).get();
+          const targetLevel = targetRoleSnap.exists ? (targetRoleSnap.data()?.level ?? 0) : 0;
+          if (targetLevel > callerLevel) {
+            return new Response(
+              JSON.stringify({ error: "Cannot reset password for a user with a higher role level" }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+        }
+      }
+
+      // Update the user's password via Firebase Admin SDK (no old password needed)
+      await app.auth().updateUser(targetUid, { password: newPassword });
+
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
