@@ -11,8 +11,8 @@ import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import { usePermissions } from '../../hooks/usePermissions';
-import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings } from '../../lib/firestore';
-import { Attendance, AppUser, OrgSettings } from '../../types';
+import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings, getProjects, getAllRoles } from '../../lib/firestore';
+import { Attendance, AppUser, OrgSettings, Project, Role } from '../../types';
 import { format, addDays, subDays, differenceInMinutes, differenceInSeconds } from 'date-fns';
 
 const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -235,41 +235,192 @@ const AttendanceDashboardPage: React.FC = () => {
 
   // Export the FULL attendance report (last 90 days for every staff member)
   // as an Excel workbook.
+  // Export the FULL attendance report (last 90 days for every staff member)
+  // as a highly organized multi-sheet Excel workbook.
   const handleExportExcel = async () => {
     if (exporting) return;
     setExporting(true);
     try {
-      const rows: Record<string, string | number>[] = [];
+      // 1. Fetch auxiliary data
+      const [fetchedProjects, fetchedRoles] = await Promise.all([
+        getProjects().catch(() => [] as Project[]),
+        getAllRoles().catch(() => [] as Role[]),
+      ]);
+
+      const projectMap = new Map<string, string>();
+      fetchedProjects.forEach((p) => projectMap.set(p.id, p.name));
+
+      const roleMap = new Map<string, string>();
+      fetchedRoles.forEach((r) => roleMap.set(r.id, r.name));
+
+      // 2. Fetch history for all users
+      const staffHistoryMap = new Map<string, Attendance[]>();
+      let totalRecordsFetched = 0;
+
       for (const u of users) {
         const hist = await getUserAttendanceHistory(u.id, 90).catch(() => [] as Attendance[]);
+        staffHistoryMap.set(u.id, hist);
+        totalRecordsFetched += hist.length;
+      }
+
+      if (totalRecordsFetched === 0) {
+        toast.error('No attendance records found to export.');
+        return;
+      }
+
+      // 3. Build Sheet 1: Overview & KPI Summary
+      const staffSummaries = users.map((u) => {
+        const hist = staffHistoryMap.get(u.id) || [];
+        const presentDays = hist.filter((h) => h.checkInTime).length;
+        const noCheckoutDays = hist.filter((h) => h.checkInTime && !h.checkOutTime).length;
+        const outsideGeofenceDays = hist.filter((h) => isOutsideGeofence(h)).length;
+
+        let totalMins = 0;
+        hist.forEach((rec) => {
+          if (rec.checkInTime && rec.checkOutTime) {
+            try {
+              totalMins += differenceInMinutes(rec.checkOutTime.toDate(), rec.checkInTime.toDate());
+            } catch {
+              // Ignore invalid dates
+            }
+          }
+        });
+
+        const totalHours = Math.round((totalMins / 60) * 100) / 100;
+        const avgHours = presentDays > 0 ? Math.round((totalHours / presentDays) * 100) / 100 : 0;
+        const complianceRate = presentDays > 0
+          ? Math.round(((presentDays - outsideGeofenceDays) / presentDays) * 100)
+          : 100;
+
+        return {
+          'Staff Member': u.name || u.email || u.id,
+          'Email': u.email ?? '',
+          'Role': u.roleId ? (roleMap.get(u.roleId) ?? 'No Role') : 'No Role',
+          'Days Present': presentDays,
+          'Total Hours Worked': totalHours,
+          'Avg Hours / Day': avgHours,
+          'Outside Geofence Incidents': outsideGeofenceDays,
+          'Missing Checkouts': noCheckoutDays,
+          'Compliance Rate': `${complianceRate}%`,
+        };
+      });
+
+      const overviewData = [
+        { A: 'ATTENDANCE MANAGEMENT SUMMARY REPORT', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: 'Report Date:', B: format(new Date(), 'yyyy-MM-dd HH:mm'), C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: 'Period:', B: 'Last 90 Days', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: 'TEAM PERFORMANCE COMPLIANCE OVERVIEW', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+      ];
+
+      const overviewSheet = XLSX.utils.json_to_sheet(overviewData, { skipHeader: true });
+      XLSX.utils.sheet_add_json(overviewSheet, staffSummaries, { origin: 'A6' });
+
+      // Column widths for Overview
+      overviewSheet['!cols'] = [
+        { wch: 24 }, // Staff Member
+        { wch: 28 }, // Email
+        { wch: 16 }, // Role
+        { wch: 14 }, // Days Present
+        { wch: 18 }, // Total Hours Worked
+        { wch: 16 }, // Avg Hours / Day
+        { wch: 24 }, // Outside Geofence Incidents
+        { wch: 18 }, // Missing Checkouts
+        { wch: 18 }, // Compliance Rate
+      ];
+
+      // 4. Build Sheet 2: Detailed Daily Attendance Logs
+      const dailyRecords: any[] = [];
+      for (const u of users) {
+        const hist = staffHistoryMap.get(u.id) || [];
         for (const rec of hist) {
           const inT = rec.checkInTime?.toDate?.();
           const outT = rec.checkOutTime?.toDate?.();
           const mins = inT && outT ? differenceInMinutes(outT, inT) : null;
-          rows.push({
-            Member: u.name || u.email || u.id,
-            Email: u.email ?? '',
-            Date: rec.date ?? (inT ? format(inT, 'yyyy-MM-dd') : ''),
+
+          dailyRecords.push({
+            'Date': rec.date ?? (inT ? format(inT, 'yyyy-MM-dd') : ''),
+            'Staff Member': u.name || u.email || u.id,
+            'Email': u.email ?? '',
+            'Project Name': rec.projectId ? (projectMap.get(rec.projectId) ?? 'Unknown Project') : 'No Project Assigned',
             'Check In': inT ? format(inT, 'HH:mm') : '—',
+            'Check In Address': rec.checkInAddress || '—',
             'Check Out': outT ? format(outT, 'HH:mm') : '—',
-            'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '',
-            'Outside Geofence': isOutsideGeofence(rec) ? 'Yes' : 'No',
+            'Check Out Address': rec.checkOutAddress || '—',
+            'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '—',
+            'Geofence Compliance': isOutsideGeofence(rec) ? 'Outside Geofence' : 'Compliant',
           });
         }
       }
-      if (rows.length === 0) {
-        toast.error('No attendance records found to export.');
-        return;
-      }
-      rows.sort((a, b) => String(b.Date).localeCompare(String(a.Date)) || String(a.Member).localeCompare(String(b.Member)));
 
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+      dailyRecords.sort((a, b) => b.Date.localeCompare(a.Date) || a['Staff Member'].localeCompare(b['Staff Member']));
+      const dailySheet = XLSX.utils.json_to_sheet(dailyRecords);
+      dailySheet['!cols'] = [
+        { wch: 12 }, // Date
+        { wch: 22 }, // Staff Member
+        { wch: 26 }, // Email
+        { wch: 24 }, // Project Name
+        { wch: 10 }, // Check In
+        { wch: 32 }, // Check In Address
+        { wch: 10 }, // Check Out
+        { wch: 32 }, // Check Out Address
+        { wch: 14 }, // Duration (hrs)
+        { wch: 20 }, // Geofence Compliance
+      ];
+
+      // 5. Build Sheet 3: Flagged Incidents (Exceptions Only)
+      const flaggedIncidents: any[] = [];
+      for (const u of users) {
+        const hist = staffHistoryMap.get(u.id) || [];
+        for (const rec of hist) {
+          const inT = rec.checkInTime?.toDate?.();
+          const outT = rec.checkOutTime?.toDate?.();
+
+          const isOutside = isOutsideGeofence(rec);
+          const isMissingCheckout = rec.checkInTime && !rec.checkOutTime;
+
+          if (isOutside || isMissingCheckout) {
+            flaggedIncidents.push({
+              'Date': rec.date ?? (inT ? format(inT, 'yyyy-MM-dd') : ''),
+              'Staff Member': u.name || u.email || u.id,
+              'Email': u.email ?? '',
+              'Project Name': rec.projectId ? (projectMap.get(rec.projectId) ?? 'Unknown Project') : 'No Project Assigned',
+              'Incident Type': isOutside && isMissingCheckout
+                ? 'Outside Fence & Missing Checkout'
+                : isOutside
+                  ? 'Outside Geofence'
+                  : 'Missing Checkout',
+              'Details': isOutside
+                ? `Checked in at coordinates outside geofence boundary (${rec.checkInAddress || 'unknown location'})`
+                : 'Checked in but did not record a check-out time.',
+            });
+          }
+        }
+      }
+
+      flaggedIncidents.sort((a, b) => b.Date.localeCompare(a.Date) || a['Staff Member'].localeCompare(b['Staff Member']));
+      const flaggedSheet = XLSX.utils.json_to_sheet(flaggedIncidents);
+      flaggedSheet['!cols'] = [
+        { wch: 12 }, // Date
+        { wch: 22 }, // Staff Member
+        { wch: 26 }, // Email
+        { wch: 24 }, // Project Name
+        { wch: 28 }, // Incident Type
+        { wch: 60 }, // Details
+      ];
+
+      // 6. Assemble the workbook and trigger download
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
-      XLSX.writeFile(wb, `attendance-report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-      toast.success(`Exported ${rows.length} attendance records`);
-    } catch {
+      XLSX.utils.book_append_sheet(wb, overviewSheet, 'Summary & Overview');
+      XLSX.utils.book_append_sheet(wb, dailySheet, 'Daily Attendance Logs');
+      if (flaggedIncidents.length > 0) {
+        XLSX.utils.book_append_sheet(wb, flaggedSheet, 'Flagged Incidents');
+      }
+
+      XLSX.writeFile(wb, `kurickal-attendance-report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      toast.success(`Exported complete multi-sheet report with ${totalRecordsFetched} logs.`);
+    } catch (err: any) {
+      console.error(err);
       toast.error('Failed to export attendance report');
     } finally {
       setExporting(false);

@@ -179,6 +179,7 @@ export interface Attendance {
   checkInAddress?: string;
   checkOutAddress?: string;
   isWithinGeofence?: boolean;
+  projectId?: string;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
