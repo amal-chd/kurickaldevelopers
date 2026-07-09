@@ -28,6 +28,7 @@ const DEFAULT_ROLES = [
       chat_view: true, chat_send: true, chat_create_group: true, chat_announce: true, chat_moderate: true,
       attendance_view_all: true,
       contact_view: true, contact_manage: true,
+      performance_view: true, performance_manage: true,
     },
   },
   {
