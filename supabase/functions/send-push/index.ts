@@ -486,8 +486,8 @@ serve(async (req) => {
       if (roleId) {
         const roleSnap = await db.collection("roles").doc(roleId).get();
         const perms = roleSnap.exists ? (roleSnap.data()?.permissions ?? {}) : {};
-        allowed = perms.team_manage === true || perms.roles_manage === true;
         callerLevel = roleSnap.exists ? (roleSnap.data()?.level ?? 0) : 0;
+        allowed = perms.team_manage === true || perms.roles_manage === true || callerLevel >= 90;
       }
 
       if (!allowed) {
