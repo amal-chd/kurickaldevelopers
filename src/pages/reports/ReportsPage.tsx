@@ -87,7 +87,6 @@ const ReportsPage: React.FC = () => {
   // Task Status Data
   const taskStatusData = [
     { name: 'In Progress', value: filteredTasks.filter((t) => t.status === 'in_progress').length, fill: COLORS[0] },
-    { name: 'Approved', value: filteredTasks.filter((t) => t.status === 'approved').length, fill: COLORS[2] },
     { name: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length, fill: COLORS[1] },
   ];
 

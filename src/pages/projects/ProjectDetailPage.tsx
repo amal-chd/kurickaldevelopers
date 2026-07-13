@@ -81,7 +81,6 @@ const ProjectDetailPage: React.FC = () => {
   
   const tasksByStatus = {
     in_progress: tasks.filter((t) => getTaskStatus(t) === 'in_progress').length,
-    approved: tasks.filter((t) => getTaskStatus(t) === 'approved').length,
     done: tasks.filter((t) => getTaskStatus(t) === 'done').length,
   };
 
@@ -91,7 +90,6 @@ const ProjectDetailPage: React.FC = () => {
 
   const chartData = [
     { name: 'In Progress', value: tasksByStatus.in_progress },
-    { name: 'Approved', value: tasksByStatus.approved },
     { name: 'Done', value: tasksByStatus.done },
   ].filter(d => d.value > 0);
 
@@ -220,10 +218,9 @@ const ProjectDetailPage: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: 'In Progress', value: tasksByStatus.in_progress, color: 'text-blue-600', bg: 'bg-blue-50' },
-                      { label: 'Approved', value: tasksByStatus.approved, color: 'text-amber-600', bg: 'bg-amber-50' },
                       { label: 'Done', value: tasksByStatus.done, color: 'text-green-600', bg: 'bg-green-50' },
                     ].map((s) => (
                       <div key={s.label} className={`${s.bg} p-3 rounded-2xl text-center shadow-sm`}>

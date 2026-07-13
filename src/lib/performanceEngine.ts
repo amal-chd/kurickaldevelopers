@@ -61,7 +61,7 @@ export function calculatePerformanceScore(
   config: PerformanceConfig = DEFAULT_PERFORMANCE_CONFIG,
   roleId: string = ''
 ): PerformanceScore {
-  const completedTasks = userTasks.filter(t => t.status === 'done' || t.status === 'approved');
+  const completedTasks = userTasks.filter(t => t.status === 'done');
   const assignedTasks = userTasks;
 
   // 1. Completion count by priority
@@ -245,7 +245,7 @@ export function calculatePerformanceScore(
   // Active missed deadlines (overdue tasks)
   const now = new Date();
   assignedTasks.forEach(t => {
-    if (t.status !== 'done' && t.status !== 'approved' && t.dueDate) {
+    if (t.status !== 'done' && t.dueDate) {
       const due = t.dueDate.toDate();
       if (now > due) {
         tasksOverdue++;

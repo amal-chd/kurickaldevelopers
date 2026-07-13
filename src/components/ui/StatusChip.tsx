@@ -13,15 +13,10 @@ const STATUS_CONFIG: Record<TaskStatus, { label: string; classes: string; dot: s
     classes: 'bg-blue-50 text-blue-700 border border-blue-100',
     dot: 'bg-blue-500',
   },
-  approved: {
-    label: 'Approved',
-    classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    dot: 'bg-emerald-500',
-  },
   done: {
     label: 'Done',
-    classes: 'bg-slate-100 text-slate-600 border border-slate-200',
-    dot: 'bg-slate-400',
+    classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    dot: 'bg-emerald-500',
   },
 };
 
@@ -62,7 +57,7 @@ export const CompletionStatusChip: React.FC<{
   dueDate?: any;
   className?: string;
 }> = ({ status, completionStatus, dueDate, className }) => {
-  if (status === 'done' || status === 'approved') {
+  if (status === 'done') {
     if (completionStatus === 'completed_on_time') {
       return (
         <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100', className)}>

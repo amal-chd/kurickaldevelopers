@@ -288,7 +288,6 @@ const CreateTaskPage: React.FC = () => {
                 onChange={(e) => setForm((p) => ({ ...p, status: e.target.value as TaskStatus }))}
                 options={[
                   { value: 'in_progress', label: 'In Progress' },
-                  { value: 'approved', label: 'Approved' },
                   { value: 'done', label: 'Done' },
                 ]}
               />

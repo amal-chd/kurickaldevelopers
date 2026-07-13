@@ -374,7 +374,7 @@ const AttendanceDashboardPage: React.FC = () => {
         const hist = staffHistoryMap.get(u.id) || [];
         for (const rec of hist) {
           const inT = rec.checkInTime?.toDate?.();
-          const outT = rec.checkOutTime?.toDate?.();
+          const _outT = rec.checkOutTime?.toDate?.();
 
           const isOutside = isOutsideGeofence(rec);
           const isMissingCheckout = rec.checkInTime && !rec.checkOutTime;

@@ -101,7 +101,6 @@ const DashboardPage: React.FC = () => {
 
   const activeProjects   = projects.filter((p) => p.status === 'active');
   const inProgressTasks  = allTasks.filter((t) => t.status === 'in_progress');
-  const pendingApprovals = allTasks.filter((t) => t.approvalStatus === 'pending');
   const overdueTasks     = myTasks.filter(
     (t) => t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && t.status !== 'done',
   );
@@ -165,7 +164,7 @@ const DashboardPage: React.FC = () => {
     { label: 'Active Tasks',      value: inProgressTasks.length,  ready: ready.tasks,    icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
     { label: 'Active Projects',   value: activeProjects.length,   ready: ready.projects, icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
     { label: 'Team Members',      value: users.length,            ready: ready.users,    icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
-    { label: 'Pending Approvals', value: pendingApprovals.length, ready: ready.tasks,    icon: Clock,       gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
+    { label: 'Completed Tasks',   value: doneTasks.length,        ready: ready.tasks,    icon: Trophy,      gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
   ];
 
   return (

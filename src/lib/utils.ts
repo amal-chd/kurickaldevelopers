@@ -59,7 +59,6 @@ export function getDuration(start: Timestamp | null | undefined, end: Timestamp 
 export function taskStatusLabel(status: TaskStatus): string {
   const map: Record<TaskStatus, string> = {
     in_progress: 'In Progress',
-    approved: 'Approved',
     done: 'Done',
   };
   return map[status] ?? status;
@@ -68,7 +67,6 @@ export function taskStatusLabel(status: TaskStatus): string {
 export function taskStatusColor(status: TaskStatus): string {
   const map: Record<TaskStatus, string> = {
     in_progress: 'bg-blue-100 text-blue-700',
-    approved: 'bg-amber-100 text-amber-700',
     done: 'bg-green-100 text-green-700',
   };
   return map[status] ?? 'bg-gray-100 text-gray-700';

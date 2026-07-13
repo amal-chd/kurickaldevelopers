@@ -16,18 +16,17 @@ import { formatDate } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
 type ViewMode = 'kanban' | 'list';
-type TabFilter = 'all' | 'in_progress' | 'approved' | 'done' | 'overdue';
+type TabFilter = 'all' | 'in_progress' | 'done' | 'overdue';
 
-const STATUSES: TaskStatus[] = ['in_progress', 'approved', 'done'];
+const STATUSES: TaskStatus[] = ['in_progress', 'done'];
 
 const COLUMN_CONFIG: Record<TaskStatus, { label: string; color: string; bg: string; dot: string }> = {
   in_progress: { label: 'In Progress', color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-100',     dot: 'bg-blue-500' },
-  approved:    { label: 'Approved',    color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', dot: 'bg-emerald-500' },
-  done:        { label: 'Done',        color: 'text-slate-600',    bg: 'bg-slate-50 border-slate-200',       dot: 'bg-slate-400' },
+  done:        { label: 'Done',        color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', dot: 'bg-emerald-500' },
 };
 
 const TAB_LABELS: Record<TabFilter, string> = {
-  all: 'All', in_progress: 'In Progress', approved: 'Approved', done: 'Done', overdue: 'Overdue',
+  all: 'All', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue',
 };
 
 const TasksPage: React.FC = () => {

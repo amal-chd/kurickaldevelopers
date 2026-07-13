@@ -27,7 +27,6 @@ import { Timestamp } from 'firebase/firestore';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'in_progress', label: 'In Progress' },
-  { value: 'approved', label: 'Approved' },
   { value: 'done', label: 'Done' },
 ];
 
@@ -425,7 +424,7 @@ const TaskDetailPage: React.FC = () => {
                 </div>
               </div>
               
-              {(task.status === 'done' || task.status === 'approved') && task.completedAt && (
+              {task.status === 'done' && task.completedAt && (
                 <div className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-emerald-500 mt-0.5" />
                   <div>

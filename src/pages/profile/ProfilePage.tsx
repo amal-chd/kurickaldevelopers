@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X, Bell, Megaphone, MessageSquare, CheckSquare } from 'lucide-react';
+import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X, Bell, Megaphone, MessageSquare, CheckSquare, Key, Lock } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -7,6 +7,8 @@ import Avatar from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { updateUser, uploadFile } from '../../lib/firestore';
 import { logout } from '../../hooks/useAuth';
+import { auth } from '../../firebase/config';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -23,6 +25,60 @@ const ProfilePage: React.FC = () => {
   const [prefAnnouncements, setPrefAnnouncements] = useState(appUser?.preferences?.announcements ?? true);
   const [prefChats, setPrefChats] = useState(appUser?.preferences?.chats ?? true);
   const [prefTasks, setPrefTasks] = useState(appUser?.preferences?.tasks ?? true);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      toast.error('You must be logged in with an email account to change your password');
+      return;
+    }
+    if (!currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters long');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    if (currentPassword === newPassword) {
+      toast.error('New password must be different from current password');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+      toast.success('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordSection(false);
+    } catch (err: any) {
+      console.error('Change password error:', err);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        toast.error('Current password is incorrect');
+      } else if (err.code === 'auth/weak-password') {
+        toast.error('New password is too weak');
+      } else {
+        toast.error(err.message || 'Failed to change password');
+      }
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const handleTogglePreference = async (key: 'announcements' | 'chats' | 'tasks', val: boolean) => {
     if (!appUser) return;
@@ -300,6 +356,65 @@ const ProfilePage: React.FC = () => {
             </label>
           </div>
         </div>
+      </Card>
+
+      {/* Security & Password */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-50 rounded-xl border border-amber-100 flex-shrink-0">
+              <Key className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900 text-sm">Account Security</h3>
+              <p className="text-xs text-slate-400">Update your account password regularly for better security</p>
+            </div>
+          </div>
+          <Button
+            variant={showPasswordSection ? 'outline' : 'secondary'}
+            size="sm"
+            onClick={() => setShowPasswordSection(!showPasswordSection)}
+          >
+            {showPasswordSection ? 'Cancel' : 'Change Password'}
+          </Button>
+        </div>
+
+        {showPasswordSection && (
+          <form onSubmit={handleChangePassword} className="mt-5 pt-4 border-t border-slate-100 space-y-4">
+            <Input
+              label="Current Password"
+              type="password"
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+            <Input
+              label="New Password"
+              type="password"
+              placeholder="At least 6 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+            <Input
+              label="Confirm New Password"
+              type="password"
+              placeholder="Re-enter new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowPasswordSection(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" loading={changingPassword} leftIcon={<Lock className="w-3.5 h-3.5" />}>
+                Update Password
+              </Button>
+            </div>
+          </form>
+        )}
       </Card>
 
       {/* Sign out */}

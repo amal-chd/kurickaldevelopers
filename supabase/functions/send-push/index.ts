@@ -105,11 +105,8 @@ async function sendToTokens(
 // ─── Edge Function Server ────────────────────────────────────────────────────
 serve(async (req) => {
   // Handle CORS preflight.
-  // NOTE: a 204 response must have a NULL body — passing "ok" with status 204
-  // makes Deno's Response constructor throw, which surfaced as a 500 on every
-  // browser preflight and broke all web → edge-function calls.
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
