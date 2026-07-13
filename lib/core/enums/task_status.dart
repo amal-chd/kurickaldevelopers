@@ -3,7 +3,6 @@ import '../constants/app_colors.dart';
 
 enum TaskStatus {
   inProgress('in_progress', 'In Progress', AppColors.statusInProgress),
-  approved('approved', 'Approved', AppColors.statusApproved),
   done('done', 'Done', AppColors.statusDone);
 
   final String value;

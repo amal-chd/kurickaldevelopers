@@ -30,7 +30,7 @@ class TaskCard extends ConsumerWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           border: () {
-            if (task.status == TaskStatus.done || task.status == TaskStatus.approved) {
+            if (task.status == TaskStatus.done) {
               if (task.completionStatus == 'completed_late') {
                 return Border.all(color: AppTheme.error.withValues(alpha: 0.3), width: 1.0);
               }

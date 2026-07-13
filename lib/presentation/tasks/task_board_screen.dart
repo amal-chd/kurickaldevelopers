@@ -383,11 +383,6 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen>
                     .toList(),
                 null,
               ),
-              // Approved
-              _buildEmployeeList(
-                myTasks.where((t) => t.statusForUser(currentUser?.uid ?? '') == TaskStatus.approved).toList(),
-                null,
-              ),
               // Done
               _buildEmployeeList(
                 myTasks.where((t) => t.status == TaskStatus.done).toList(),
@@ -624,7 +619,6 @@ class _EmployeeTaskCard extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider).value;
     final displayStatus = task.statusForUser(currentUser?.uid ?? '');
     final isDone = displayStatus == TaskStatus.done;
-    final isApproved = displayStatus == TaskStatus.approved;
     final isInProgress = displayStatus == TaskStatus.inProgress;
 
     return GestureDetector(
@@ -796,7 +790,7 @@ class _EmployeeTaskCard extends ConsumerWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  if (!isInProgress && !isApproved)
+                  if (!isInProgress)
                     Expanded(
                       child: _ActionButton(
                         label: 'Start Task',
@@ -805,7 +799,7 @@ class _EmployeeTaskCard extends ConsumerWidget {
                         onTap: () => onStatusUpdate(TaskStatus.inProgress),
                       ),
                     ),
-                  if (!isInProgress && !isApproved) const SizedBox(width: 10),
+                  if (!isInProgress) const SizedBox(width: 10),
                   Expanded(
                     child: _ActionButton(
                       label: 'Mark Done',

@@ -1008,11 +1008,7 @@ class _ProjectTasksTab extends ConsumerWidget {
           final isOverdue = t.dueDate.isBefore(DateTime.now()) && displayStatus != TaskStatus.done;
           return !isOverdue && displayStatus == TaskStatus.inProgress;
         }).toList();
-        final review = tasks.where((t) {
-          final displayStatus = isManager ? t.status : t.statusForUser(currentUser?.uid ?? '');
-          final isOverdue = t.dueDate.isBefore(DateTime.now()) && displayStatus != TaskStatus.done;
-          return !isOverdue && displayStatus == TaskStatus.approved;
-        }).toList();
+
         final done = tasks.where((t) {
           final displayStatus = isManager ? t.status : t.statusForUser(currentUser?.uid ?? '');
           return displayStatus == TaskStatus.done;
@@ -1042,11 +1038,6 @@ class _ProjectTasksTab extends ConsumerWidget {
                       color: AppTheme.accent,
                     ),
                     _StatusSummaryChip(
-                      label: 'Approved',
-                      count: review.length,
-                      color: AppTheme.info,
-                    ),
-                    _StatusSummaryChip(
                       label: 'Done',
                       count: done.length,
                       color: AppTheme.success,
@@ -1064,11 +1055,6 @@ class _ProjectTasksTab extends ConsumerWidget {
               if (inProgress.isNotEmpty) ...[
                 _TaskGroupHeader(label: 'In Progress', color: AppTheme.accent),
                 ...inProgress.map((t) => _TaskCard(task: t)),
-                const SizedBox(height: 8),
-              ],
-              if (review.isNotEmpty) ...[
-                _TaskGroupHeader(label: 'Approved', color: AppTheme.info),
-                ...review.map((t) => _TaskCard(task: t)),
                 const SizedBox(height: 8),
               ],
               if (done.isNotEmpty) ...[

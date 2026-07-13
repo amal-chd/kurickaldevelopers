@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
 import '../../app/theme.dart';
 import '../../core/enums/task_status.dart';
@@ -268,6 +269,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      _SectionCard(
+                        title: 'Account Security',
+                        children: [
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.warning.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              ),
+                              child: const Icon(Icons.lock_outline_rounded, color: AppTheme.warning, size: 20),
+                            ),
+                            title: const Text(
+                              'Change Password',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: AppTheme.onSurface,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Update your password for enhanced security',
+                              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+                            onTap: () => _showChangePasswordDialog(context, user.email),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
@@ -381,6 +414,164 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirm == true && mounted) {
       await ref.read(authRepositoryProvider).signOut();
     }
+  }
+
+  void _showChangePasswordDialog(BuildContext context, String email) {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool loading = false;
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+          ),
+          title: const Text(
+            'Change Password',
+            style: TextStyle(
+              color: AppTheme.onSurface,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'Plus Jakarta Sans',
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Enter your current password and choose a new password.',
+                    style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: currentCtrl,
+                    obscureText: obscureCurrent,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureCurrent ? Icons.visibility_off : Icons.visibility, size: 18),
+                        onPressed: () => setStateDialog(() => obscureCurrent = !obscureCurrent),
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.isEmpty) ? 'Enter current password' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: newCtrl,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, size: 18),
+                        onPressed: () => setStateDialog(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Enter new password';
+                      if (v.length < 6) return 'Must be at least 6 characters';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) {
+                      if (v != newCtrl.text) return 'Passwords do not match';
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => loading = true);
+                      try {
+                        final user = fb_auth.FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          final cred = fb_auth.EmailAuthProvider.credential(
+                            email: email,
+                            password: currentCtrl.text.trim(),
+                          );
+                          await user.reauthenticateWithCredential(cred);
+                          await user.updatePassword(newCtrl.text.trim());
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Password updated successfully!'),
+                                backgroundColor: AppTheme.success,
+                              ),
+                            );
+                          }
+                        }
+                      } on fb_auth.FirebaseAuthException catch (e) {
+                        setStateDialog(() => loading = false);
+                        String msg = 'Failed to update password';
+                        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+                          msg = 'Current password is incorrect';
+                        } else if (e.code == 'weak-password') {
+                          msg = 'New password is too weak';
+                        } else {
+                          msg = e.message ?? msg;
+                        }
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => loading = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error),
+                          );
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

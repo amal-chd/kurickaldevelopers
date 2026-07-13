@@ -174,11 +174,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
           'Work has started on this task',
           style: TextStyle(fontSize: 11),
         );
-      case TaskStatus.approved:
-        return const Text(
-          'Task reviewed and approved by manager',
-          style: TextStyle(fontSize: 11),
-        );
       case TaskStatus.done:
         return const Text(
           'Mark as fully completed',

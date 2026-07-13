@@ -24,7 +24,7 @@ class StatusChip extends StatelessWidget {
     String? completionStatus,
     DateTime? dueDate,
   }) {
-    if (status == TaskStatus.done || status == TaskStatus.approved) {
+    if (status == TaskStatus.done) {
       if (completionStatus == 'completed_on_time') {
         return const StatusChip(
           label: 'Completed On Time',
