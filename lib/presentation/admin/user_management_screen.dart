@@ -16,6 +16,7 @@ import '../shared/widgets/avatar_widget.dart';
 import '../shared/widgets/loading_widget.dart';
 import '../shared/widgets/error_widget.dart';
 import '../shared/widgets/permission_gate.dart';
+import '../../data/services/push_sender.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -361,6 +362,14 @@ class _UserCard extends ConsumerWidget {
                           label: 'Change Role',
                         ),
                       ),
+                      const PopupMenuItem(
+                        value: 'reset_password',
+                        child: _PopupItem(
+                          icon: Icons.lock_reset_rounded,
+                          label: 'Reset Password',
+                          color: AppTheme.warning,
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'toggle',
                         child: _PopupItem(
@@ -415,6 +424,9 @@ class _UserCard extends ConsumerWidget {
 
       case 'role':
         _showRolePicker(context, ref);
+
+      case 'reset_password':
+        _showResetPasswordDialog(context, ref);
 
       case 'toggle':
         await repo.setUserActive(user.uid, !user.isActive);
@@ -569,6 +581,136 @@ class _UserCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showResetPasswordDialog(BuildContext context, WidgetRef ref) {
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool obscureNew = true;
+    bool loading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+          ),
+          title: Text(
+            'Reset Password for ${user.name}',
+            style: const TextStyle(
+              color: AppTheme.onSurface,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Set a new password for this user account.',
+                    style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: newCtrl,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, size: 18),
+                        onPressed: () => setStateDialog(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Enter new password';
+                      if (v.length < 6) return 'Must be at least 6 characters';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) {
+                      if (v != newCtrl.text) return 'Passwords do not match';
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.warning,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setStateDialog(() => loading = true);
+                      try {
+                        await PushSender.instance.resetUserPassword(
+                          targetUid: user.uid,
+                          newPassword: newCtrl.text.trim(),
+                        );
+                        _writeAuditLog(
+                          ref,
+                          'user.password_reset',
+                          'Admin reset password for user "${user.name}"',
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Password reset successfully for ${user.name}'),
+                              backgroundColor: AppTheme.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => loading = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                              backgroundColor: AppTheme.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Reset Password'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

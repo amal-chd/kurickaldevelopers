@@ -91,4 +91,41 @@ class PushSender {
       }
     }
   }
+
+  /// Reset a user account's password (Admin only).
+  Future<void> resetUserPassword({
+    required String targetUid,
+    required String newPassword,
+  }) async {
+    if (!PushConfig.isConfigured) {
+      throw Exception('Backend API is not configured');
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    final token = await user.getIdToken();
+
+    final res = await http
+        .post(
+          Uri.parse(PushConfig.endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'event': 'reset_password',
+            'targetUid': targetUid,
+            'newPassword': newPassword,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode != 200) {
+      try {
+        final body = jsonDecode(res.body);
+        throw Exception(body['error'] ?? 'Failed to reset password');
+      } catch (_) {
+        throw Exception('Failed to reset password (${res.statusCode})');
+      }
+    }
+  }
 }
