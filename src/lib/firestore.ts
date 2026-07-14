@@ -584,7 +584,13 @@ export const getAttendance = async (date?: string, userId?: string): Promise<Att
 export const subscribeAttendance = (date: string, cb: (records: Attendance[]) => void) => {
   return onSnapshot(
     query(collection(db, 'attendance'), where('date', '==', date)),
-    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance)))
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Attendance))),
+    // Without an error callback a transient/permission error would leave the
+    // dashboard's loading spinner stuck forever; emit an empty set instead.
+    (err) => {
+      logPermissionError('subscribeAttendance', err);
+      cb([]);
+    }
   );
 };
 
