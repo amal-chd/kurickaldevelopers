@@ -97,7 +97,7 @@ service cloud.firestore {
         hasPermission('tasks_approve') ||
         hasPermission('tasks_edit') ||
         (taskData.projectId != null && isProjectManager(taskData.projectId)) ||
-        myLevel() >= 80
+        myLevel() >= 60
       );
     }
 

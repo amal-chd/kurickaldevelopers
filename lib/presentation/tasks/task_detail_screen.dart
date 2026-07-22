@@ -302,7 +302,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
         final isHigherAuthority = roleLevel >= 60 || canApprove || canEdit || canCreate;
         final canAddComment = isProjectManager || isAssigner || isHigherAuthority;
 
-        final canMarkDone = canApprove || isManager || (currentUser?.uid != null && task.createdBy == currentUser!.uid);
+        final canMarkDone = canApprove || canEdit || isProjectManager || isAssigner || roleLevel >= 60;
         final displayStatus = canMarkDone ? task.status : task.statusForUser(currentUser?.uid ?? '');
         final isAssignee = task.assigneeIds.contains(currentUser?.uid) ||
             (currentUser?.roleId != null && (
@@ -388,6 +388,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   dueDateColor,
                   isOverdue,
                   isManager,
+                  canMarkDone,
                   displayStatus,
                   isAssignee,
                 ),
@@ -408,17 +409,106 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     Color dueDateColor,
     bool isOverdue,
     bool isManager,
+    bool canMarkDone,
     TaskStatus displayStatus,
     bool isAssignee,
   ) {
-    final canMarkDone = canApprove || isManager || (currentUser?.uid != null && task.createdBy == currentUser!.uid);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Info banner for employees
-          if (!canMarkDone)
+          // Verification / Review Banner
+          if (task.status == TaskStatus.underReview || displayStatus == TaskStatus.underReview) ...[
+            if (canMarkDone)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.verified_outlined, color: Color(0xFFD97706), size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Verification Required',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF92400E),
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'The assignee has completed this task and submitted it for verification. Please verify the work before marking it as Done.',
+                      style: TextStyle(color: Color(0xFFB45309), fontSize: 13, height: 1.4),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () {
+                            if (currentUser != null) {
+                              ref.read(taskRepositoryProvider).updateStatus(task.id, TaskStatus.inProgress, currentUser.uid);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF92400E),
+                            side: const BorderSide(color: Color(0xFFFCD34D)),
+                          ),
+                          child: const Text('Request Re-work'),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (currentUser != null) {
+                              ref.read(taskRepositoryProvider).updateStatus(task.id, TaskStatus.done, currentUser.uid);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text('Verify & Mark Done'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.info.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.info.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.access_time_rounded, size: 18, color: AppTheme.info),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You have submitted this task for review. Waiting for verification from the project manager or task assigner.',
+                        style: TextStyle(fontSize: 13, color: AppTheme.info, height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ] else if (!canMarkDone)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -699,8 +789,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
             ),
           ],
 
-          // Member Progress (Managers only)
-          if (isManager) ...[
+          // Member Progress (Managers and verified roles)
+          if (isManager || canMarkDone) ...[
             const SizedBox(height: 20),
             const Text(
               'Member Progress',

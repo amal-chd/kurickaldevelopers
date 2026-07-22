@@ -309,24 +309,39 @@ class TaskRepository {
       final dueDate = AppDateUtils.fromTimestamp(data['dueDate']);
       final memberProgress = Map<String, dynamic>.from(data['memberProgress'] ?? {});
       
-      // Check if user is manager/approver or task creator
+      // Check if user is project manager, role approver/editor, or task creator
       final createdBy = (data['createdBy'] as String?) ?? '';
+      final projectId = (data['projectId'] as String?) ?? '';
+      bool isProjectManager = false;
+      String? projectManagerId;
+      if (projectId.isNotEmpty) {
+        final projSnap = await _db.collection('projects').doc(projectId).get();
+        if (projSnap.exists) {
+          final projData = projSnap.data() as Map<String, dynamic>;
+          projectManagerId = projData['projectManagerId'] as String? ?? projData['managerId'] as String?;
+          isProjectManager = projectManagerId == userId;
+        }
+      }
+
       final userSnap = await _db.collection('users').doc(userId).get();
+      String userName = 'Someone';
       bool isManager = false;
       if (userSnap.exists) {
         final userData = userSnap.data() as Map<String, dynamic>;
+        userName = userData['name'] as String? ?? 'Someone';
         final roleId = userData['roleId'] as String? ?? '';
         if (roleId.isNotEmpty) {
           final roleSnap = await _db.collection('roles').doc(roleId).get();
           if (roleSnap.exists) {
-            final permissions = Map<String, dynamic>.from(
-                (roleSnap.data() as Map<String, dynamic>)['permissions'] ?? {});
-            isManager = permissions['tasks_approve'] == true;
+            final roleData = roleSnap.data() as Map<String, dynamic>;
+            final permissions = Map<String, dynamic>.from(roleData['permissions'] ?? {});
+            final level = (roleData['level'] as num?)?.toInt() ?? 0;
+            isManager = permissions['tasks_approve'] == true || permissions['tasks_edit'] == true || level >= 60;
           }
         }
       }
 
-      final canMarkDone = isManager || userId == createdBy;
+      final canMarkDone = isManager || isProjectManager || userId == createdBy;
       final actualStatus = (!canMarkDone && newStatus == TaskStatus.done)
           ? TaskStatus.underReview
           : newStatus;
@@ -414,17 +429,55 @@ class TaskRepository {
       await updateTask(taskId, updates);
       PushSender.instance.task(taskId: taskId, kind: 'status');
 
-      // Notify the task's creator that the status changed.
+      // Notify relevant parties based on status change
       try {
-        final createdBy = (data['createdBy'] as String?) ?? '';
         final title = (data['title'] as String?) ?? 'Task';
-        await _writeNotif(
-          userId: createdBy,
-          type: 'task_updated',
-          title: 'Task Status Updated',
-          body: '$title status updated',
-          relatedId: taskId,
-        );
+        if (actualStatus == TaskStatus.underReview && !canMarkDone) {
+          // Assignee raised/submitted task for review -> notify Assigner and Project Manager
+          if (createdBy.isNotEmpty && createdBy != userId) {
+            await _writeNotif(
+              userId: createdBy,
+              type: 'task_updated',
+              title: 'Verification Required',
+              body: '$userName raised task "$title" for review.',
+              relatedId: taskId,
+            );
+          }
+          if (projectManagerId != null && projectManagerId.isNotEmpty && projectManagerId != userId && projectManagerId != createdBy) {
+            await _writeNotif(
+              userId: projectManagerId,
+              type: 'task_updated',
+              title: 'Verification Required',
+              body: '$userName submitted task "$title" for verification.',
+              relatedId: taskId,
+            );
+          }
+        } else if (actualStatus == TaskStatus.done && canMarkDone) {
+          // Verified and marked done -> notify assignees and assigner
+          final explicitUids = List<String>.from(data['assigneeIds'] ?? []);
+          final notifyUids = <String>{...explicitUids, if (createdBy.isNotEmpty) createdBy};
+          for (final uid in notifyUids) {
+            if (uid == userId) continue;
+            await _writeNotif(
+              userId: uid,
+              type: 'task_updated',
+              title: 'Task Verified & Completed',
+              body: 'Task "$title" has been verified and marked as Done by $userName.',
+              relatedId: taskId,
+            );
+          }
+        } else {
+          // General status update -> notify creator if changed by someone else
+          if (createdBy.isNotEmpty && createdBy != userId) {
+            await _writeNotif(
+              userId: createdBy,
+              type: 'task_updated',
+              title: 'Task Status Updated',
+              body: 'Task "$title" is now ${actualStatus.label}',
+              relatedId: taskId,
+            );
+          }
+        }
       } catch (_) {}
     } catch (e) {
       throw ErrorTranslator.translate(e);
