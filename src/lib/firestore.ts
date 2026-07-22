@@ -24,12 +24,13 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import {
-  AppUser, Role, Project, Task, Subtask, Document as TDocument,
+  AppUser, Role, Project, Task, Subtask, TaskComment, Document as TDocument,
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
   OrgSettings, AuditLog, AppNotification, ContactInquiry, TaskAssignmentConfig,
   PerformanceScore, PerformanceReview, PerformanceConfig,
 } from '../types';
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from './performanceEngine';
+import { notifyPush } from './push';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 export const logPermissionError = (actionName: string, error: any, context?: any) => {
@@ -438,8 +439,37 @@ export const getSubtasks = async (taskId: string): Promise<Subtask[]> => {
   }
 };
 
-export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>): Promise<string> => {
+export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, addedByUid?: string): Promise<string> => {
   const ref2 = await addDoc(collection(db, 'tasks', taskId, 'subtasks'), data);
+
+  if (addedByUid) {
+    try {
+      const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+      if (taskDoc.exists()) {
+        const taskData = taskDoc.data();
+        const assigneeIds: string[] = taskData.assigneeIds || [];
+        const title: string = taskData.title || 'Task';
+
+        notifyPush({ event: 'task', taskId, kind: 'subtask_added' });
+
+        for (const uid of new Set(assigneeIds)) {
+          if (uid === addedByUid || !uid) continue;
+          await createNotification({
+            userId: uid,
+            type: 'task_updated',
+            title: 'New Subtask Added',
+            body: `A subtask "${data.title}" was added to: ${title}`,
+            relatedId: taskId,
+            isRead: {},
+            createdAt: null as any,
+          });
+        }
+      }
+    } catch (_) {
+      // Best effort notification delivery
+    }
+  }
+
   return ref2.id;
 };
 
@@ -454,6 +484,65 @@ export const deleteSubtask = async (taskId: string, subtaskId: string): Promise<
 export const subscribeSubtasks = (taskId: string, cb: (subtasks: Subtask[]) => void) => {
   return onSnapshot(collection(db, 'tasks', taskId, 'subtasks'), (snap) =>
     cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Subtask)))
+  );
+};
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
+export const getComments = async (taskId: string): Promise<TaskComment[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'tasks', taskId, 'comments'), orderBy('createdAt', 'asc')));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TaskComment));
+  } catch (err: any) {
+    console.warn('Gracefully handled getComments error:', err);
+    return [];
+  }
+};
+
+export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 'createdAt'>, authorId?: string): Promise<string> => {
+  const effectiveAuthorId = authorId || data.authorId || '';
+  const ref2 = await addDoc(collection(db, 'tasks', taskId, 'comments'), {
+    ...data,
+    authorId: effectiveAuthorId,
+    createdAt: serverTimestamp(),
+  });
+
+  try {
+    const taskDoc = await getDoc(doc(db, 'tasks', taskId));
+    if (taskDoc.exists()) {
+      const taskData = taskDoc.data();
+      const assigneeIds: string[] = taskData.assigneeIds || [];
+      const createdBy: string = taskData.createdBy || '';
+      const title: string = taskData.title || 'Task';
+
+      notifyPush({ event: 'task', taskId, kind: 'comment_added' });
+
+      const notifySet = new Set([...assigneeIds, ...(createdBy ? [createdBy] : [])].filter(Boolean));
+      for (const uid of notifySet) {
+        if (uid === effectiveAuthorId || !uid) continue;
+        await createNotification({
+          userId: uid,
+          type: 'task_updated',
+          title: 'New Comment on Task',
+          body: `New comment on "${title}"`,
+          relatedId: taskId,
+          isRead: {},
+          createdAt: null as any,
+        });
+      }
+    }
+  } catch (_) {
+    // Best effort notification delivery
+  }
+
+  return ref2.id;
+};
+
+export const subscribeComments = (taskId: string, cb: (comments: TaskComment[]) => void) => {
+  return onSnapshot(
+    query(collection(db, 'tasks', taskId, 'comments'), orderBy('createdAt', 'asc')),
+    (snap) => {
+      cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as TaskComment)));
+    }
   );
 };
 

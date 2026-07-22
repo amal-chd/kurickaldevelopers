@@ -7,7 +7,7 @@ import { auth } from '../firebase/config';
 
 type PushPayload =
   | { event: 'chat'; channelId: string; messageId: string }
-  | { event: 'task'; taskId: string; kind: 'assigned' | 'status' }
+  | { event: 'task'; taskId: string; kind: 'assigned' | 'status' | 'subtask_added' | 'comment_added' | string }
   | { event: 'broadcast'; title: string; body: string; targetRoleId?: string | null; userIds?: string[] };
 
 export async function notifyPush(payload: PushPayload): Promise<void> {

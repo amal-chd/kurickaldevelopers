@@ -6,6 +6,8 @@ import { useAuthInit } from './hooks/useAuth';
 import { useAuthStore } from './store/authStore';
 import AppLayout from './components/layout/AppLayout';
 
+import { usePermissions } from './hooks/usePermissions';
+
 const LandingPage = React.lazy(() => import('./pages/landing/LandingPage'));
 const PrivacyPolicyPage = React.lazy(() => import('./pages/landing/PrivacyPolicyPage'));
 const TermsOfUsePage = React.lazy(() => import('./pages/landing/TermsOfUsePage'));
@@ -49,7 +51,20 @@ const queryClient = new QueryClient({
 // custom role setups without hardcoding a role id.
 const DirectorGate = () => {
   const { role } = useAuthStore();
-  if ((role?.level ?? 0) >= 100) return <Outlet />;
+  const { canAny } = usePermissions();
+
+  const hasAccess =
+    (role?.level ?? 0) >= 100 ||
+    canAny(
+      'settings_manage',
+      'roles_manage',
+      'notifications_manage',
+      'attendance_view_all',
+      'contact_view',
+      'team_manage'
+    );
+
+  if (hasAccess) return <Outlet />;
   return <Navigate to="/app/dashboard" replace />;
 };
 

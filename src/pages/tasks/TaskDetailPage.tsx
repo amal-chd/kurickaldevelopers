@@ -13,13 +13,13 @@ import Modal from '../../components/ui/Modal';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
-  getTask, getAllUsers, getSubtasks, addSubtask, updateSubtask, deleteSubtask,
+  getTask, getAllUsers, addSubtask, updateSubtask, deleteSubtask,
   updateTask, deleteTask, getProject, sendMessage, getChannel,
-  createNotification, getAllRoles,
+  createNotification, getAllRoles, addComment, subscribeComments, subscribeSubtasks,
 } from '../../lib/firestore';
-import { Task, Subtask, AppUser, Project, TaskStatus, Role } from '../../types';
+import { Task, Subtask, TaskComment, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
-import { formatDate, taskStatusLabel, calculateCompletionDetails, formatDelay } from '../../lib/utils';
+import { formatDate, formatDateTime, taskStatusLabel, calculateCompletionDetails, formatDelay } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
 import { isAfter } from 'date-fns';
@@ -39,12 +39,15 @@ const TaskDetailPage: React.FC = () => {
   const [task, setTask] = useState<Task | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [comments, setComments] = useState<TaskComment[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [newSubtask, setNewSubtask] = useState('');
   const [addingSubtask, setAddingSubtask] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [addingComment, setAddingComment] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -63,13 +66,17 @@ const TaskDetailPage: React.FC = () => {
           const p = await getProject(t.projectId);
           setProject(p);
         }
-        const st = await getSubtasks(taskId);
-        setSubtasks(st);
       } finally {
         setLoading(false);
       }
     };
     load();
+    const unsubSubtasks = subscribeSubtasks(taskId, (st) => setSubtasks(st));
+    const unsubComments = subscribeComments(taskId, (cm) => setComments(cm));
+    return () => {
+      unsubSubtasks?.();
+      unsubComments?.();
+    };
   }, [taskId]);
 
   if (loading) return <div className="flex items-center justify-center h-full min-h-[50vh]"><Spinner size="lg" /></div>;
@@ -77,6 +84,16 @@ const TaskDetailPage: React.FC = () => {
 
   const getUser = (uid: string) => users.find((u) => u.id === uid);
   const isManager = can('tasks_approve');
+  const explicitUids = task.assigneeIds ?? [];
+  const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+  const isAssignee = Boolean(
+    appUser && (
+      explicitUids.includes(appUser.id) ||
+      assignedRolesList.includes(appUser.roleId)
+    )
+  );
+  const canEditStatus = isManager || isAssignee;
+
   const displayStatus = isManager ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
   const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
@@ -84,6 +101,10 @@ const TaskDetailPage: React.FC = () => {
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!taskId || !appUser || !task) return;
+    if (!isManager && !isAssignee) {
+      toast.error('Only assigned members can update this task\'s status.');
+      return;
+    }
     try {
       const isManager = can('tasks_approve');
       const updatedProgress = { ...(task.memberProgress ?? {}) };
@@ -219,13 +240,25 @@ const TaskDetailPage: React.FC = () => {
     if (!taskId || !newSubtask.trim()) return;
     setAddingSubtask(true);
     try {
-      const id = await addSubtask(taskId, { title: newSubtask.trim(), isDone: false });
-      setSubtasks((prev) => [...prev, { id, title: newSubtask.trim(), isDone: false }]);
+      await addSubtask(taskId, { title: newSubtask.trim(), isDone: false }, appUser?.id);
       setNewSubtask('');
     } catch {
       toast.error('Failed to add subtask');
     } finally {
       setAddingSubtask(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!taskId || !newComment.trim() || !appUser) return;
+    setAddingComment(true);
+    try {
+      await addComment(taskId, { authorId: appUser.id, text: newComment.trim() }, appUser.id);
+      setNewComment('');
+    } catch {
+      toast.error('Failed to post comment');
+    } finally {
+      setAddingComment(false);
     }
   };
 
@@ -310,13 +343,19 @@ const TaskDetailPage: React.FC = () => {
               <h3 className="font-bold text-lg text-slate-900">Task Description</h3>
               <div className="relative">
                 <button
-                  onClick={() => setStatusOpen(!statusOpen)}
+                  onClick={() => {
+                    if (!isManager && !isAssignee) {
+                      toast.error('Only assigned members can update this task\'s status.');
+                      return;
+                    }
+                    setStatusOpen(!statusOpen);
+                  }}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all"
                 >
                   <CompletionStatusChip status={displayStatus} completionStatus={task.memberProgress?.[appUser?.id ?? '']?.completionStatus ?? task.completionStatus} dueDate={task.dueDate} />
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </button>
-                {statusOpen && can('tasks_edit') && (
+                {statusOpen && canEditStatus && (
                   <div className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden w-48 animate-scale-in">
                     {STATUS_OPTIONS.map((opt) => (
                       <button
@@ -406,6 +445,53 @@ const TaskDetailPage: React.FC = () => {
                 </Button>
               </div>
             )}
+          </Card>
+
+          {/* Comments Section */}
+          <Card className="hover:shadow-card-hover transition-all duration-300">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+              <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                Comments ({comments.length})
+              </h3>
+            </div>
+
+            <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
+              {comments.map((comment) => {
+                const author = getUser(comment.authorId);
+                const authorName = author ? author.name : 'Unknown User';
+                return (
+                  <div key={comment.id} className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={authorName} src={author?.avatarUrl} size="sm" />
+                        <span className="font-semibold text-sm text-slate-900">{authorName}</span>
+                      </div>
+                      <span className="text-xs text-slate-400 font-medium">{formatDateTime(comment.createdAt)}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-9">{comment.text}</p>
+                  </div>
+                );
+              })}
+              {comments.length === 0 && (
+                <div className="text-center py-8 text-slate-400 italic text-sm">
+                  No comments yet. Start the conversation!
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <Input
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
+                className="text-sm shadow-sm"
+              />
+              <Button onClick={handleAddComment} loading={addingComment}>
+                Post
+              </Button>
+            </div>
           </Card>
         </div>
 

@@ -108,6 +108,16 @@ export interface Subtask {
   completedBy?: string;
 }
 
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  text: string;
+  mentions?: string[];
+  attachmentUrls?: string[];
+  createdAt: Timestamp;
+  editedAt?: Timestamp;
+}
+
 export interface Task {
   id: string;
   title: string;

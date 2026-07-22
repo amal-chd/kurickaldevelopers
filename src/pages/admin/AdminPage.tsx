@@ -35,10 +35,18 @@ const AdminPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Admin panel is Director-only: gated on the top role level (100), so it
-  // survives role renames and custom role setups without hardcoding an id.
+  // Admin panel is Director-only by default, but also accessible to any role
+  // holding one of the specific sub-permissions (e.g. view attendance).
   const { role } = useAuthStore();
-  const hasAnyAccess = (role?.level ?? 0) >= 100;
+  const { canAny } = usePermissions();
+  const hasAnyAccess = (role?.level ?? 0) >= 100 || canAny(
+    'settings_manage',
+    'roles_manage',
+    'notifications_manage',
+    'attendance_view_all',
+    'contact_view',
+    'team_manage'
+  );
 
   if (!hasAnyAccess) {
     return (

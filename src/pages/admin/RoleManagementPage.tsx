@@ -10,6 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import { getAllRoles, createRole, updateRole, deleteRole } from '../../lib/firestore';
 import { Role, Permissions } from '../../types';
 import { useAuthStore } from '../../store/authStore';
+import { usePermissions } from '../../hooks/usePermissions';
 import toast from 'react-hot-toast';
 
 const ALL_PERMISSIONS: (keyof Permissions)[] = [
@@ -29,9 +30,32 @@ const ALL_PERMISSIONS: (keyof Permissions)[] = [
 
 const RoleManagementPage: React.FC = () => {
   const navigate = useNavigate();
-  const { appUser } = useAuthStore();
+  const { appUser, role } = useAuthStore();
+  const { can } = usePermissions();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const canManage = can('roles_manage') || (role?.level ?? 0) >= 100;
+
+  useEffect(() => {
+    if (!canManage) {
+      setLoading(false);
+      return;
+    }
+    getAllRoles().then((r) => { setRoles(r); setLoading(false); });
+  }, [canManage]);
+
+  if (!canManage) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <EmptyState
+          icon={<Shield className="w-8 h-8" />}
+          title="Access Denied"
+          description="You don't have permission to manage roles."
+        />
+      </div>
+    );
+  }
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Role | null>(null);
   const [saving, setSaving] = useState(false);
@@ -43,9 +67,7 @@ const RoleManagementPage: React.FC = () => {
     permissions: {} as Permissions,
   });
 
-  useEffect(() => {
-    getAllRoles().then((r) => { setRoles(r); setLoading(false); });
-  }, []);
+
 
   const resetForm = () => {
     setForm({ name: '', description: '', color: '#0F172A', level: '1', permissions: {} });

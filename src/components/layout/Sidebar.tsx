@@ -46,6 +46,14 @@ const NAV_GROUPS = [
         label: 'Admin',
         icon: Shield,
         minLevel: 100,
+        anyPerm: [
+          'settings_manage',
+          'roles_manage',
+          'notifications_manage',
+          'attendance_view_all',
+          'contact_view',
+          'team_manage',
+        ] as const,
       },
     ],
   },
@@ -77,12 +85,17 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     anyPerm?: readonly string[];
     minLevel?: number;
   }) => {
-    if (item.minLevel !== undefined) return (role?.level ?? 0) >= item.minLevel;
     if (item.always) return true;
-    if (item.anyPerm && item.anyPerm.length > 0) {
-      return item.anyPerm.some((p) => can(p as any));
+    const hasLevel = item.minLevel !== undefined ? (role?.level ?? 0) >= item.minLevel : false;
+    const hasAnyPerm = item.anyPerm && item.anyPerm.length > 0 ? item.anyPerm.some((p) => can(p as any)) : false;
+    const hasPerm = item.perm ? can(item.perm as any) : false;
+
+    if (item.minLevel !== undefined && (item.anyPerm || item.perm)) {
+      return hasLevel || hasAnyPerm || hasPerm;
     }
-    if (item.perm) return can(item.perm as any);
+    if (item.minLevel !== undefined) return hasLevel;
+    if (item.anyPerm) return hasAnyPerm;
+    if (item.perm) return hasPerm;
     return true;
   };
 
