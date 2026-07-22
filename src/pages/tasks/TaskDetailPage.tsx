@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
-  CheckSquare, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock
+  CheckSquare, CheckCircle, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -106,7 +106,7 @@ const TaskDetailPage: React.FC = () => {
   );
   const canComment = isProjectManager || isAssigner || isHigherAuthority;
 
-  const canMarkDone = Boolean(isManager || isProjectManager || isAssigner || can('tasks_edit'));
+  const canMarkDone = Boolean(isManager || isProjectManager || isAssigner || can('tasks_edit') || (myRole && (myRole.level ?? 0) >= 60));
   const displayStatus = canMarkDone ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
   const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
@@ -213,7 +213,42 @@ const TaskDetailPage: React.FC = () => {
       await updateTask(taskId, updateData);
       
       notifyPush({ event: 'task', taskId, kind: 'status' });
-      if (task.createdBy && task.createdBy !== appUser.id) {
+      if (nextGlobalStatus === 'under_review' && !canMarkDone) {
+        if (task.createdBy && task.createdBy !== appUser.id) {
+          createNotification({
+            title: 'Verification Required',
+            body: `${appUser.name} submitted task "${task.title}" for verification.`,
+            userId: task.createdBy,
+            type: 'task_updated',
+            isRead: {},
+            createdAt: null as any,
+          }).catch(() => {});
+        }
+        if (project?.projectManagerId && project.projectManagerId !== appUser.id && project.projectManagerId !== task.createdBy) {
+          createNotification({
+            title: 'Verification Required',
+            body: `${appUser.name} submitted task "${task.title}" for verification.`,
+            userId: project.projectManagerId,
+            type: 'task_updated',
+            isRead: {},
+            createdAt: null as any,
+          }).catch(() => {});
+        }
+      } else if (nextGlobalStatus === 'done' && canMarkDone) {
+        const notifyIds = Array.from(new Set([...(task.assigneeIds || []), ...(task.createdBy ? [task.createdBy] : [])]));
+        notifyIds.forEach(uid => {
+          if (uid !== appUser.id && typeof uid === 'string') {
+            createNotification({
+              title: 'Task Verified & Completed',
+              body: `Task "${task.title}" has been verified and marked Done by ${appUser.name}`,
+              userId: uid,
+              type: 'task_updated',
+              isRead: {},
+              createdAt: null as any,
+            }).catch(() => {});
+          }
+        });
+      } else if (task.createdBy && task.createdBy !== appUser.id) {
         createNotification({
           title: 'Task Status Updated',
           body: `${task.title} is now ${taskStatusLabel(nextGlobalStatus)}`,
@@ -383,6 +418,58 @@ const TaskDetailPage: React.FC = () => {
         
         {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {(task.status === 'under_review' || displayStatus === 'under_review') ? (
+            canMarkDone ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl mt-0.5 shadow-inner">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-amber-900 text-base">Verification Required</h4>
+                    <p className="text-xs text-amber-700 mt-1 max-w-md leading-relaxed">
+                      The assignee has completed the task and submitted it for verification. Please review the work before marking it as Done.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleStatusChange('in_progress')}
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100/80"
+                  >
+                    Request Re-work
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleStatusChange('done')}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  >
+                    Verify & Mark Done
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+                <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-blue-900 text-sm">Submitted for Verification</h4>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    You have submitted your work for review. Waiting for verification from the project manager or task assigner.
+                  </p>
+                </div>
+              </div>
+            )
+          ) : !canMarkDone && (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center gap-3 text-slate-600 text-xs">
+              <Clock className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>Click the status badge below to submit your progress for review when completed.</span>
+            </div>
+          )}
           <Card className="hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
               <h3 className="font-bold text-lg text-slate-900">Task Description</h3>
