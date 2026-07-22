@@ -309,27 +309,8 @@ class TaskRepository {
       final dueDate = AppDateUtils.fromTimestamp(data['dueDate']);
       final memberProgress = Map<String, dynamic>.from(data['memberProgress'] ?? {});
       
-      if (newStatus == TaskStatus.done) {
-        final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
-        memberProgress[userId] = {
-          'status': newStatus.value,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'completedAt': FieldValue.serverTimestamp(),
-          'completionStatus': details.completionStatus,
-          'delaySeconds': details.delaySeconds,
-        };
-      } else {
-        memberProgress[userId] = {
-          'status': newStatus.value,
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-      }
-
-      final updates = <String, dynamic>{
-        'memberProgress': memberProgress,
-      };
-
-      // Check if user is manager/approver or if all users have completed it
+      // Check if user is manager/approver or task creator
+      final createdBy = (data['createdBy'] as String?) ?? '';
       final userSnap = await _db.collection('users').doc(userId).get();
       bool isManager = false;
       if (userSnap.exists) {
@@ -345,11 +326,34 @@ class TaskRepository {
         }
       }
 
-      bool nextGlobalDone = false;
+      final canMarkDone = isManager || userId == createdBy;
+      final actualStatus = (!canMarkDone && newStatus == TaskStatus.done)
+          ? TaskStatus.underReview
+          : newStatus;
 
-      if (isManager) {
-        nextGlobalDone = newStatus == TaskStatus.done;
-        if (newStatus == TaskStatus.done) {
+      if (actualStatus == TaskStatus.done || actualStatus == TaskStatus.underReview) {
+        final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
+        memberProgress[userId] = {
+          'status': actualStatus.value,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'completedAt': FieldValue.serverTimestamp(),
+          'completionStatus': details.completionStatus,
+          'delaySeconds': details.delaySeconds,
+        };
+      } else {
+        memberProgress[userId] = {
+          'status': actualStatus.value,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+      }
+
+      final updates = <String, dynamic>{
+        'memberProgress': memberProgress,
+      };
+
+      if (canMarkDone) {
+        updates['status'] = actualStatus.value;
+        if (actualStatus == TaskStatus.done) {
           final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
           final explicitUids = List<String>.from(data['assigneeIds'] ?? []);
           final roleUids = <String>[];
@@ -380,52 +384,31 @@ class TaskRepository {
             };
           }
           updates['memberProgress'] = memberProgress;
+          updates['completedAt'] = FieldValue.serverTimestamp();
+          updates['completionStatus'] = details.completionStatus;
+          updates['delaySeconds'] = details.delaySeconds;
+        } else if (actualStatus == TaskStatus.underReview) {
+          updates['completedAt'] = FieldValue.delete();
+          updates['completionStatus'] = FieldValue.delete();
+          updates['delaySeconds'] = FieldValue.delete();
+        } else {
+          updates['completedAt'] = FieldValue.delete();
+          updates['completionStatus'] = FieldValue.delete();
+          updates['delaySeconds'] = FieldValue.delete();
         }
       } else {
-        // Resolve if everyone has completed it
-        final explicitUids = List<String>.from(data['assigneeIds'] ?? []);
-        final roleUids = <String>[];
-        final assignedRoleIds = List<String>.from(data['assignedRoleIds'] ??
-            (data['assignedRoleId'] != null ? [data['assignedRoleId']] : []));
-        if (assignedRoleIds.isNotEmpty) {
-          final usersSnap = await _db
-              .collection('users')
-              .where('roleId', whereIn: assignedRoleIds)
-              .get();
-          for (final uDoc in usersSnap.docs) {
-            if (uDoc.exists) {
-              final userData = uDoc.data();
-              if (userData['isActive'] != false) {
-                roleUids.add(uDoc.id);
-              }
-            }
-          }
+        // Employee/Assignee workflow
+        if (actualStatus == TaskStatus.underReview) {
+          updates['status'] = TaskStatus.underReview.value;
+          updates['completedAt'] = FieldValue.delete();
+          updates['completionStatus'] = FieldValue.delete();
+          updates['delaySeconds'] = FieldValue.delete();
+        } else {
+          updates['status'] = TaskStatus.inProgress.value;
+          updates['completedAt'] = FieldValue.delete();
+          updates['completionStatus'] = FieldValue.delete();
+          updates['delaySeconds'] = FieldValue.delete();
         }
-        final allAssigneeUids = {...explicitUids, ...roleUids};
-        bool allDone = true;
-        for (final uid in allAssigneeUids) {
-          final prog = memberProgress[uid];
-          final uStatus = prog != null && prog is Map ? prog['status'] as String? : null;
-          if (uStatus != 'done') {
-            allDone = false;
-            break;
-          }
-        }
-
-        nextGlobalDone = allDone && allAssigneeUids.isNotEmpty;
-      }
-
-      if (nextGlobalDone) {
-        final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
-        updates['status'] = TaskStatus.done.value;
-        updates['completedAt'] = FieldValue.serverTimestamp();
-        updates['completionStatus'] = details.completionStatus;
-        updates['delaySeconds'] = details.delaySeconds;
-      } else {
-        updates['status'] = TaskStatus.inProgress.value;
-        updates['completedAt'] = FieldValue.delete();
-        updates['completionStatus'] = FieldValue.delete();
-        updates['delaySeconds'] = FieldValue.delete();
       }
 
       await updateTask(taskId, updates);
@@ -472,9 +455,36 @@ class TaskRepository {
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  Future<void> addSubtask(String taskId, SubtaskModel subtask) async {
+  Future<void> addSubtask(String taskId, SubtaskModel subtask, {String? addedByUid}) async {
     try {
       await _subtasks(taskId).add(subtask.toFirestore());
+
+      // Notify assignees about the new subtask (best-effort).
+      if (addedByUid != null) {
+        try {
+          final taskDoc = await _tasks.doc(taskId).get();
+          if (taskDoc.exists) {
+            final data = taskDoc.data() as Map<String, dynamic>;
+            final assigneeIds = List<String>.from(data['assigneeIds'] ?? []);
+            final title = data['title'] as String? ?? 'Task';
+
+            PushSender.instance.task(taskId: taskId, kind: 'subtask_added');
+
+            for (final uid in assigneeIds.toSet()) {
+              if (uid == addedByUid) continue;
+              await _writeNotif(
+                userId: uid,
+                type: 'task_updated',
+                title: 'New Subtask Added',
+                body: 'A subtask "${subtask.title}" was added to: $title',
+                relatedId: taskId,
+              );
+            }
+          }
+        } catch (_) {
+          // Notification delivery must not break subtask creation.
+        }
+      }
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -512,6 +522,31 @@ class TaskRepository {
   Future<void> addComment(String taskId, CommentModel comment) async {
     try {
       await _comments(taskId).add(comment.toFirestore());
+
+      // Notify assignees + creator about the new comment (best-effort).
+      try {
+        final taskDoc = await _tasks.doc(taskId).get();
+        if (taskDoc.exists) {
+          final data = taskDoc.data() as Map<String, dynamic>;
+          final assigneeIds = List<String>.from(data['assigneeIds'] ?? []);
+          final createdBy = data['createdBy'] as String? ?? '';
+          final title = data['title'] as String? ?? 'Task';
+
+          final notifySet = <String>{...assigneeIds, if (createdBy.isNotEmpty) createdBy};
+          for (final uid in notifySet) {
+            if (uid == comment.authorId || uid.isEmpty) continue;
+            await _writeNotif(
+              userId: uid,
+              type: 'task_updated',
+              title: 'New Comment on Task',
+              body: 'New comment on "$title"',
+              relatedId: taskId,
+            );
+          }
+        }
+      } catch (_) {
+        // Notification delivery must not break comment creation.
+      }
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

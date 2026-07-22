@@ -117,12 +117,37 @@ exports.onTaskChange = functions.firestore
       title = 'New Task Assigned';
       body = `You have been assigned to: ${task.title}`;
       type = 'task_assigned';
-    } else if (prevTask && prevTask.status !== task.status && task.createdBy) {
-      // Status changed - notify creator
-      notifyUsers = [task.createdBy];
-      title = 'Task Status Updated';
-      body = `${task.title} is now ${task.status}`;
-      type = 'task_updated';
+    } else if (prevTask && prevTask.status !== task.status) {
+      // Status changed
+      if (task.status === 'under_review') {
+        const recipients = new Set();
+        if (task.createdBy) recipients.add(task.createdBy);
+        if (task.projectId) {
+          try {
+            const projDoc = await db.collection('projects').doc(task.projectId).get();
+            if (projDoc.exists && projDoc.data().projectManagerId) {
+              recipients.add(projDoc.data().projectManagerId);
+            }
+          } catch (_) {}
+        }
+        notifyUsers = Array.from(recipients);
+        title = 'Task Submitted for Review';
+        body = `"${task.title}" is marked done by assignee and is now Under Review.`;
+        type = 'task_updated';
+      } else if (task.status === 'done') {
+        const recipients = new Set([...(task.assigneeIds || []), task.createdBy].filter(Boolean));
+        notifyUsers = Array.from(recipients);
+        title = 'Task Approved & Marked Done';
+        body = `"${task.title}" has been reviewed and marked as Done.`;
+        type = 'task_updated';
+      } else if (task.createdBy) {
+        notifyUsers = [task.createdBy];
+        title = 'Task Status Updated';
+        body = `"${task.title}" status changed to In Progress.`;
+        type = 'task_updated';
+      } else {
+        return null;
+      }
     } else {
       return null;
     }

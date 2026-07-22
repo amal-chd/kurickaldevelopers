@@ -75,7 +75,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           onRetry: () => ref.invalidate(currentUserProvider),
         ),
         data: (user) {
-          if (user == null) return const SizedBox.shrink();
+          if (user == null) return const ShimmerList();
           final roleName = roleAsync.value?.name ?? '';
 
           return RefreshIndicator(

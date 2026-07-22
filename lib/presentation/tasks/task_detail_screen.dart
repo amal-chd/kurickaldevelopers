@@ -7,9 +7,12 @@ import '../../core/constants/app_strings.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/enums/approval_status.dart';
 import '../../core/extensions/datetime_ext.dart';
+import '../../data/models/comment_model.dart';
+import '../../data/models/project_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/subtask_model.dart';
+import '../../providers/project_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/role_provider.dart';
@@ -31,17 +34,19 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     with SingleTickerProviderStateMixin {
   final _newSubtaskCtrl = TextEditingController();
+  final _commentCtrl = TextEditingController();
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
   void dispose() {
     _newSubtaskCtrl.dispose();
+    _commentCtrl.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -50,12 +55,39 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     BuildContext ctx,
     TaskModel task, {
     required bool canEditAll,
+    required bool isAssignee,
   }) async {
-    // Employees: In Progress → Done
-    // Managers: all 3 statuses
+    // If task is under review and user cannot approve/mark done, block status change.
+    if (!canEditAll && task.status == TaskStatus.underReview) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(
+            content: Text('This task is Under Review. Only the task assigner or project manager can approve and mark it as Done.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Only assigned users or managers can update task status.
+    if (!canEditAll && !isAssignee) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(
+            content: Text('Only assigned members can update this task\'s status.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Employees: In Progress, Under Review (Submit for Review)
+    // Managers/Creators: all 3 statuses
     final allowed = canEditAll
         ? TaskStatus.values
-        : [TaskStatus.inProgress, TaskStatus.done];
+        : [TaskStatus.inProgress, TaskStatus.underReview];
 
     final result = await showModalBottomSheet<TaskStatus>(
       context: ctx,
@@ -174,9 +206,14 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
           'Work has started on this task',
           style: TextStyle(fontSize: 11),
         );
+      case TaskStatus.underReview:
+        return const Text(
+          'Mark as completed & submit for review',
+          style: TextStyle(fontSize: 11),
+        );
       case TaskStatus.done:
         return const Text(
-          'Mark as fully completed',
+          'Mark as fully completed & approved',
           style: TextStyle(fontSize: 11),
         );
     }
@@ -187,7 +224,33 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     if (title.isEmpty) return;
     final subtask = SubtaskModel(id: '', title: title);
     _newSubtaskCtrl.clear();
-    await ref.read(taskRepositoryProvider).addSubtask(taskId, subtask);
+    final currentUser = ref.read(currentUserProvider).value;
+    await ref.read(taskRepositoryProvider).addSubtask(
+      taskId,
+      subtask,
+      addedByUid: currentUser?.uid,
+    );
+  }
+
+  Future<void> _addComment(TaskModel task, bool canAddComment) async {
+    if (!canAddComment) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only the project manager, task assigner, or higher authority can add comments.')),
+      );
+      return;
+    }
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty) return;
+    final currentUser = ref.read(currentUserProvider).value;
+    if (currentUser == null) return;
+    final comment = CommentModel(
+      id: '',
+      authorId: currentUser.uid,
+      text: text,
+      createdAt: DateTime.now(),
+    );
+    _commentCtrl.clear();
+    await ref.read(taskRepositoryProvider).addComment(task.id, comment);
   }
 
   @override
@@ -200,6 +263,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
 
     final taskAsync = ref.watch(taskProvider(widget.taskId));
     final subtasksAsync = ref.watch(subtasksProvider(widget.taskId));
+    final commentsAsync = ref.watch(commentsProvider(widget.taskId));
     final currentUser = ref.watch(currentUserProvider).value;
     final canEdit = ref.watch(hasPermissionProvider('tasks_edit'));
     final canApprove = ref.watch(hasPermissionProvider('tasks_approve'));
@@ -227,7 +291,24 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
           );
         }
 
-        final displayStatus = isManager ? task.status : task.statusForUser(currentUser?.uid ?? '');
+        final projects = ref.watch(projectsProvider).value ?? [];
+        final project = projects.cast<ProjectModel?>().firstWhere(
+              (p) => p?.id == task.projectId,
+              orElse: () => null,
+            );
+        final isProjectManager = project != null && currentUser?.uid != null && project.projectManagerId == currentUser!.uid;
+        final isAssigner = currentUser?.uid != null && task.createdBy == currentUser!.uid;
+        final roleLevel = roleAsync.value?.level ?? 0;
+        final isHigherAuthority = roleLevel >= 60 || canApprove || canEdit || canCreate;
+        final canAddComment = isProjectManager || isAssigner || isHigherAuthority;
+
+        final canMarkDone = canApprove || isManager || (currentUser?.uid != null && task.createdBy == currentUser!.uid);
+        final displayStatus = canMarkDone ? task.status : task.statusForUser(currentUser?.uid ?? '');
+        final isAssignee = task.assigneeIds.contains(currentUser?.uid) ||
+            (currentUser?.roleId != null && (
+                task.assignedRoleId == currentUser?.roleId ||
+                task.assignedRoleIds.contains(currentUser?.roleId)
+            ));
         final isOverdue = task.dueDate.isBefore(DateTime.now()) && displayStatus != TaskStatus.done;
         final dueDateColor = isOverdue
             ? AppTheme.error
@@ -292,6 +373,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   tabs: const [
                     Tab(text: 'Details'),
                     Tab(text: 'Subtasks'),
+                    Tab(text: 'Comments'),
                   ],
                 ),
               ),
@@ -307,8 +389,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   isOverdue,
                   isManager,
                   displayStatus,
+                  isAssignee,
                 ),
                 _buildSubtasksTab(task, subtasksAsync, currentUser, canEdit),
+                _buildCommentsTab(task, commentsAsync, currentUser, canAddComment, project),
               ],
             ),
           ),
@@ -325,14 +409,16 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     bool isOverdue,
     bool isManager,
     TaskStatus displayStatus,
+    bool isAssignee,
   ) {
+    final canMarkDone = canApprove || isManager || (currentUser?.uid != null && task.createdBy == currentUser!.uid);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Info banner for employees
-          if (!isManager)
+          if (!canMarkDone)
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -353,7 +439,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Tap the status chip below to update your progress.',
+                      'Tap the status chip below to submit your progress for review.',
                       style: TextStyle(fontSize: 12, color: AppTheme.info),
                     ),
                   ),
@@ -365,8 +451,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
           Row(
             children: [
               GestureDetector(
-                onTap: () =>
-                    _changeStatus(context, task, canEditAll: isManager),
+                onTap: () => _changeStatus(
+                    context, task,
+                    canEditAll: canMarkDone,
+                    isAssignee: isAssignee,
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -913,6 +1002,258 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                 ),
               ),
             const SizedBox(height: 80),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCommentsTab(
+    TaskModel task,
+    AsyncValue<List<CommentModel>> commentsAsync,
+    UserModel? currentUser,
+    bool canAddComment,
+    ProjectModel? project,
+  ) {
+    final allUsers = ref.watch(allUsersProvider).value ?? [];
+    final allRoles = ref.watch(allRolesProvider).value ?? [];
+
+    return commentsAsync.when(
+      loading: () => const LoadingWidget(),
+      error: (_, __) => const Center(child: Text('Failed to load comments')),
+      data: (comments) {
+        return Column(
+          children: [
+            Expanded(
+              child: comments.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 48,
+                              color: AppTheme.divider,
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              'No comments yet',
+                              style: TextStyle(color: AppTheme.textLight),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: comments.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (ctx, idx) {
+                        final comment = comments[idx];
+                        UserModel? author;
+                        try {
+                          author = allUsers.firstWhere(
+                            (u) => u.uid == comment.authorId,
+                          );
+                        } catch (_) {}
+
+                        final authorName = author?.name ??
+                            (comment.authorId == currentUser?.uid
+                                ? (currentUser?.name ?? 'You')
+                                : 'Unknown User');
+                        final avatarUrl = author?.avatarUrl ??
+                            (comment.authorId == currentUser?.uid
+                                ? currentUser?.avatarUrl
+                                : null);
+                        final authorRole = author == null ? null : allRoles.where((r) => r.id == author?.roleId).firstOrNull;
+
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                            boxShadow: AppTheme.softShadow,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  AvatarWidget(
+                                    name: authorName,
+                                    imageUrl: avatarUrl,
+                                    size: 32,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              authorName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            if (project != null && comment.authorId == project.projectManagerId) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFFEF3C7),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: const Color(0xFFFDE68A)),
+                                                ),
+                                                child: const Text('PM', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                                              ),
+                                            ] else if (comment.authorId == task.createdBy) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFDBEAFE),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                                ),
+                                                child: const Text('Assigner', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                                              ),
+                                            ] else if (authorRole != null && authorRole.level >= 60) ...[
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF3E8FF),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: const Color(0xFFE9D5FF)),
+                                                ),
+                                                child: Text(
+                                                  authorRole.name,
+                                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8)),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        Text(
+                                          comment.createdAt.formattedWithTime,
+                                          style: const TextStyle(
+                                            color: AppTheme.textMuted,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                comment.text,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  color: AppTheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            if (canAddComment)
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      offset: const Offset(0, -2),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.background,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: TextField(
+                      controller: _commentCtrl,
+                      decoration: InputDecoration(
+                        hintText: AppStrings.addComment,
+                        prefixIcon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: AppTheme.primary,
+                          size: 20,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: AppTheme.primary,
+                          ),
+                          onPressed: () => _addComment(task, canAddComment),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      onSubmitted: (_) => _addComment(task, canAddComment),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      offset: const Offset(0, -2),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.background,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      border: Border.all(color: AppTheme.divider),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock_outline_rounded, size: 16, color: AppTheme.textMuted),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Only the project manager, task assigner, or higher authority can add comments.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },

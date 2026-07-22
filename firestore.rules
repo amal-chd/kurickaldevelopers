@@ -91,6 +91,14 @@ service cloud.firestore {
            getUserData() != null &&
            getUserData().roleId in get(tPath).data.get('assignedRoleIds', []))
         );
+    function canApproveOrMarkDone(taskData) {
+      return isAuthenticated() && (
+        request.auth.uid == taskData.createdBy ||
+        hasPermission('tasks_approve') ||
+        hasPermission('tasks_edit') ||
+        (taskData.projectId != null && isProjectManager(taskData.projectId)) ||
+        myLevel() >= 80
+      );
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -214,14 +222,19 @@ service cloud.firestore {
          getUserData().roleId in resource.data.get('assignedRoleIds', []))
       );
       allow create: if hasPermission('tasks_create');
-      allow update: if hasPermission('tasks_edit') ||
+      allow update: if (
+        hasPermission('tasks_edit') ||
         request.auth.uid in resource.data.assigneeIds ||
         (resource.data.get('assignedRoleId', null) != null &&
          getUserData() != null &&
          resource.data.get('assignedRoleId', null) == getUserData().roleId) ||
         (resource.data.get('assignedRoleIds', null) != null &&
          getUserData() != null &&
-         getUserData().roleId in resource.data.get('assignedRoleIds', []));
+         getUserData().roleId in resource.data.get('assignedRoleIds', []))
+      ) && (
+        !(request.resource.data.status == 'done' && resource.data.status != 'done') ||
+        canApproveOrMarkDone(resource.data)
+      );
       allow delete: if hasPermission('tasks_delete');
 
       // Subtasks — only users who can see the parent task (matches the task

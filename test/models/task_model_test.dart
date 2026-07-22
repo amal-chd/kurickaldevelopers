@@ -6,14 +6,15 @@ void main() {
   group('TaskStatus', () {
     test('fromString parses known values', () {
       expect(TaskStatus.fromString('in_progress'), TaskStatus.inProgress);
-      expect(TaskStatus.fromString('approved'), TaskStatus.approved);
+      expect(TaskStatus.fromString('under_review'), TaskStatus.underReview);
       expect(TaskStatus.fromString('done'), TaskStatus.done);
     });
 
     test('fromString handles legacy values', () {
       expect(TaskStatus.fromString('created'), TaskStatus.inProgress);
       expect(TaskStatus.fromString('assigned'), TaskStatus.inProgress);
-      expect(TaskStatus.fromString('review'), TaskStatus.approved);
+      expect(TaskStatus.fromString('review'), TaskStatus.underReview);
+      expect(TaskStatus.fromString('approved'), TaskStatus.done);
     });
 
     test('fromString returns inProgress for unknown value', () {
@@ -23,13 +24,13 @@ void main() {
 
     test('value returns correct string', () {
       expect(TaskStatus.inProgress.value, 'in_progress');
-      expect(TaskStatus.approved.value, 'approved');
+      expect(TaskStatus.underReview.value, 'under_review');
       expect(TaskStatus.done.value, 'done');
     });
 
     test('label returns human-readable string', () {
       expect(TaskStatus.inProgress.label, 'In Progress');
-      expect(TaskStatus.approved.label, 'Approved');
+      expect(TaskStatus.underReview.label, 'Under Review');
       expect(TaskStatus.done.label, 'Done');
     });
   });

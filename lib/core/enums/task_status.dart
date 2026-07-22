@@ -3,6 +3,7 @@ import '../constants/app_colors.dart';
 
 enum TaskStatus {
   inProgress('in_progress', 'In Progress', AppColors.statusInProgress),
+  underReview('under_review', 'Under Review', AppColors.statusReview),
   done('done', 'Done', AppColors.statusDone);
 
   final String value;
@@ -15,7 +16,9 @@ enum TaskStatus {
   static const _legacyMap = {
     'created': 'in_progress',
     'assigned': 'in_progress',
-    'review': 'approved',
+    'review': 'under_review',
+    'under_review': 'under_review',
+    'approved': 'done',
   };
 
   static TaskStatus fromString(String value) {

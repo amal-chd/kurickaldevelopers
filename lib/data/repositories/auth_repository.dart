@@ -17,6 +17,10 @@ class AuthRepository {
 
   Stream<User?> get authStateChanges => _auth.idTokenChanges();
 
+  /// Sign-in / sign-out only — used by the router to avoid unnecessary
+  /// GoRouter recreation on token refresh.
+  Stream<User?> get authStateChangesForRouter => _auth.authStateChanges();
+
   User? get currentUser => _auth.currentUser;
 
   // ── Last Login Helper ───────────────────────────────────────────────────

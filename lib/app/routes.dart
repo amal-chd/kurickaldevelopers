@@ -42,7 +42,7 @@ import '../providers/auth_provider.dart';
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authState = ref.watch(routerAuthStateProvider);
 
   return GoRouter(
     navigatorKey: appNavigatorKey,

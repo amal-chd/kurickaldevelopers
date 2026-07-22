@@ -43,6 +43,13 @@ class StatusChip extends StatelessWidget {
       );
     }
 
+    if (status == TaskStatus.underReview) {
+      return StatusChip(
+        label: status.label,
+        color: status.color,
+      );
+    }
+
     if (dueDate != null) {
       final now = DateTime.now();
       final isSameDay = dueDate.year == now.year && dueDate.month == now.month && dueDate.day == now.day;
