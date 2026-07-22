@@ -63,14 +63,10 @@ const ProjectsPage: React.FC = () => {
     return Math.round((pts.filter((t) => t.status === 'done').length / pts.length) * 100);
   };
 
-  // Org-wide oversight (Director / Admin) sees every project; everyone else
-  // sees only the projects they are a member or manager of.
-  const canViewAll = can('team_manage') || can('settings_manage');
-  const scopedProjects = canViewAll
-    ? projects
-    : projects.filter(
-        (p) => p.memberIds?.includes(appUser?.id ?? '') || p.projectManagerId === appUser?.id,
-      );
+  // Show only the projects the current user is a member or manager of
+  const scopedProjects = projects.filter(
+    (p) => p.memberIds?.includes(appUser?.id ?? '') || p.projectManagerId === appUser?.id,
+  );
 
   const filtered = scopedProjects.filter((p) => {
     if (filter !== 'all' && p.status !== filter) return false;

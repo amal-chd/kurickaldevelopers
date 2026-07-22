@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
-  CheckSquare, Plus, Check, AlertCircle, ChevronDown, ArrowLeft
+  CheckSquare, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -94,29 +94,57 @@ const TaskDetailPage: React.FC = () => {
   );
   const canEditStatus = isManager || isAssignee;
 
-  const displayStatus = isManager ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
+  const myRole = roles.find((r) => r.id === appUser?.roleId);
+  const isProjectManager = Boolean(project && appUser && project.projectManagerId === appUser.id);
+  const isAssigner = Boolean(task.createdBy && appUser && task.createdBy === appUser.id);
+  const isHigherAuthority = Boolean(
+    (myRole && (myRole.level ?? 0) >= 60) ||
+    can('tasks_approve') ||
+    can('tasks_edit') ||
+    can('tasks_create') ||
+    (myRole && (myRole.level ?? 0) > (roles.find((r) => r.id === (users.find((u) => u.id === task.createdBy)?.roleId))?.level ?? 0))
+  );
+  const canComment = isProjectManager || isAssigner || isHigherAuthority;
+
+  const canMarkDone = Boolean(isManager || isProjectManager || isAssigner || can('tasks_edit'));
+  const displayStatus = canMarkDone ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
   const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
   const subtaskProgress = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
+  const statusOptions: { value: TaskStatus; label: string }[] = canMarkDone
+    ? [
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'under_review', label: 'Under Review' },
+        { value: 'done', label: 'Done' },
+      ]
+    : [
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'under_review', label: 'Submit for Review' },
+      ];
+
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!taskId || !appUser || !task) return;
-    if (!isManager && !isAssignee) {
+    if (!canMarkDone && task.status === 'under_review') {
+      toast.error('This task is Under Review. Only the task assigner or project manager can approve and mark it as Done.');
+      return;
+    }
+    if (!canEditStatus) {
       toast.error('Only assigned members can update this task\'s status.');
       return;
     }
     try {
-      const isManager = can('tasks_approve');
       const updatedProgress = { ...(task.memberProgress ?? {}) };
       let nextGlobalStatus = task.status;
 
-      if (!isManager) {
-        const details = newStatus === 'done' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
+      if (!canMarkDone) {
+        const actualStatus: TaskStatus = newStatus === 'done' ? 'under_review' : newStatus;
+        const details = actualStatus === 'under_review' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
         updatedProgress[appUser.id] = {
-          status: newStatus,
+          status: actualStatus,
           updatedAt: Timestamp.now() as any,
-          completedBy: newStatus === 'done' ? appUser.id : undefined,
-          completedAt: newStatus === 'done' ? Timestamp.now() as any : undefined,
+          completedBy: actualStatus === 'under_review' ? appUser.id : undefined,
+          completedAt: actualStatus === 'under_review' ? Timestamp.now() as any : undefined,
           completionStatus: details ? details.completionStatus : undefined,
           delaySeconds: details ? details.delaySeconds : undefined,
         };
@@ -131,16 +159,16 @@ const TaskDetailPage: React.FC = () => {
         }
 
         const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
-        let allDone = true;
+        let allSubmitted = true;
         for (const uid of allAssigneeIds) {
           const userStatus = updatedProgress[uid]?.status ?? 'in_progress';
-          if (userStatus !== 'done') {
-            allDone = false;
+          if (userStatus !== 'under_review' && userStatus !== 'done') {
+            allSubmitted = false;
             break;
           }
         }
 
-        nextGlobalStatus = allDone && allAssigneeIds.length > 0 ? 'done' : 'in_progress';
+        nextGlobalStatus = allSubmitted && allAssigneeIds.length > 0 ? 'under_review' : 'in_progress';
       } else {
         nextGlobalStatus = newStatus;
         if (newStatus === 'done') {
@@ -251,6 +279,10 @@ const TaskDetailPage: React.FC = () => {
 
   const handleAddComment = async () => {
     if (!taskId || !newComment.trim() || !appUser) return;
+    if (!canComment) {
+      toast.error('Only the project manager, task assigner, or higher authority can add comments.');
+      return;
+    }
     setAddingComment(true);
     try {
       await addComment(taskId, { authorId: appUser.id, text: newComment.trim() }, appUser.id);
@@ -312,6 +344,19 @@ const TaskDetailPage: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {canComment && (
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<MessageSquare className="w-4 h-4" />}
+              onClick={() => {
+                document.getElementById('task-comments-section')?.scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => document.getElementById('task-comment-input')?.focus(), 300);
+              }}
+            >
+              Add Comment
+            </Button>
+          )}
           {can('tasks_edit') && (
             <Button
               variant="outline"
@@ -344,7 +389,11 @@ const TaskDetailPage: React.FC = () => {
               <div className="relative">
                 <button
                   onClick={() => {
-                    if (!isManager && !isAssignee) {
+                    if (!canMarkDone && task.status === 'under_review') {
+                      toast.error('This task is Under Review. Only the task assigner or project manager can approve and mark it as Done.');
+                      return;
+                    }
+                    if (!canEditStatus) {
                       toast.error('Only assigned members can update this task\'s status.');
                       return;
                     }
@@ -357,7 +406,7 @@ const TaskDetailPage: React.FC = () => {
                 </button>
                 {statusOpen && canEditStatus && (
                   <div className="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden w-48 animate-scale-in">
-                    {STATUS_OPTIONS.map((opt) => (
+                    {statusOptions.map((opt) => (
                       <button
                         key={opt.value}
                         className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
@@ -448,24 +497,50 @@ const TaskDetailPage: React.FC = () => {
           </Card>
 
           {/* Comments Section */}
-          <Card className="hover:shadow-card-hover transition-all duration-300">
+          <div id="task-comments-section">
+            <Card className="hover:shadow-card-hover transition-all duration-300">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
               <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
                 Comments ({comments.length})
               </h3>
+              {canComment && (
+                <span className="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-full border border-indigo-100">
+                  Manager & Authority Commentary
+                </span>
+              )}
             </div>
 
             <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
               {comments.map((comment) => {
                 const author = getUser(comment.authorId);
                 const authorName = author ? author.name : 'Unknown User';
+                const isAuthorPM = Boolean(project && comment.authorId === project.projectManagerId);
+                const isAuthorCreator = comment.authorId === task.createdBy;
+                const authorRole = roles.find((r) => r.id === author?.roleId);
+                const isAuthorAuthority = Boolean(authorRole && (authorRole.level ?? 0) >= 60);
+
                 return (
                   <div key={comment.id} className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <Avatar name={authorName} src={author?.avatarUrl} size="sm" />
                         <span className="font-semibold text-sm text-slate-900">{authorName}</span>
+                        {isAuthorPM && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                            Project Manager
+                          </span>
+                        )}
+                        {!isAuthorPM && isAuthorCreator && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                            Assigner
+                          </span>
+                        )}
+                        {!isAuthorPM && !isAuthorCreator && isAuthorAuthority && authorRole && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                            {authorRole.name}
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs text-slate-400 font-medium">{formatDateTime(comment.createdAt)}</span>
                     </div>
@@ -480,19 +555,28 @@ const TaskDetailPage: React.FC = () => {
               )}
             </div>
 
-            <div className="flex gap-3">
-              <Input
-                placeholder="Write a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                className="text-sm shadow-sm"
-              />
-              <Button onClick={handleAddComment} loading={addingComment}>
-                Post
-              </Button>
-            </div>
-          </Card>
+            {canComment ? (
+              <div className="flex gap-3">
+                <Input
+                  id="task-comment-input"
+                  placeholder="Write a comment or instruction..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
+                  className="text-sm shadow-sm"
+                />
+                <Button onClick={handleAddComment} loading={addingComment}>
+                  Post
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-3.5 px-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-500 text-sm italic flex items-center justify-center gap-2">
+                <Lock className="w-4 h-4 text-slate-400" />
+                Only the project manager, task assigner, or higher authority can add comments.
+              </div>
+            )}
+            </Card>
+          </div>
         </div>
 
         {/* Right Column - Metadata Sidebar */}

@@ -97,7 +97,7 @@ export interface Project {
 }
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
-export type TaskStatus = 'in_progress' | 'done';
+export type TaskStatus = 'in_progress' | 'under_review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'none';
 

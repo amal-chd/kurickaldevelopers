@@ -81,6 +81,7 @@ const ProjectDetailPage: React.FC = () => {
   
   const tasksByStatus = {
     in_progress: tasks.filter((t) => getTaskStatus(t) === 'in_progress').length,
+    under_review: tasks.filter((t) => getTaskStatus(t) === 'under_review').length,
     done: tasks.filter((t) => getTaskStatus(t) === 'done').length,
   };
 
@@ -90,6 +91,7 @@ const ProjectDetailPage: React.FC = () => {
 
   const chartData = [
     { name: 'In Progress', value: tasksByStatus.in_progress },
+    { name: 'Under Review', value: tasksByStatus.under_review },
     { name: 'Done', value: tasksByStatus.done },
   ].filter(d => d.value > 0);
 
@@ -218,14 +220,15 @@ const ProjectDetailPage: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {[
                       { label: 'In Progress', value: tasksByStatus.in_progress, color: 'text-blue-600', bg: 'bg-blue-50' },
+                      { label: 'Under Review', value: tasksByStatus.under_review, color: 'text-purple-600', bg: 'bg-purple-50' },
                       { label: 'Done', value: tasksByStatus.done, color: 'text-green-600', bg: 'bg-green-50' },
                     ].map((s) => (
-                      <div key={s.label} className={`${s.bg} p-3 rounded-2xl text-center shadow-sm`}>
-                        <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-1">{s.label}</p>
+                      <div key={s.label} className={`${s.bg} p-2.5 rounded-2xl text-center shadow-sm`}>
+                        <p className={`text-xl sm:text-2xl font-black ${s.color}`}>{s.value}</p>
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-1 truncate">{s.label}</p>
                       </div>
                     ))}
                   </div>

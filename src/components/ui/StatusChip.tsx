@@ -13,6 +13,11 @@ const STATUS_CONFIG: Record<TaskStatus, { label: string; classes: string; dot: s
     classes: 'bg-blue-50 text-blue-700 border border-blue-100',
     dot: 'bg-blue-500',
   },
+  under_review: {
+    label: 'Under Review',
+    classes: 'bg-purple-50 text-purple-700 border border-purple-100',
+    dot: 'bg-purple-500',
+  },
   done: {
     label: 'Done',
     classes: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -78,6 +83,15 @@ export const CompletionStatusChip: React.FC<{
       <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100', className)}>
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
         Completed
+      </span>
+    );
+  }
+
+  if (status === 'under_review') {
+    return (
+      <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100', className)}>
+        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+        Under Review
       </span>
     );
   }
