@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
-  CheckSquare, CheckCircle, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock
+  CheckSquare, CheckCircle, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock, Paperclip
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -510,6 +510,36 @@ const TaskDetailPage: React.FC = () => {
               <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{task.description}</p>
             ) : (
               <p className="text-sm text-slate-400 italic">No description provided.</p>
+            )}
+
+            {task.attachmentUrls && task.attachmentUrls.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                  <Paperclip className="w-4 h-4 text-slate-400" />
+                  Attachments
+                </h4>
+                <div className="flex flex-wrap gap-3">
+                  {task.attachmentUrls.map((url, i) => {
+                    const filename = url.split('/').pop()?.split('?')[0] || `Document ${i + 1}`;
+                    return (
+                      <a
+                        key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 hover:bg-primary/5 border border-slate-200 hover:border-primary/20 rounded-xl transition-all group"
+                      >
+                        <div className="p-1.5 bg-white rounded-lg shadow-sm text-slate-400 group-hover:text-primary transition-colors">
+                          <Paperclip className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-primary transition-colors truncate max-w-[200px]">
+                          {decodeURIComponent(filename)}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </Card>
 

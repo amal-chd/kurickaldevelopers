@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { ArrowLeft, Shield, Paperclip, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
@@ -14,6 +14,7 @@ import { notifyPush } from '../../lib/push';
 import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig, Role } from '../../types';
 import toast from 'react-hot-toast';
 import Avatar from '../../components/ui/Avatar';
+import { uploadToSupabase, STORAGE_BUCKETS } from '../../lib/storage';
 
 const CreateTaskPage: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -30,6 +31,7 @@ const CreateTaskPage: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [assignConfig, setAssignConfig] = useState<TaskAssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
   const [form, setForm] = useState({
     title: '',
@@ -42,6 +44,7 @@ const CreateTaskPage: React.FC = () => {
     tags: '',
     assigneeIds: [] as string[],
     assignedRoleIds: [] as string[],
+    attachmentUrls: [] as string[],
   });
 
   useEffect(() => {
@@ -71,6 +74,7 @@ const CreateTaskPage: React.FC = () => {
             tags: task.tags?.join(', ') ?? '',
             assigneeIds: task.assigneeIds ?? [],
             assignedRoleIds: task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []),
+            attachmentUrls: task.attachmentUrls ?? [],
           });
         }
       }
@@ -138,6 +142,20 @@ const CreateTaskPage: React.FC = () => {
 
     setLoading(true);
     try {
+      let uploadedUrls: string[] = [];
+      if (newAttachments.length > 0) {
+        for (const file of newAttachments) {
+          try {
+            const res = await uploadToSupabase(file, STORAGE_BUCKETS.documents, 'tasks');
+            uploadedUrls.push(res.url);
+          } catch (e) {
+            toast.error(`Failed to upload ${file.name}`);
+          }
+        }
+      }
+
+      const finalAttachmentUrls = [...form.attachmentUrls, ...uploadedUrls];
+
       const data: Omit<Task, 'id'> = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -154,6 +172,7 @@ const CreateTaskPage: React.FC = () => {
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         assigneeIds: form.assigneeIds,
         assignedRoleIds: form.assignedRoleIds,
+        attachmentUrls: finalAttachmentUrls,
         createdBy: appUser.id,
         approvalStatus: 'none' as const,
         createdAt: isEdit && taskId ? (await getTask(taskId))?.createdAt || Timestamp.now() : Timestamp.now(),
@@ -326,6 +345,65 @@ const CreateTaskPage: React.FC = () => {
               value={form.tags}
               onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
             />
+            
+            <div className="pt-2 border-t border-slate-100">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Attachments</label>
+              
+              {form.attachmentUrls.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {form.attachmentUrls.map((url, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+                      <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline truncate max-w-[150px]">
+                        Attachment {i + 1}
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={() => setForm(p => ({ ...p, attachmentUrls: p.attachmentUrls.filter((_, idx) => idx !== i) }))}
+                        className="ml-1 text-slate-400 hover:text-red-500"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {newAttachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {newAttachments.map((file, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-sm text-primary">
+                      <Paperclip className="w-3.5 h-3.5 opacity-70" />
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setNewAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                        className="ml-1 opacity-70 hover:opacity-100 hover:text-red-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="relative">
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setNewAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Paperclip className="w-4 h-4 mr-2" />
+                  Select Files
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
 
