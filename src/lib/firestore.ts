@@ -28,6 +28,7 @@ import {
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
   OrgSettings, AuditLog, AppNotification, ContactInquiry, TaskAssignmentConfig,
   PerformanceScore, PerformanceReview, PerformanceConfig,
+  LeaveRequest, SalarySlip, Expense,
 } from '../types';
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from './performanceEngine';
 import { notifyPush } from './push';
@@ -1211,6 +1212,123 @@ export const updateContactInquiry = async (
 
 export const deleteContactInquiry = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, 'contact_inquiries', id));
+};
+
+// ─── Leave Requests (log-only) ──────────────────────────────────────────────
+export const createLeaveRequest = async (
+  data: Omit<LeaveRequest, 'id' | 'createdAt'>,
+): Promise<string> => {
+  const ref2 = await addDoc(collection(db, 'leave_requests'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref2.id;
+};
+
+export const getMyLeaveRequests = async (userId: string): Promise<LeaveRequest[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'leave_requests'), where('userId', '==', userId)));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as LeaveRequest))
+      .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getMyLeaveRequests error:', err);
+    return [];
+  }
+};
+
+export const getAllLeaveRequests = async (): Promise<LeaveRequest[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'leave_requests'));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as LeaveRequest))
+      .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAllLeaveRequests error:', err);
+    return [];
+  }
+};
+
+export const deleteLeaveRequest = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'leave_requests', id));
+};
+
+// ─── Salary Slips ───────────────────────────────────────────────────────────
+export const createSalarySlip = async (
+  data: Omit<SalarySlip, 'id' | 'createdAt'>,
+): Promise<string> => {
+  const ref2 = await addDoc(collection(db, 'salary_slips'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref2.id;
+};
+
+export const getMySalarySlips = async (userId: string): Promise<SalarySlip[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'salary_slips'), where('userId', '==', userId)));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as SalarySlip))
+      .sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getMySalarySlips error:', err);
+    return [];
+  }
+};
+
+export const getAllSalarySlips = async (): Promise<SalarySlip[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'salary_slips'));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as SalarySlip))
+      .sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAllSalarySlips error:', err);
+    return [];
+  }
+};
+
+export const deleteSalarySlip = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'salary_slips', id));
+};
+
+// ─── Expenses (simple log) ──────────────────────────────────────────────────
+export const createExpense = async (
+  data: Omit<Expense, 'id' | 'createdAt'>,
+): Promise<string> => {
+  const ref2 = await addDoc(collection(db, 'expenses'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref2.id;
+};
+
+export const getMyExpenses = async (userId: string): Promise<Expense[]> => {
+  try {
+    const snap = await getDocs(query(collection(db, 'expenses'), where('userId', '==', userId)));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Expense))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getMyExpenses error:', err);
+    return [];
+  }
+};
+
+export const getAllExpenses = async (): Promise<Expense[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'expenses'));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Expense))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getAllExpenses error:', err);
+    return [];
+  }
+};
+
+export const deleteExpense = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, 'expenses', id));
 };
 
 // re-export helpers

@@ -37,6 +37,11 @@ export interface Permissions {
   contact_manage?: boolean;
   performance_view?: boolean;
   performance_manage?: boolean;
+  // HR & Finance (leave / payroll / expenses). Optional so existing role
+  // documents remain valid; access falls back to role level / existing perms.
+  leave_manage?: boolean;
+  payroll_manage?: boolean;
+  expense_manage?: boolean;
 }
 
 // ─── Role ─────────────────────────────────────────────────────────────────────
@@ -140,7 +145,9 @@ export interface Task {
   isTemplate?: boolean;
   attachmentUrls?: string[];
   photoUrls?: string[];
-  approvalStatus: ApprovalStatus;
+  // Approval workflow removed — these remain optional for backward compatibility
+  // with existing documents but are no longer set or enforced.
+  approvalStatus?: ApprovalStatus;
   approvedBy?: string;
   approvedAt?: Timestamp;
   slaDeadline?: Timestamp;
@@ -395,6 +402,65 @@ export interface PerformanceReview {
   score: number;
   comment?: string;
   createdAt: Timestamp;
+}
+
+// ─── Leave Application (log-only, no approval) ──────────────────────────────────
+export type LeaveType = 'casual' | 'sick' | 'earned' | 'unpaid' | 'other';
+
+export interface LeaveRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  roleId?: string;
+  type: LeaveType;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  days: number;
+  reason: string;
+  orgId?: string;
+  createdAt?: Timestamp;
+}
+
+// ─── Salary Slip ────────────────────────────────────────────────────────────────
+export interface SalaryComponent {
+  label: string;
+  amount: number;
+}
+
+export interface SalarySlip {
+  id: string;
+  userId: string;
+  userName: string;
+  month: string; // YYYY-MM
+  basic: number;
+  allowances: SalaryComponent[];
+  deductions: SalaryComponent[];
+  gross: number;          // basic + sum(allowances)
+  totalDeductions: number;
+  net: number;            // gross - totalDeductions
+  notes?: string;
+  createdBy: string;
+  createdByName?: string;
+  createdAt?: Timestamp;
+}
+
+// ─── Expense (simple log) ───────────────────────────────────────────────────────
+export type ExpenseCategory =
+  | 'materials' | 'labour' | 'transport' | 'equipment' | 'food' | 'office' | 'other';
+
+export interface Expense {
+  id: string;
+  userId: string;
+  userName: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  projectId?: string;
+  projectName?: string;
+  note?: string;
+  orgId?: string;
+  createdAt?: Timestamp;
 }
 
 // ─── Performance Config ────────────────────────────────────────────────────────

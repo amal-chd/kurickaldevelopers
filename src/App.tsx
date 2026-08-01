@@ -28,6 +28,9 @@ const SiteDiaryPage = React.lazy(() => import('./pages/site-diary/SiteDiaryPage'
 const ReportsPage = React.lazy(() => import('./pages/reports/ReportsPage'));
 const NotificationsPage = React.lazy(() => import('./pages/notifications/NotificationsPage'));
 const PerformancePage = React.lazy(() => import('./pages/performance/PerformancePage'));
+const LeavePage = React.lazy(() => import('./pages/leave/LeavePage'));
+const SalaryPage = React.lazy(() => import('./pages/salary/SalaryPage'));
+const ExpensePage = React.lazy(() => import('./pages/expenses/ExpensePage'));
 const AdminPage = React.lazy(() => import('./pages/admin/AdminPage'));
 const UserManagementPage = React.lazy(() => import('./pages/admin/UserManagementPage'));
 const RoleManagementPage = React.lazy(() => import('./pages/admin/RoleManagementPage'));
@@ -148,6 +151,11 @@ function App() {
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="performance" element={<PerformancePage />} />
+
+              {/* HR & Finance */}
+              <Route path="leave" element={<LeavePage />} />
+              <Route path="salary" element={<SalaryPage />} />
+              <Route path="expenses" element={<ExpensePage />} />
 
               {/* Admin */}
               {/* Admin panel — Director-only (top role level ≥ 100) */}

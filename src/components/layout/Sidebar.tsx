@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CheckSquare, FolderOpen, Users, FileText,
   MessageSquare, BookOpen, BarChart2, Shield, LogOut, X, Award,
+  CalendarDays, Wallet, Receipt,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -27,7 +28,15 @@ const NAV_GROUPS = [
       { to: '/app/site-diary', label: 'Site Diary', icon: BookOpen, always: true },
       { to: '/app/documents', label: 'Documents', icon: FileText, perm: 'docs_view' as const },
       { to: '/app/reports', label: 'Reports', icon: BarChart2, perm: 'reports_view' as const },
-      { to: '/app/performance', label: 'Performance & Points', icon: Award, always: true },
+      { to: '/app/performance', label: 'Performance & Points', icon: Award, requiresRole: true },
+    ],
+  },
+  {
+    label: 'HR & Finance',
+    items: [
+      { to: '/app/leave', label: 'Leave', icon: CalendarDays, requiresRole: true },
+      { to: '/app/salary', label: 'Salary Slips', icon: Wallet, requiresRole: true },
+      { to: '/app/expenses', label: 'Purchase & Expenses', icon: Receipt, requiresRole: true },
     ],
   },
   {
@@ -81,11 +90,14 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
   const isItemVisible = (item: {
     always?: boolean;
+    requiresRole?: boolean;
     perm?: keyof ReturnType<typeof usePermissions>['permissions'];
     anyPerm?: readonly string[];
     minLevel?: number;
   }) => {
     if (item.always) return true;
+    // Visible only to users who have an assigned role.
+    if (item.requiresRole) return Boolean(appUser?.roleId);
     const hasLevel = item.minLevel !== undefined ? (role?.level ?? 0) >= item.minLevel : false;
     const hasAnyPerm = item.anyPerm && item.anyPerm.length > 0 ? item.anyPerm.some((p) => can(p as any)) : false;
     const hasPerm = item.perm ? can(item.perm as any) : false;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, CheckCheck, Info, AlertCircle, Megaphone, Clock } from 'lucide-react';
+import { Bell, CheckCheck, Info, AlertCircle, Megaphone, Clock, CalendarDays, Wallet, Receipt, Trophy } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
@@ -15,6 +15,10 @@ const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string; border: s
   announcement: { icon: <Megaphone className="w-4 h-4 text-purple-600" />,   bg: 'bg-purple-50', border: 'border-purple-100' },
   reminder:     { icon: <Clock className="w-4 h-4 text-amber-600" />,        bg: 'bg-amber-50',  border: 'border-amber-100' },
   update:       { icon: <Info className="w-4 h-4 text-emerald-600" />,       bg: 'bg-emerald-50',border: 'border-emerald-100' },
+  leave:        { icon: <CalendarDays className="w-4 h-4 text-sky-600" />,    bg: 'bg-sky-50',    border: 'border-sky-100' },
+  salary:       { icon: <Wallet className="w-4 h-4 text-emerald-600" />,      bg: 'bg-emerald-50',border: 'border-emerald-100' },
+  expense:      { icon: <Receipt className="w-4 h-4 text-orange-600" />,      bg: 'bg-orange-50', border: 'border-orange-100' },
+  milestone:    { icon: <Trophy className="w-4 h-4 text-amber-600" />,        bg: 'bg-amber-50',  border: 'border-amber-100' },
   default:      { icon: <Bell className="w-4 h-4 text-slate-500" />,          bg: 'bg-slate-50',   border: 'border-slate-100' },
 };
 
@@ -63,6 +67,12 @@ const NotificationsPage: React.FC = () => {
       navigate('/app/site-diary');
     } else if (n.type === 'documentUploaded') {
       navigate('/app/documents');
+    } else if (n.type === 'leave') {
+      navigate('/app/leave');
+    } else if (n.type === 'salary') {
+      navigate('/app/salary');
+    } else if (n.type === 'expense') {
+      navigate('/app/expenses');
     }
   };
 

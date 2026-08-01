@@ -461,6 +461,114 @@ serve(async (req) => {
       });
     }
 
+    // ── Create User Event ──
+    if (event === "create_user") {
+      const { name, email, phone, password, roleId } = body;
+      if (!email || !password || !roleId) {
+        return new Response(JSON.stringify({ error: "email, password and roleId required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (typeof password !== "string" || password.length < 6) {
+        return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify caller permissions
+      const callerSnap = await db.collection("users").doc(caller.uid).get();
+      const callerRoleId = callerSnap.exists ? callerSnap.data()?.roleId : null;
+      let allowed = false;
+      let callerLevel = 0;
+      if (callerRoleId) {
+        const roleSnap = await db.collection("roles").doc(callerRoleId).get();
+        const perms = roleSnap.exists ? (roleSnap.data()?.permissions ?? {}) : {};
+        callerLevel = roleSnap.exists ? (roleSnap.data()?.level ?? 0) : 0;
+        allowed = perms.team_manage === true || perms.roles_manage === true;
+      }
+
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Not allowed to create users" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Validate the requested role exists, and enforce the hierarchy guard:
+      // an admin must not be able to mint a user that outranks them.
+      const newRoleSnap = await db.collection("roles").doc(roleId).get();
+      if (!newRoleSnap.exists) {
+        return new Response(JSON.stringify({ error: "Role not found" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const newRoleLevel = newRoleSnap.data()?.level ?? 0;
+      if (newRoleLevel > callerLevel) {
+        return new Response(
+          JSON.stringify({ error: "Cannot create a user with a higher role level than your own" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      // Create the Firebase Auth account. Using the Admin SDK means the caller's
+      // own session is untouched (unlike the client SDK's createUser, which would
+      // sign the admin out and in as the new user).
+      let newUid: string;
+      try {
+        const created = await app.auth().createUser({
+          email: normalizedEmail,
+          password,
+          displayName: name || undefined,
+          emailVerified: false,
+          disabled: false,
+        });
+        newUid = created.uid;
+      } catch (e: any) {
+        if (e.code === "auth/email-already-exists") {
+          return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (e.code === "auth/invalid-email") {
+          return new Response(JSON.stringify({ error: "Invalid email address" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw e;
+      }
+
+      // Write the Firestore user doc with admin privileges (bypasses client rules,
+      // so the profile is guaranteed to exist and match the Auth account).
+      try {
+        await db.collection("users").doc(newUid).set({
+          name: name || normalizedEmail.split("@")[0] || "User",
+          email: normalizedEmail,
+          phone: phone || "",
+          avatarUrl: "",
+          roleId,
+          isActive: true,
+          orgId: "main",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e: any) {
+        // Roll back the Auth account so we never leave an account with no profile.
+        await app.auth().deleteUser(newUid).catch(() => {});
+        throw e;
+      }
+
+      return new Response(JSON.stringify({ ok: true, uid: newUid }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Reset Password Event ──
     if (event === "reset_password") {
       const { targetUid, newPassword } = body;

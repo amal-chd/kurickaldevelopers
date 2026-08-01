@@ -55,6 +55,40 @@ export async function deleteUserAccount(targetUid: string): Promise<void> {
   }
 }
 
+export async function createUserAccount(input: {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+  roleId: string;
+}): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+  const token = await user.getIdToken();
+  const res = await fetch('https://ximaqbhnykyxxgiqbwoh.supabase.co/functions/v1/send-push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      event: 'create_user',
+      name: input.name,
+      email: input.email,
+      phone: input.phone ?? '',
+      password: input.password,
+      roleId: input.roleId,
+    }),
+  });
+  const text = await res.text();
+  let data: any = null;
+  try { data = JSON.parse(text); } catch { /* non-JSON error body */ }
+  if (!res.ok) {
+    throw new Error(data?.error || `Failed to create user (${res.status})`);
+  }
+  return data?.uid as string;
+}
+
 export async function resetUserPassword(targetUid: string, newPassword: string): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');

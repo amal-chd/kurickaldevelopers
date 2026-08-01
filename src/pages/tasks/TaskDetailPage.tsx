@@ -106,7 +106,10 @@ const TaskDetailPage: React.FC = () => {
   );
   const canComment = isProjectManager || isAssigner || isHigherAuthority;
 
-  const canMarkDone = Boolean(isManager || isProjectManager || isAssigner || can('tasks_edit') || (myRole && (myRole.level ?? 0) >= 60));
+  // Approval workflow removed: any assigned member (or a manager) can move the
+  // task through In Progress → Under Review → Done directly, with no separate
+  // approve/reject gate.
+  const canMarkDone = canEditStatus;
   const displayStatus = canMarkDone ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
   const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
@@ -418,56 +421,10 @@ const TaskDetailPage: React.FC = () => {
         
         {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {(task.status === 'under_review' || displayStatus === 'under_review') ? (
-            canMarkDone ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl mt-0.5 shadow-inner">
-                    <CheckCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-amber-900 text-base">Verification Required</h4>
-                    <p className="text-xs text-amber-700 mt-1 max-w-md leading-relaxed">
-                      The assignee has completed the task and submitted it for verification. Please review the work before marking it as Done.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleStatusChange('in_progress')}
-                    className="border-amber-300 text-amber-800 hover:bg-amber-100/80"
-                  >
-                    Request Re-work
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleStatusChange('done')}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                  >
-                    Verify & Mark Done
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-                <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-blue-900 text-sm">Submitted for Verification</h4>
-                  <p className="text-xs text-blue-700 mt-0.5">
-                    You have submitted your work for review. Waiting for verification from the project manager or task assigner.
-                  </p>
-                </div>
-              </div>
-            )
-          ) : !canMarkDone && (
+          {canEditStatus && (
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex items-center gap-3 text-slate-600 text-xs">
               <Clock className="w-4 h-4 text-slate-500 shrink-0" />
-              <span>Click the status badge below to submit your progress for review when completed.</span>
+              <span>Use the status badge below to move this task through In Progress, Under Review, and Done.</span>
             </div>
           )}
           <Card className="hover:shadow-card-hover transition-all duration-300">

@@ -161,6 +161,7 @@ const DashboardPage: React.FC = () => {
   const firstName = (appUser?.name || appUser?.email || '').split(/[\s@]/)[0] || '';
 
   const STATS = [
+    { label: 'Total Tasks',       value: allTasks.length,         ready: ready.tasks,    icon: CheckSquare, gradient: 'from-slate-500 to-slate-600',     path: '/app/tasks' },
     { label: 'Active Tasks',      value: inProgressTasks.length,  ready: ready.tasks,    icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
     { label: 'Active Projects',   value: activeProjects.length,   ready: ready.projects, icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
     { label: 'Team Members',      value: users.length,            ready: ready.users,    icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
@@ -193,7 +194,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {STATS.map((s) => (
           <button
             key={s.label}

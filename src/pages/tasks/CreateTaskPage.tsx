@@ -97,18 +97,21 @@ const CreateTaskPage: React.FC = () => {
   })();
 
   // Which roles the current user is allowed to assign this task to.
+  // Already-selected roles are always kept visible so editing a task never
+  // silently drops a role that was previously assigned.
   const assignableRoles = (() => {
+    const keep = (r: Role) => form.assignedRoleIds.includes(r.id);
     if (!assignConfig || !assignConfig.enabled) {
       const myLevel = role?.level ?? 0;
-      return roles.filter((r) => r.level < myLevel);
+      return roles.filter((r) => r.level < myLevel || keep(r));
     }
     const myRole = appUser?.roleId ?? '';
     const allowed = assignConfig.matrix?.[myRole];
     if (!allowed) {
       const myLevel = role?.level ?? 0;
-      return roles.filter((r) => r.level < myLevel);
+      return roles.filter((r) => r.level < myLevel || keep(r));
     }
-    return roles.filter((r) => allowed.includes(r.id));
+    return roles.filter((r) => allowed.includes(r.id) || keep(r));
   })();
 
   const assignmentRestricted =
@@ -174,7 +177,6 @@ const CreateTaskPage: React.FC = () => {
         assignedRoleIds: form.assignedRoleIds,
         attachmentUrls: finalAttachmentUrls,
         createdBy: appUser.id,
-        approvalStatus: 'none' as const,
         createdAt: isEdit && taskId ? (await getTask(taskId))?.createdAt || Timestamp.now() : Timestamp.now(),
         updatedAt: Timestamp.now(),
       };

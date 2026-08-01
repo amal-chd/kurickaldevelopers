@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Edit2, UserX, UserCheck, Search, Shield, Trash2, KeyRound, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -10,7 +10,7 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
 import { getAllUsers, getAllRoles, updateUser, deleteUser, addAuditLog } from '../../lib/firestore';
-import { deleteUserAccount, resetUserPassword } from '../../lib/push';
+import { deleteUserAccount, resetUserPassword, createUserAccount } from '../../lib/push';
 import { AppUser, Role } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -38,9 +38,20 @@ const UserManagementPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
 
+  // Add-user modal
+  const [createModal, setCreateModal] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPhone, setCreatePhone] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createRole, setCreateRole] = useState('');
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [creating, setCreating] = useState(false);
+
   // Permission gate at the top so unauthorised users get a clean message
   // instead of a stream of permission-denied errors from Firestore.
   const canManage = can('team_manage') || can('roles_manage');
+  const canCreate = can('team_manage');
 
   useEffect(() => {
     if (!canManage) {
@@ -82,6 +93,66 @@ const UserManagementPage: React.FC = () => {
     setEditEmail(user.email || '');
     setEditRole(user.roleId);
     setEditModal(true);
+  };
+
+  const openCreate = () => {
+    setCreateName('');
+    setCreateEmail('');
+    setCreatePhone('');
+    setCreatePassword('');
+    setCreateRole('');
+    setShowCreatePassword(false);
+    setCreateModal(true);
+  };
+
+  const handleCreate = async () => {
+    if (!appUser) return;
+    const name = createName.trim();
+    const email = createEmail.trim().toLowerCase();
+    if (!name) { toast.error('Name is required'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error('Enter a valid email'); return; }
+    if (createPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    if (!createRole) { toast.error('Select a role'); return; }
+
+    setCreating(true);
+    try {
+      const newUid = await createUserAccount({
+        name,
+        email,
+        phone: createPhone.trim(),
+        password: createPassword,
+        roleId: createRole,
+      });
+
+      await addAuditLog({
+        action: 'user_created',
+        userId: appUser.id,
+        userName: appUser.name,
+        targetId: newUid,
+        targetType: 'user',
+        details: `Created user ${name} (${email})`,
+        createdAt: serverTimestamp() as any,
+      });
+
+      // Reflect the new user immediately without a full reload.
+      const newUser: AppUser = {
+        id: newUid,
+        name,
+        email,
+        phone: createPhone.trim(),
+        avatarUrl: '',
+        roleId: createRole,
+        isActive: true,
+        orgId: 'main',
+      };
+      setUsers((prev) => [newUser, ...prev]);
+      setCreateModal(false);
+      toast.success('User created');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -205,6 +276,11 @@ const UserManagementPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">User Management</h2>
           <p className="text-sm text-slate-500 mt-0.5">{users.length} total users</p>
         </div>
+        {canCreate && (
+          <Button leftIcon={<UserPlus className="w-4 h-4" />} onClick={openCreate}>
+            Add User
+          </Button>
+        )}
       </div>
 
       <div className="flex gap-3">
@@ -309,6 +385,51 @@ const UserManagementPage: React.FC = () => {
             options={roles.map((r) => ({ value: r.id, label: r.name }))}
             placeholder="Select role"
           />
+        </div>
+      </Modal>
+
+      {/* Add User Modal */}
+      <Modal
+        open={createModal}
+        onClose={() => setCreateModal(false)}
+        title="Add New User"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setCreateModal(false)}>Cancel</Button>
+            <Button onClick={handleCreate} loading={creating}>Create User</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <Input label="Name" value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Full name" />
+          <Input label="Email" type="email" value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} placeholder="name@company.com" />
+          <Input label="Phone (optional)" value={createPhone} onChange={(e) => setCreatePhone(e.target.value)} placeholder="Phone number" />
+          <div className="relative">
+            <Input
+              label="Temporary Password"
+              type={showCreatePassword ? 'text' : 'password'}
+              value={createPassword}
+              onChange={(e) => setCreatePassword(e.target.value)}
+              placeholder="Min 6 characters"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCreatePassword(!showCreatePassword)}
+              className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600"
+            >
+              {showCreatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <Select
+            label="Role"
+            value={createRole}
+            onChange={(e) => setCreateRole(e.target.value)}
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            placeholder="Select role"
+          />
+          <p className="text-xs text-slate-400">
+            The user can sign in immediately with this email and password. Share the temporary password with them securely.
+          </p>
         </div>
       </Modal>
 
