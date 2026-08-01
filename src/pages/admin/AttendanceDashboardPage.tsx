@@ -10,10 +10,11 @@ import Avatar from '../../components/ui/Avatar';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
+import Modal from '../../components/ui/Modal';
 import { usePermissions } from '../../hooks/usePermissions';
 import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings, getProjects, getAllRoles } from '../../lib/firestore';
 import { Attendance, AppUser, OrgSettings, Project, Role } from '../../types';
-import { format, addDays, subDays, differenceInMinutes, differenceInSeconds } from 'date-fns';
+import { format, addDays, subDays, differenceInMinutes, differenceInSeconds, differenceInDays } from 'date-fns';
 
 const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371000;
@@ -194,6 +195,9 @@ const AttendanceDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportStart, setExportStart] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'));
+  const [exportEnd, setExportEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     getAllUsers().then(setUsers);
@@ -239,6 +243,11 @@ const AttendanceDashboardPage: React.FC = () => {
   // as a highly organized multi-sheet Excel workbook.
   const handleExportExcel = async () => {
     if (exporting) return;
+    if (exportStart > exportEnd) {
+      toast.error('Start date must be on or before the end date.');
+      return;
+    }
+    setExportOpen(false);
     setExporting(true);
     try {
       // 1. Fetch auxiliary data
@@ -253,18 +262,30 @@ const AttendanceDashboardPage: React.FC = () => {
       const roleMap = new Map<string, string>();
       fetchedRoles.forEach((r) => roleMap.set(r.id, r.name));
 
-      // 2. Fetch history for all users
+      // 2. Fetch history for all users, limited to the selected date range.
+      // getUserAttendanceHistory limits by RECORD COUNT (most-recent first), so
+      // fetch enough records to reach back to the range start, then filter to
+      // [exportStart, exportEnd] (date is a "YYYY-MM-DD" string, so string
+      // comparison is a valid range check).
+      const daysBack = Math.max(differenceInDays(new Date(), new Date(`${exportStart}T00:00:00`)), 0);
+      const recordsToFetch = Math.min(500, daysBack + 31);
+      const inRange = (rec: Attendance) => {
+        const d = rec.date ?? (rec.checkInTime?.toDate ? format(rec.checkInTime.toDate(), 'yyyy-MM-dd') : '');
+        return !!d && d >= exportStart && d <= exportEnd;
+      };
+
       const staffHistoryMap = new Map<string, Attendance[]>();
       let totalRecordsFetched = 0;
 
       for (const u of users) {
-        const hist = await getUserAttendanceHistory(u.id, 90).catch(() => [] as Attendance[]);
+        const raw = await getUserAttendanceHistory(u.id, recordsToFetch).catch(() => [] as Attendance[]);
+        const hist = raw.filter(inRange);
         staffHistoryMap.set(u.id, hist);
         totalRecordsFetched += hist.length;
       }
 
       if (totalRecordsFetched === 0) {
-        toast.error('No attendance records found to export.');
+        toast.error('No attendance records found in the selected date range.');
         return;
       }
 
@@ -308,7 +329,7 @@ const AttendanceDashboardPage: React.FC = () => {
       const overviewData = [
         { A: 'ATTENDANCE MANAGEMENT SUMMARY REPORT', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
         { A: 'Report Date:', B: format(new Date(), 'yyyy-MM-dd HH:mm'), C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
-        { A: 'Period:', B: 'Last 90 Days', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: 'Period:', B: `${exportStart} to ${exportEnd}`, C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
         { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
         { A: 'TEAM PERFORMANCE COMPLIANCE OVERVIEW', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
       ];
@@ -417,8 +438,8 @@ const AttendanceDashboardPage: React.FC = () => {
         XLSX.utils.book_append_sheet(wb, flaggedSheet, 'Flagged Incidents');
       }
 
-      XLSX.writeFile(wb, `kurickal-attendance-report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-      toast.success(`Exported complete multi-sheet report with ${totalRecordsFetched} logs.`);
+      XLSX.writeFile(wb, `kurickal-attendance-${exportStart}_to_${exportEnd}.xlsx`);
+      toast.success(`Exported ${totalRecordsFetched} logs for ${exportStart} → ${exportEnd}.`);
     } catch (err: any) {
       console.error(err);
       toast.error('Failed to export attendance report');
@@ -437,16 +458,88 @@ const AttendanceDashboardPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Attendance Dashboard</h2>
           <p className="text-sm text-slate-500 mt-0.5">Monitor daily check-ins, check-outs & geofence compliance</p>
         </div>
-        {/* Excel export — full 90-day report for every staff member */}
+        {/* Excel export — choose a date / date range for the report */}
         <Button
           variant="outline"
           size="sm"
           loading={exporting}
           leftIcon={<FileSpreadsheet className="w-4 h-4" />}
-          onClick={handleExportExcel}
+          onClick={() => setExportOpen(true)}
         >
           Export Excel
         </Button>
+
+        <Modal
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          title="Export Attendance Report"
+          size="md"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setExportOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                loading={exporting}
+                leftIcon={<FileSpreadsheet className="w-4 h-4" />}
+                onClick={handleExportExcel}
+              >
+                Export Excel
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Choose the date range to include. The workbook covers every staff member's
+              check-ins, daily logs, and flagged incidents within this range.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">
+                <span className="block font-medium text-slate-700 mb-1">From</span>
+                <input
+                  type="date"
+                  value={exportStart}
+                  max={exportEnd}
+                  onChange={(e) => setExportStart(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="block font-medium text-slate-700 mb-1">To</span>
+                <input
+                  type="date"
+                  value={exportEnd}
+                  min={exportStart}
+                  max={format(new Date(), 'yyyy-MM-dd')}
+                  onChange={(e) => setExportEnd(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[
+                { label: 'Today', days: 0 },
+                { label: 'Last 7 days', days: 6 },
+                { label: 'Last 30 days', days: 29 },
+                { label: 'Last 90 days', days: 89 },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setExportStart(format(subDays(new Date(), preset.days), 'yyyy-MM-dd'));
+                    setExportEnd(format(new Date(), 'yyyy-MM-dd'));
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
         {/* Date Picker */}
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
           <button onClick={() => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))} className="p-1 hover:bg-slate-100 rounded">

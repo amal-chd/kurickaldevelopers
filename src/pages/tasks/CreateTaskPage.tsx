@@ -145,7 +145,7 @@ const CreateTaskPage: React.FC = () => {
 
     setLoading(true);
     try {
-      let uploadedUrls: string[] = [];
+      const uploadedUrls: string[] = [];
       if (newAttachments.length > 0) {
         for (const file of newAttachments) {
           try {

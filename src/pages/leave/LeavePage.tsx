@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
   createLeaveRequest, getMyLeaveRequests, getAllLeaveRequests, deleteLeaveRequest,
-  getAllUsers, getAllRoles, createNotification, serverTimestamp,
+  getAllUsers, getAllRoles, createNotification,
 } from '../../lib/firestore';
 import { LeaveRequest, LeaveType } from '../../types';
 import toast from 'react-hot-toast';

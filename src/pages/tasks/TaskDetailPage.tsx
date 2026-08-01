@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Clock, Calendar, Tag, User, MessageSquare,
-  CheckSquare, CheckCircle, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock, Paperclip
+  CheckSquare, Plus, Check, AlertCircle, ChevronDown, ArrowLeft, Lock, Paperclip, X, FileText
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -22,13 +22,22 @@ import { notifyPush } from '../../lib/push';
 import { formatDate, formatDateTime, taskStatusLabel, calculateCompletionDetails, formatDelay } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
+import { uploadToSupabase, STORAGE_BUCKETS } from '../../lib/storage';
 import { isAfter } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'done', label: 'Done' },
-];
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i;
+
+// Derive a human-friendly filename from a Supabase public URL (strips the
+// "<timestamp>_" prefix added at upload time).
+const attachmentLabel = (url: string): string => {
+  try {
+    const last = decodeURIComponent(url.split('?')[0].split('/').pop() || 'file');
+    return last.replace(/^\d+_/, '') || 'attachment';
+  } catch {
+    return 'attachment';
+  }
+};
 
 const TaskDetailPage: React.FC = () => {
   const { id: taskId } = useParams<{ id: string }>();
@@ -48,6 +57,7 @@ const TaskDetailPage: React.FC = () => {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [addingComment, setAddingComment] = useState(false);
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -316,17 +326,31 @@ const TaskDetailPage: React.FC = () => {
   };
 
   const handleAddComment = async () => {
-    if (!taskId || !newComment.trim() || !appUser) return;
+    if (!taskId || (!newComment.trim() && commentFiles.length === 0) || !appUser) return;
     if (!canComment) {
       toast.error('Only the project manager, task assigner, or higher authority can add comments.');
       return;
     }
     setAddingComment(true);
     try {
-      await addComment(taskId, { authorId: appUser.id, text: newComment.trim() }, appUser.id);
+      let attachmentUrls: string[] | undefined;
+      if (commentFiles.length > 0) {
+        const uploaded = await Promise.all(
+          commentFiles.map((file) =>
+            uploadToSupabase(file, STORAGE_BUCKETS.documents, `task-comments/${taskId}`),
+          ),
+        );
+        attachmentUrls = uploaded.map((r) => r.url);
+      }
+      await addComment(
+        taskId,
+        { authorId: appUser.id, text: newComment.trim(), ...(attachmentUrls ? { attachmentUrls } : {}) },
+        appUser.id,
+      );
       setNewComment('');
-    } catch {
-      toast.error('Failed to post comment');
+      setCommentFiles([]);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to post comment');
     } finally {
       setAddingComment(false);
     }
@@ -618,7 +642,35 @@ const TaskDetailPage: React.FC = () => {
                       </div>
                       <span className="text-xs text-slate-400 font-medium">{formatDateTime(comment.createdAt)}</span>
                     </div>
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-9">{comment.text}</p>
+                    {comment.text && (
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-9">{comment.text}</p>
+                    )}
+                    {comment.attachmentUrls && comment.attachmentUrls.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pl-9 pt-1">
+                        {comment.attachmentUrls.map((url, i) =>
+                          IMAGE_EXT_RE.test(url) ? (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                              <img
+                                src={url}
+                                alt={attachmentLabel(url)}
+                                className="h-20 w-20 object-cover rounded-lg border border-slate-200 hover:opacity-90 transition-opacity"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 hover:border-primary/40 hover:text-primary transition-colors max-w-[220px]"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{attachmentLabel(url)}</span>
+                            </a>
+                          ),
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -630,18 +682,57 @@ const TaskDetailPage: React.FC = () => {
             </div>
 
             {canComment ? (
-              <div className="flex gap-3">
-                <Input
-                  id="task-comment-input"
-                  placeholder="Write a comment or instruction..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                  className="text-sm shadow-sm"
-                />
-                <Button onClick={handleAddComment} loading={addingComment}>
-                  Post
-                </Button>
+              <div className="space-y-2">
+                {commentFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {commentFiles.map((file, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-200 rounded-lg pl-2.5 pr-1.5 py-1 text-slate-700"
+                      >
+                        <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="max-w-[160px] truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCommentFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-slate-400 hover:text-rose-500"
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <label
+                    className="flex items-center justify-center w-11 shrink-0 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-primary hover:border-primary/40 cursor-pointer transition-colors shadow-sm"
+                    title="Attach files"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const picked = Array.from(e.target.files ?? []);
+                        if (picked.length) setCommentFiles((prev) => [...prev, ...picked]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <Input
+                    id="task-comment-input"
+                    placeholder="Write a comment or instruction..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
+                    className="text-sm shadow-sm"
+                  />
+                  <Button onClick={handleAddComment} loading={addingComment}>
+                    Post
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="text-center py-3.5 px-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-500 text-sm italic flex items-center justify-center gap-2">

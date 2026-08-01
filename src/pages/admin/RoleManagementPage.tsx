@@ -34,6 +34,16 @@ const RoleManagementPage: React.FC = () => {
   const { can } = usePermissions();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Role | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    color: '#0F172A',
+    level: '1',
+    permissions: {} as Permissions,
+  });
 
   const canManage = can('roles_manage') || (role?.level ?? 0) >= 100;
 
@@ -56,18 +66,6 @@ const RoleManagementPage: React.FC = () => {
       </div>
     );
   }
-  const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<Role | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    color: '#0F172A',
-    level: '1',
-    permissions: {} as Permissions,
-  });
-
-
 
   const resetForm = () => {
     setForm({ name: '', description: '', color: '#0F172A', level: '1', permissions: {} });
