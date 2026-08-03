@@ -1104,7 +1104,15 @@ export const getAuditLogs = async (pageLimit = 50): Promise<AuditLog[]> => {
 };
 
 export const addAuditLog = async (data: Omit<AuditLog, 'id'>): Promise<void> => {
-  await addDoc(collection(db, 'audit_logs'), { ...data, createdAt: serverTimestamp() });
+  // Audit logging is a best-effort side-effect. It must NEVER throw into the
+  // primary operation — a failed audit write (e.g. rules, offline) previously
+  // made a *successful* action like user creation report "Failed", prompting
+  // retries that then hit "email already exists".
+  try {
+    await addDoc(collection(db, 'audit_logs'), { ...data, createdAt: serverTimestamp() });
+  } catch (err) {
+    console.warn('addAuditLog failed (non-fatal):', err);
+  }
 };
 
 // ─── Notifications ────────────────────────────────────────────────────────────

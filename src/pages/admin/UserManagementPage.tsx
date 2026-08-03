@@ -124,17 +124,9 @@ const UserManagementPage: React.FC = () => {
         roleId: createRole,
       });
 
-      await addAuditLog({
-        action: 'user_created',
-        userId: appUser.id,
-        userName: appUser.name,
-        targetId: newUid,
-        targetType: 'user',
-        details: `Created user ${name} (${email})`,
-        createdAt: serverTimestamp() as any,
-      });
-
-      // Reflect the new user immediately without a full reload.
+      // The account exists the moment createUserAccount resolves. Commit the
+      // success UI first, so nothing after this point can report a created user
+      // as a failure (which previously prompted a retry → "email already exists").
       const newUser: AppUser = {
         id: newUid,
         name,
@@ -148,6 +140,17 @@ const UserManagementPage: React.FC = () => {
       setUsers((prev) => [newUser, ...prev]);
       setCreateModal(false);
       toast.success('User created');
+
+      // Best-effort audit trail — never blocks or fails the creation.
+      void addAuditLog({
+        action: 'user_created',
+        userId: appUser.id,
+        userName: appUser.name,
+        targetId: newUid,
+        targetType: 'user',
+        details: `Created user ${name} (${email})`,
+        createdAt: serverTimestamp() as any,
+      });
     } catch (err: any) {
       toast.error(err.message || 'Failed to create user');
     } finally {
