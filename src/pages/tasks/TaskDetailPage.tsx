@@ -802,8 +802,18 @@ const TaskDetailPage: React.FC = () => {
                 </div>
               )}
               
+              {task.createdBy && (
+                <div className="flex items-start gap-3">
+                  <User className="w-5 h-5 text-slate-400 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Assigned By</p>
+                    <span className="text-slate-900 font-medium">{getUser(task.createdBy)?.name ?? 'Unknown'}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-slate-400 mt-0.5" />
+                <Calendar className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
                   <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Created At</p>
                   <span className="text-slate-900 font-medium">{formatDate(task.createdAt)}</span>
@@ -860,7 +870,7 @@ const TaskDetailPage: React.FC = () => {
             );
           })()}
 
-          {isManager && (
+          {(isManager || isAssigner) && (
             <Card className="hover:shadow-card-hover transition-all duration-300">
               <h3 className="font-bold text-lg text-slate-900 mb-4 pb-3 border-b border-slate-100">Member Progress</h3>
               <div className="space-y-3">

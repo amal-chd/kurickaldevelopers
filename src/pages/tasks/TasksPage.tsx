@@ -81,7 +81,14 @@ const TasksPage: React.FC = () => {
   const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && getTaskStatus(t) !== 'done');
 
   const filteredTasks = tasks.filter((t) => {
-    if (!isManager && !t.assigneeIds?.includes(appUser?.id ?? '') && !t.assignedRoleIds?.includes(appUser?.roleId ?? '')) return false;
+    // A non-manager sees a task if they're an assignee, their role is assigned,
+    // OR they created/assigned it — the assigner must always see their own task.
+    if (
+      !isManager &&
+      !t.assigneeIds?.includes(appUser?.id ?? '') &&
+      !t.assignedRoleIds?.includes(appUser?.roleId ?? '') &&
+      t.createdBy !== appUser?.id
+    ) return false;
     if (projectFilter && t.projectId !== projectFilter) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     

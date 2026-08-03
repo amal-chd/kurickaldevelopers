@@ -96,7 +96,8 @@ const DashboardPage: React.FC = () => {
         (t) =>
           t.assigneeIds?.includes(userId) ||
           t.assignedRoleIds?.includes(appUser?.roleId ?? '') ||
-          (t.assignedRoleId && t.assignedRoleId === appUser?.roleId)
+          (t.assignedRoleId && t.assignedRoleId === appUser?.roleId) ||
+          t.createdBy === userId
       );
 
   const activeProjects   = projects.filter((p) => p.status === 'active');
