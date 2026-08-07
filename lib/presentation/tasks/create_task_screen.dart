@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +19,7 @@ import '../../providers/project_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../data/services/storage_service.dart';
 import '../shared/widgets/avatar_widget.dart';
 import '../shared/widgets/loading_widget.dart';
 
@@ -47,6 +50,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   bool _isLoadingEdit = false;
   bool _isRecurring = false;
   final List<String> _tags = [];
+  final List<File> _selectedFiles = [];
+  final List<String> _existingAttachmentUrls = [];
   bool get _isEditMode => widget.taskId != null;
 
   @override
@@ -73,6 +78,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
         _estimatedHours = task.estimatedHours;
         _isRecurring = task.isRecurring;
         _tags.addAll(task.tags);
+        _existingAttachmentUrls.addAll(task.attachmentUrls);
         _isLoadingEdit = false;
       });
     } else if (mounted) {
@@ -157,6 +163,15 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     _tagsCtrl.clear();
   }
 
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null && mounted) {
+      setState(() {
+        _selectedFiles.addAll(result.paths.where((p) => p != null).map((p) => File(p!)));
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedProjectId == null) {
@@ -171,6 +186,16 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       final repo = ref.read(taskRepositoryProvider);
 
       if (_isEditMode) {
+        final uploadedUrls = <String>[];
+        for (final file in _selectedFiles) {
+          try {
+            final url = await StorageService().uploadTaskAttachment(taskId: widget.taskId!, file: file);
+            uploadedUrls.add(url);
+          } catch (e) {
+            // best effort
+          }
+        }
+        
         // When editing, if assignees are added and status is still 'created',
         // automatically advance it to 'assigned'.
         final Map<String, dynamic> updates = {
@@ -186,9 +211,22 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           'estimatedHours': _estimatedHours,
           'isRecurring': _isRecurring,
           'tags': _tags,
+          'attachmentUrls': [..._existingAttachmentUrls, ...uploadedUrls],
         };
         await repo.updateTask(widget.taskId!, updates);
       } else {
+        // Create a temporary task ID to use for storage prefix
+        final tempTaskId = DateTime.now().millisecondsSinceEpoch.toString();
+        final uploadedUrls = <String>[];
+        for (final file in _selectedFiles) {
+          try {
+            final url = await StorageService().uploadTaskAttachment(taskId: tempTaskId, file: file);
+            uploadedUrls.add(url);
+          } catch (e) {
+            // best effort
+          }
+        }
+
         // New tasks start as 'In Progress' once assigned
         final task = TaskModel(
           id: '',
@@ -206,6 +244,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           estimatedHours: _estimatedHours,
           isRecurring: _isRecurring,
           tags: _tags,
+          attachmentUrls: uploadedUrls,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -726,6 +765,69 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 ),
                 onSubmitted: _addTag,
               ),
+            ]),
+            const SizedBox(height: 16),
+
+            // Section: Attachments
+            _sectionCard([
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const _SectionLabel(label: 'Attachments'),
+                  TextButton.icon(
+                    onPressed: _pickFiles,
+                    icon: const Icon(Icons.attach_file_rounded, size: 16),
+                    label: const Text('Add Files'),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+                ],
+              ),
+              if (_existingAttachmentUrls.isEmpty && _selectedFiles.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No files attached',
+                    style: TextStyle(color: AppTheme.textLight, fontSize: 13),
+                  ),
+                ),
+              if (_existingAttachmentUrls.isNotEmpty || _selectedFiles.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ..._existingAttachmentUrls.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final url = entry.value;
+                      final filename = url.split('/').last.split('?').first;
+                      final decoded = Uri.decodeComponent(filename);
+                      return Chip(
+                        avatar: const Icon(Icons.insert_drive_file_outlined, size: 16, color: AppTheme.primary),
+                        label: Text(
+                          decoded,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                        onDeleted: () => setState(() => _existingAttachmentUrls.removeAt(i)),
+                        backgroundColor: AppTheme.primary.withValues(alpha: 0.05),
+                      );
+                    }),
+                    ..._selectedFiles.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final file = entry.value;
+                      final filename = file.path.split('/').last;
+                      return Chip(
+                        avatar: const Icon(Icons.file_upload_outlined, size: 16, color: Colors.green),
+                        label: Text(
+                          filename,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                        onDeleted: () => setState(() => _selectedFiles.removeAt(i)),
+                        backgroundColor: Colors.green.withValues(alpha: 0.05),
+                      );
+                    }),
+                  ],
+                ),
             ]),
             const SizedBox(height: 16),
 

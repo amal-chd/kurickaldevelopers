@@ -53,15 +53,23 @@ class TaskCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StatusChip.priority(task.priority),
-                const SizedBox(width: 8),
-                StatusChip.completionStatus(
-                  status: task.status,
-                  completionStatus: task.completionStatus,
-                  dueDate: task.dueDate,
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      StatusChip.priority(task.priority),
+                      StatusChip.completionStatus(
+                        status: task.status,
+                        completionStatus: task.completionStatus,
+                        dueDate: task.dueDate,
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 14,

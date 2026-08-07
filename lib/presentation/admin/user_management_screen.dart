@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../app/theme.dart';
 import '../../core/utils/validators.dart';
@@ -1146,13 +1143,6 @@ class _AddUserSheetState extends ConsumerState<_AddUserSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
-    // A secondary Firebase app lets us create the account without signing the
-    // admin out. It MUST be torn down carefully: sign the new user out first so
-    // its background token-refresh timer stops, terminate Firestore, THEN delete
-    // the app — otherwise a stray async callback throws "FirebaseApp was deleted".
-    FirebaseApp? tempApp;
-    FirebaseAuth? tempAuth;
-    FirebaseFirestore? tempFirestore;
     try {
       final name = _nameCtrl.text.trim();
       final email = _emailCtrl.text.trim();
@@ -1160,54 +1150,31 @@ class _AddUserSheetState extends ConsumerState<_AddUserSheet> {
       final password = _passwordCtrl.text;
       final roleId = _selectedRole!;
 
-      // 1. Initialize secondary Firebase app. Use a unique name so a leftover
-      //    instance from a previous (failed) run can never cause a
-      //    [core/duplicate-app] collision.
-      final appName = 'userCreator_${DateTime.now().microsecondsSinceEpoch}';
-      tempApp = await Firebase.initializeApp(
-        name: appName,
-        options: Firebase.app().options,
-      );
-
-      // 2. Register user under secondary app
-      tempAuth = FirebaseAuth.instanceFor(app: tempApp);
-      final cred = await tempAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final uid = cred.user!.uid;
-
-      // 3. Write user profile to Firestore using secondary app instance
-      tempFirestore = FirebaseFirestore.instanceFor(app: tempApp);
-
-      final newUser = UserModel(
-        uid: uid,
+      // Create the account server-side via the Admin SDK (see PushSender). This
+      // keeps the admin signed in AND writes the profile with the admin-assigned
+      // role. The old client-side path created the account AS the new user, whose
+      // profile write the `roleAllowedForSelf` rule rejected — leaving a ghost
+      // Auth account and "email already in use" on the next attempt.
+      final uid = await PushSender.instance.createUser(
         name: name,
         email: email,
         phone: phone,
+        password: password,
         roleId: roleId,
-        createdAt: DateTime.now(),
-        lastLoginAt: DateTime.now(),
-        isActive: true,
-        biometricEnabled: false,
       );
 
-      await tempFirestore.collection('users').doc(uid).set(newUser.toFirestore());
-
-      // 4. Sign the freshly-created user out of the secondary app BEFORE the
-      //    app is disposed, stopping its proactive token-refresh timer.
-      await tempAuth.signOut();
-
-      // 5. Log the action using main admin repository
-      final currentUser = ref.read(currentUserProvider).value;
-      await ref.read(adminRepositoryProvider).writeAuditLog(
-        action: 'user.created',
-        actorId: currentUser?.uid ?? '',
-        actorName: currentUser?.name ?? '',
-        targetId: uid,
-        targetType: 'user',
-        description: 'Created user "$name" with role "$roleId"',
-      );
+      // Best-effort audit log — must never fail the creation.
+      try {
+        final currentUser = ref.read(currentUserProvider).value;
+        await ref.read(adminRepositoryProvider).writeAuditLog(
+          action: 'user.created',
+          actorId: currentUser?.uid ?? '',
+          actorName: currentUser?.name ?? '',
+          targetId: uid,
+          targetType: 'user',
+          description: 'Created user "$name" with role "$roleId"',
+        );
+      } catch (_) {}
 
       if (mounted) {
         Navigator.pop(context);
@@ -1230,17 +1197,6 @@ class _AddUserSheetState extends ConsumerState<_AddUserSheet> {
         );
       }
     } finally {
-      // Tear down the secondary app cleanly, swallowing any errors so a failed
-      // cleanup never surfaces as a user-facing crash.
-      try {
-        await tempAuth?.signOut();
-      } catch (_) {}
-      try {
-        await tempFirestore?.terminate();
-      } catch (_) {}
-      try {
-        await tempApp?.delete();
-      } catch (_) {}
       if (mounted) setState(() => _saving = false);
     }
   }

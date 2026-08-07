@@ -23,7 +23,7 @@ class AttendanceRepository {
           .limit(1)
           .get();
       if (snap.docs.isEmpty) return null;
-      return AttendanceModel.fromFirestore(snap.docs.first);
+      return _fromFirestore(snap.docs.first);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -43,7 +43,7 @@ class AttendanceRepository {
         .map(
           (s) => s.docs.isEmpty
               ? null
-              : AttendanceModel.fromFirestore(s.docs.first),
+              : _fromFirestore(s.docs.first),
         )
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
@@ -57,7 +57,7 @@ class AttendanceRepository {
         .where('date', isGreaterThanOrEqualTo: '$month-01')
         .where('date', isLessThanOrEqualTo: '$month-31')
         .snapshots()
-        .map((s) => s.docs.map(AttendanceModel.fromFirestore).toList())
+        .map((s) => s.docs.map(_fromFirestore).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -112,8 +112,25 @@ class AttendanceRepository {
         .where('projectId', isEqualTo: projectId)
         .where('date', isEqualTo: today)
         .snapshots()
-        .map((s) => s.docs.map(AttendanceModel.fromFirestore).toList())
+        .map((s) => s.docs.map(_fromFirestore).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
+  }
+
+  // ─── Internal Auto-Checkout Logic ─────────────────────────────────────────
+
+  AttendanceModel _fromFirestore(DocumentSnapshot doc) {
+    final record = AttendanceModel.fromFirestore(doc);
+    if (record.checkOutTime == null) {
+      final now = DateTime.now();
+      if (now.difference(record.checkInTime).inHours >= 8) {
+        // Auto checkout exactly at 8 hours
+        final autoOut = record.checkInTime.add(const Duration(hours: 8));
+        doc.reference.update({
+          'checkOutTime': AppDateUtils.toTimestamp(autoOut),
+        }).ignore();
+      }
+    }
+    return record;
   }
 
   // ─── Admin queries ────────────────────────────────────────────────────────
@@ -124,7 +141,7 @@ class AttendanceRepository {
     return _attendance
         .where('date', isEqualTo: date)
         .snapshots()
-        .map((s) => s.docs.map(AttendanceModel.fromFirestore).toList())
+        .map((s) => s.docs.map(_fromFirestore).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -141,7 +158,7 @@ class AttendanceRepository {
         .where('date', isLessThanOrEqualTo: endDate)
         .snapshots()
         .map((s) {
-          final list = s.docs.map(AttendanceModel.fromFirestore).toList();
+          final list = s.docs.map(_fromFirestore).toList();
           list.sort((a, b) => b.date.compareTo(a.date)); // newest first
           return list;
         })

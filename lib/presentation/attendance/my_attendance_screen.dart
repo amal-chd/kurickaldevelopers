@@ -476,14 +476,14 @@ class _MyCheckInCard extends ConsumerWidget {
                   Row(
                     children: [
                       const Icon(
-                        Icons.location_on_rounded,
+                        Icons.login_rounded,
                         size: 12,
                         color: Colors.white54,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          record.checkInAddress!,
+                          'In: ${record.checkInAddress!}',
                           style: const TextStyle(
                             color: Colors.white54,
                             fontSize: 11,
@@ -499,13 +499,13 @@ class _MyCheckInCard extends ConsumerWidget {
                   Row(
                     children: [
                       const Icon(
-                        Icons.location_searching_rounded,
+                        Icons.login_rounded,
                         size: 12,
                         color: Colors.white38,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${record.checkInLocation.latitude.toStringAsFixed(4)}, '
+                        'In: ${record.checkInLocation.latitude.toStringAsFixed(4)}, '
                         '${record.checkInLocation.longitude.toStringAsFixed(4)}',
                         style: const TextStyle(
                           color: Colors.white38,
@@ -514,6 +514,52 @@ class _MyCheckInCard extends ConsumerWidget {
                       ),
                     ],
                   ),
+                ],
+                if (record.checkOutTime != null) ...[
+                  if (record.checkOutAddress != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.logout_rounded,
+                          size: 12,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Out: ${record.checkOutAddress!}',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (record.checkOutLocation != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.logout_rounded,
+                          size: 12,
+                          color: Colors.white38,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Out: ${record.checkOutLocation!.latitude.toStringAsFixed(4)}, '
+                          '${record.checkOutLocation!.longitude.toStringAsFixed(4)}',
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
                 if (!record.isWithinGeofence) ...[
                   const SizedBox(height: 6),
@@ -863,7 +909,7 @@ class _AttendanceRow extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(
-                        Icons.location_on_rounded,
+                        Icons.login_rounded,
                         size: 10,
                         color: AppTheme.textLight,
                       ),
@@ -871,6 +917,30 @@ class _AttendanceRow extends StatelessWidget {
                       Flexible(
                         child: Text(
                           record.checkInAddress!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppTheme.textLight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (record.checkOutAddress != null) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.logout_rounded,
+                        size: 10,
+                        color: AppTheme.textLight,
+                      ),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          record.checkOutAddress!,
                           style: const TextStyle(
                             fontSize: 10,
                             color: AppTheme.textLight,
@@ -1031,7 +1101,68 @@ class _MonthSummarySection extends ConsumerWidget {
               'Could not load month data: $e',
               style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
             ),
-            data: (records) => _MonthCalendar(month: now, records: records),
+            data: (records) {
+              int totalMins = 0;
+              int totalOvertimeMins = 0;
+              for (final r in records) {
+                totalMins += r.durationMinutes;
+                totalOvertimeMins += r.overtimeMinutes;
+              }
+              final tH = totalMins ~/ 60;
+              final tM = totalMins % 60;
+              final oH = totalOvertimeMins ~/ 60;
+              final oM = totalOvertimeMins % 60;
+
+              return Column(
+                children: [
+                  _MonthCalendar(month: now, records: records),
+                  const SizedBox(height: 16),
+                  const Divider(color: AppTheme.divider),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            'Total Logged',
+                            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${tH}h ${tM}m',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          const Text(
+                            'Total Overtime',
+                            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${oH}h ${oM}m',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: totalOvertimeMins > 0
+                                  ? AppTheme.warning
+                                  : AppTheme.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 12),
@@ -1167,15 +1298,39 @@ class _CalendarDay extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.radiusXs),
         border: border,
       ),
-      child: Center(
-        child: Text(
-          '$day',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-            color: textColor,
+      child: Stack(
+        children: [
+          Center(
+            child: Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                color: textColor,
+              ),
+            ),
           ),
-        ),
+          if (record != null && record!.overtimeMinutes > 0)
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Text(
+                  'OT',
+                  style: TextStyle(
+                    fontSize: 6,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

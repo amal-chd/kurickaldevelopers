@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../app/theme.dart';
 import '../../core/utils/date_utils.dart';
@@ -26,6 +30,7 @@ class StaffAttendanceScreen extends ConsumerStatefulWidget {
 
 class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
   DateTime _selectedDate = DateTime.now();
+  String? _selectedRoleId;
 
   String get _dateKey => AppDateUtils.toYMD(_selectedDate);
   bool get _isToday {
@@ -85,6 +90,11 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       appBar: AppBar(
         title: const Text('Staff Attendance'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Export CSV',
+            onPressed: () => _exportCsv(context, ref),
+          ),
           // Date chip
           GestureDetector(
             onTap: _pickDate,
@@ -145,12 +155,18 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       }
     }
 
+    // Filter users by role if selected
+    Iterable<UserModel> filteredUsers = users;
+    if (_selectedRoleId != null) {
+      filteredUsers = users.where((u) => u.roleId == _selectedRoleId);
+    }
+
     // Partition users
     final onSite = <UserModel>[];
     final checkedOut = <UserModel>[];
     final absent = <UserModel>[];
 
-    for (final u in users) {
+    for (final u in filteredUsers) {
       if (!u.isActive) continue;
       final rec = recordByUser[u.uid];
       if (rec == null) {
@@ -162,7 +178,7 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       }
     }
 
-    if (users.where((u) => u.isActive).isEmpty) {
+    if (filteredUsers.where((u) => u.isActive).isEmpty) {
       return const EmptyStateWidget(
         icon: Icons.people_outline_rounded,
         title: 'No staff found',
@@ -177,7 +193,20 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       },
       child: CustomScrollView(
         slivers: [
-          // ── Summary strip ───────────────────────────────────────────────
+          // ── Filter & Summary strip ──────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _RoleFilterDropdown(
+                selectedRoleId: _selectedRoleId,
+                onChanged: (val) {
+                  if (mounted) {
+                    setState(() => _selectedRoleId = val);
+                  }
+                },
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: _SummaryStrip(
               onSite: onSite.length,
@@ -606,6 +635,27 @@ class _StaffAttendanceCard extends StatelessWidget {
                               ),
                             ),
                           ],
+                          if (rec.overtimeMinutes > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.warning.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                              ),
+                              child: Text(
+                                'OT: ${rec.overtimeFormatted}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.warning,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       // Location
@@ -614,14 +664,14 @@ class _StaffAttendanceCard extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(
-                              Icons.location_on_rounded,
+                              Icons.login_rounded,
                               size: 11,
                               color: AppTheme.textMuted,
                             ),
                             const SizedBox(width: 3),
                             Flexible(
                               child: Text(
-                                rec.checkInAddress!,
+                                'In: ${rec.checkInAddress!}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: AppTheme.textMuted,
@@ -637,13 +687,13 @@ class _StaffAttendanceCard extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(
-                              Icons.location_on_outlined,
+                              Icons.login_rounded,
                               size: 11,
                               color: AppTheme.textLight,
                             ),
                             const SizedBox(width: 3),
                             Text(
-                              _formatGeoPoint(rec.checkInLocation),
+                              'In: ${_formatGeoPoint(rec.checkInLocation)}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textLight,
@@ -651,6 +701,51 @@ class _StaffAttendanceCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ],
+                      if (rec.checkOutTime != null) ...[
+                        if (rec.checkOutAddress != null) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.logout_rounded,
+                                size: 11,
+                                color: AppTheme.textMuted,
+                              ),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  'Out: ${rec.checkOutAddress!}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else if (rec.checkOutLocation != null) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.logout_rounded,
+                                size: 11,
+                                color: AppTheme.textLight,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Out: ${_formatGeoPoint(rec.checkOutLocation!)}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                       // Out-of-geofence badge
                       if (!rec.isWithinGeofence) ...[
@@ -702,6 +797,63 @@ class _StaffAttendanceCard extends StatelessWidget {
 
   String _formatGeoPoint(GeoPoint gp) =>
       '${gp.latitude.toStringAsFixed(4)}, ${gp.longitude.toStringAsFixed(4)}';
+}
+
+// ─── Role Filter Dropdown ─────────────────────────────────────────────────────
+
+class _RoleFilterDropdown extends ConsumerWidget {
+  final String? selectedRoleId;
+  final ValueChanged<String?> onChanged;
+
+  const _RoleFilterDropdown({
+    required this.selectedRoleId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rolesAsync = ref.watch(allRolesProvider);
+
+    return rolesAsync.when(
+      data: (roles) {
+        if (roles.isEmpty) return const SizedBox.shrink();
+        return DropdownButtonFormField<String?>(
+          value: selectedRoleId,
+          decoration: InputDecoration(
+            labelText: 'Filter by Role',
+            prefixIcon: const Icon(Icons.badge_outlined),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderSide: const BorderSide(color: AppTheme.divider),
+            ),
+          ),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('All Roles'),
+            ),
+            ...roles.map((role) {
+              return DropdownMenuItem<String?>(
+                value: role.id,
+                child: Text(role.name),
+              );
+            }),
+          ],
+          onChanged: onChanged,
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
 }
 
 // ─── Absent Card (grid) ───────────────────────────────────────────────────────
@@ -1454,6 +1606,92 @@ class _AttendanceDayTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
+    final usersAsync = ref.read(allUsersProvider);
+    final recordsAsync = ref.read(allAttendanceDateProvider(_dateKey));
+
+    if (usersAsync.value == null || recordsAsync.value == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data is still loading, please wait.')),
+      );
+      return;
+    }
+
+    final users = usersAsync.value!;
+    final records = recordsAsync.value!;
+
+    final Map<String, AttendanceModel> recordByUser = {};
+    for (final r in records) {
+      final existing = recordByUser[r.userId];
+      if (existing == null || r.checkInTime.isAfter(existing.checkInTime)) {
+        recordByUser[r.userId] = r;
+      }
+    }
+
+    Iterable<UserModel> filteredUsers = users.where((u) => u.isActive);
+    if (_selectedRoleId != null) {
+      filteredUsers = filteredUsers.where((u) => u.roleId == _selectedRoleId);
+    }
+
+    final rows = <List<String>>[
+      ['Name', 'Status', 'Check In', 'Check Out', 'Total Hours', 'Overtime Hours']
+    ];
+
+    for (final u in filteredUsers) {
+      final r = recordByUser[u.uid];
+      String status = 'Absent';
+      String checkIn = '-';
+      String checkOut = '-';
+      String totalH = '0';
+      String overH = '0';
+
+      if (r != null) {
+        status = r.isOnSite ? 'On Site' : 'Checked Out';
+        checkIn = DateFormat('hh:mm a').format(r.checkInTime);
+        if (r.checkOutTime != null) {
+          checkOut = DateFormat('hh:mm a').format(r.checkOutTime!);
+        }
+
+        final tH = r.durationMinutes ~/ 60;
+        final tM = r.durationMinutes % 60;
+        totalH = '${tH}h ${tM}m';
+
+        final oH = r.overtimeMinutes ~/ 60;
+        final oM = r.overtimeMinutes % 60;
+        overH = '${oH}h ${oM}m';
+      }
+
+      rows.add([
+        u.name,
+        status,
+        checkIn,
+        checkOut,
+        totalH,
+        overH,
+      ]);
+    }
+
+    try {
+      final csv = const ListToCsvConverter().convert(rows);
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName = 'attendance_${_dateKey}.csv';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(csv);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exported to ${file.path}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export CSV: $e')),
+        );
+      }
+    }
   }
 }
 

@@ -206,15 +206,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               tasks.where((t) => t.dueDate.isToday).length;
                           final overdue =
                               tasks.where((t) => t.isOverdue).length;
-                          final pending = canApprove
-                              ? tasks
-                                    .where(
-                                      (t) =>
-                                          t.approvalStatus ==
-                                          ApprovalStatus.pending,
-                                    )
-                                    .length
-                              : 0;
+                          final totalTasks = tasks.length;
 
                           return projectsAsync.when(
                             loading: () => const SizedBox.shrink(),
@@ -292,15 +284,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       ? 'Need attention'
                                       : 'All on track',
                                 ),
-                                if (canApprove)
-                                  _KpiCardData(
-                                    title: AppStrings.pendingApprovals,
-                                    value: '$pending',
-                                    icon: Icons.pending_actions_rounded,
-                                    color: AppTheme.pastelYellow,
-                                    route: '/tasks',
-                                    subtitle: 'Awaiting review',
-                                  ),
+                                _KpiCardData(
+                                  title: 'Total Tasks',
+                                  value: '$totalTasks',
+                                  icon: Icons.assignment_rounded,
+                                  color: AppTheme.pastelYellow,
+                                  route: '/tasks',
+                                  subtitle: 'All assigned tasks',
+                                ),
                                 if (canViewProjects)
                                   _KpiCardData(
                                     title: AppStrings.activeProjects,
@@ -391,7 +382,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             },
                                           ),
                                           SizedBox(
-                                            height: 190,
+                                            height: 220,
                                             child: ListView.builder(
                                               scrollDirection: Axis.horizontal,
                                               padding: Responsive.screenPadding(
@@ -1720,10 +1711,20 @@ class _KpiGridDynamic extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
-                Expanded(child: _buildCard(context, cards[i])),
+                Expanded(
+                  child: AspectRatio(
+                    aspectRatio: 1.15,
+                    child: _buildCard(context, cards[i]),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 if (i + 1 < cards.length)
-                  Expanded(child: _buildCard(context, cards[i + 1]))
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1.15,
+                      child: _buildCard(context, cards[i + 1]),
+                    ),
+                  )
                 else
                   const Spacer(),
               ],

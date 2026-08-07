@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../../core/constants/app_strings.dart';
@@ -12,6 +16,7 @@ import '../../data/models/project_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/subtask_model.dart';
+import '../../data/services/storage_service.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
@@ -35,6 +40,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     with SingleTickerProviderStateMixin {
   final _newSubtaskCtrl = TextEditingController();
   final _commentCtrl = TextEditingController();
+  final List<PlatformFile> _commentFiles = [];
+  bool _postingComment = false;
   late TabController _tabController;
 
   @override
@@ -240,17 +247,45 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
       return;
     }
     final text = _commentCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _commentFiles.isEmpty) return;
     final currentUser = ref.read(currentUserProvider).value;
     if (currentUser == null) return;
-    final comment = CommentModel(
-      id: '',
-      authorId: currentUser.uid,
-      text: text,
-      createdAt: DateTime.now(),
-    );
-    _commentCtrl.clear();
-    await ref.read(taskRepositoryProvider).addComment(task.id, comment);
+
+    setState(() => _postingComment = true);
+    try {
+      final List<String> attachmentUrls = [];
+      for (final f in _commentFiles) {
+        if (f.path == null) continue;
+        final url = await StorageService()
+            .uploadTaskAttachment(taskId: task.id, file: File(f.path!));
+        attachmentUrls.add(url);
+      }
+      final comment = CommentModel(
+        id: '',
+        authorId: currentUser.uid,
+        text: text,
+        attachmentUrls: attachmentUrls,
+        createdAt: DateTime.now(),
+      );
+      await ref.read(taskRepositoryProvider).addComment(task.id, comment);
+      _commentCtrl.clear();
+      if (mounted) setState(() => _commentFiles.clear());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to post comment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _postingComment = false);
+    }
+  }
+
+  Future<void> _pickCommentFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _commentFiles.addAll(result.files));
+    }
   }
 
   @override
@@ -669,6 +704,38 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
             ),
           ],
 
+          if (task.attachmentUrls.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Row(
+              children: [
+                Icon(Icons.attach_file_rounded, size: 16, color: AppTheme.textLight),
+                SizedBox(width: 8),
+                Text('Attachments', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: task.attachmentUrls.map((url) {
+                final filename = url.split('/').last.split('?').first;
+                final decoded = Uri.decodeComponent(filename);
+                return ActionChip(
+                  avatar: const Icon(Icons.insert_drive_file_outlined, size: 16, color: AppTheme.primary),
+                  label: Text(decoded, style: const TextStyle(fontSize: 12, color: AppTheme.brand)),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.05),
+                  side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.2)),
+                  onPressed: () async {
+                    final uri = Uri.parse(url);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+
           const SizedBox(height: 20),
 
           // Info card
@@ -704,6 +771,21 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
               ],
             ),
           ),
+
+          // Assigned By
+          if (task.createdBy.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text(
+              'Assigned By',
+              style: TextStyle(
+                fontWeight: FontWeight.w700, 
+                fontSize: 15,
+                fontFamily: 'Plus Jakarta Sans',
+              ),
+            ),
+            const SizedBox(height: 10),
+            _AssigneesRow(assigneeIds: [task.createdBy]),
+          ],
 
           // Assignees
           if (task.assigneeIds.isNotEmpty) ...[
@@ -945,11 +1027,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
             ),
           ],
 
-          // Approval section
-          if (canApprove) ...[
-            const SizedBox(height: 20),
-            _ApprovalSection(task: task, currentUserId: currentUser?.uid ?? ''),
-          ],
+
 
           // Project Chat button
           if (task.projectId.isNotEmpty) ...[
@@ -1241,15 +1319,54 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              Text(
-                                comment.text,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  color: AppTheme.onSurface,
+                              if (comment.text.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  comment.text,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.4,
+                                    color: AppTheme.onSurface,
+                                  ),
                                 ),
-                              ),
+                              ],
+                              if (comment.attachmentUrls.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: comment.attachmentUrls.map((url) {
+                                    final filename = Uri.decodeComponent(
+                                        url.split('/').last.split('?').first);
+                                    return ActionChip(
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                      avatar: const Icon(
+                                          Icons.insert_drive_file_outlined,
+                                          size: 14,
+                                          color: AppTheme.primary),
+                                      label: Text(filename,
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppTheme.brand)),
+                                      backgroundColor: AppTheme.primary
+                                          .withValues(alpha: 0.05),
+                                      side: BorderSide(
+                                          color: AppTheme.primary
+                                              .withValues(alpha: 0.2)),
+                                      onPressed: () async {
+                                        final uri = Uri.parse(url);
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(uri,
+                                              mode: LaunchMode
+                                                  .externalApplication);
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
                             ],
                           ),
                         );
@@ -1271,36 +1388,84 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                 ),
                 child: SafeArea(
                   top: false,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.background,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-                      border: Border.all(color: AppTheme.divider),
-                    ),
-                    child: TextField(
-                      controller: _commentCtrl,
-                      decoration: InputDecoration(
-                        hintText: AppStrings.addComment,
-                        prefixIcon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          color: AppTheme.primary,
-                          size: 20,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(
-                            Icons.send_rounded,
-                            color: AppTheme.primary,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_commentFiles.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: List.generate(_commentFiles.length, (i) {
+                              final f = _commentFiles[i];
+                              return Chip(
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(Icons.attach_file_rounded,
+                                    size: 14, color: AppTheme.primary),
+                                label: Text(f.name,
+                                    style: const TextStyle(fontSize: 11)),
+                                backgroundColor:
+                                    AppTheme.primary.withValues(alpha: 0.05),
+                                onDeleted: _postingComment
+                                    ? null
+                                    : () => setState(
+                                        () => _commentFiles.removeAt(i)),
+                              );
+                            }),
                           ),
-                          onPressed: () => _addComment(task, canAddComment),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.background,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusXl),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: TextField(
+                          controller: _commentCtrl,
+                          enabled: !_postingComment,
+                          decoration: InputDecoration(
+                            hintText: AppStrings.addComment,
+                            prefixIcon: IconButton(
+                              icon: const Icon(
+                                Icons.attach_file_rounded,
+                                color: AppTheme.primary,
+                                size: 20,
+                              ),
+                              onPressed:
+                                  _postingComment ? null : _pickCommentFiles,
+                            ),
+                            suffixIcon: _postingComment
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(
+                                      Icons.send_rounded,
+                                      color: AppTheme.primary,
+                                    ),
+                                    onPressed: () =>
+                                        _addComment(task, canAddComment),
+                                  ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          onSubmitted: (_) => _addComment(task, canAddComment),
                         ),
                       ),
-                      onSubmitted: (_) => _addComment(task, canAddComment),
-                    ),
+                    ],
                   ),
                 ),
               )
@@ -1556,159 +1721,3 @@ class _AssigneesRow extends ConsumerWidget {
   }
 }
 
-class _ApprovalSection extends ConsumerWidget {
-  final TaskModel task;
-  final String currentUserId;
-  const _ApprovalSection({required this.task, required this.currentUserId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        boxShadow: AppTheme.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.approval_rounded, size: 18, color: Color(0xFF9C27B0)),
-              SizedBox(width: 8),
-              Text(
-                'Approval',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700, 
-                  fontSize: 15,
-                  fontFamily: 'Plus Jakarta Sans',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (task.approvalStatus == ApprovalStatus.notRequired ||
-              task.approvalStatus == ApprovalStatus.rejected) ...[
-            if (task.approvalStatus == ApprovalStatus.rejected)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.error.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.error.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.cancel_outlined,
-                      color: AppTheme.error,
-                      size: 16,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Previously rejected',
-                      style: TextStyle(color: AppTheme.error, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => ref.read(taskRepositoryProvider).updateTask(
-                  task.id,
-                  {'approvalStatus': ApprovalStatus.pending.value},
-                ),
-                icon: const Icon(Icons.send_rounded, size: 16),
-                label: const Text(AppStrings.requestApproval),
-              ),
-            ),
-          ] else if (task.approvalStatus == ApprovalStatus.pending) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF9C27B0).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.pending_actions_rounded,
-                    color: Color(0xFF9C27B0),
-                    size: 16,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Awaiting approval',
-                    style: TextStyle(color: Color(0xFF9C27B0), fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () =>
-                        ref.read(taskRepositoryProvider).updateTask(task.id, {
-                          'approvalStatus': 'approved',
-                          'approvedBy': currentUserId,
-                        }),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.success,
-                    ),
-                    child: const Text(AppStrings.approve),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => ref
-                        .read(taskRepositoryProvider)
-                        .updateTask(task.id, {'approvalStatus': 'rejected'}),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.error,
-                      side: const BorderSide(color: AppTheme.error),
-                    ),
-                    child: const Text(AppStrings.reject),
-                  ),
-                ),
-              ],
-            ),
-          ] else if (task.approvalStatus == ApprovalStatus.approved) ...[
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.success.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: AppTheme.success,
-                    size: 16,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Approved',
-                    style: TextStyle(
-                      color: AppTheme.success,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}

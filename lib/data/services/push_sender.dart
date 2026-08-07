@@ -92,6 +92,58 @@ class PushSender {
     }
   }
 
+  /// Create a user account (Auth + Firestore profile) server-side via the Admin
+  /// SDK. Doing it on the server keeps the admin's own session intact AND lets
+  /// the profile be written with an admin-assigned role — the client SDK cannot,
+  /// because the `roleAllowedForSelf` Firestore rule blocks a brand-new user
+  /// from self-assigning an arbitrary role. Returns the new user's uid.
+  Future<String> createUser({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    required String roleId,
+  }) async {
+    if (!PushConfig.isConfigured) {
+      throw Exception('Backend API is not configured');
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    final token = await user.getIdToken();
+
+    final res = await http
+        .post(
+          Uri.parse(PushConfig.endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'event': 'create_user',
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'password': password,
+            'roleId': roleId,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+
+    if (res.statusCode != 200) {
+      String msg = 'Failed to create user (${res.statusCode})';
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map && decoded['error'] != null) {
+          msg = decoded['error'].toString();
+        }
+      } catch (_) {}
+      throw Exception(msg);
+    }
+
+    final decoded = jsonDecode(res.body);
+    return (decoded is Map && decoded['uid'] != null) ? decoded['uid'].toString() : '';
+  }
+
   /// Reset a user account's password (Admin only).
   Future<void> resetUserPassword({
     required String targetUid,

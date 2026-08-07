@@ -23,11 +23,13 @@ class KurickalApp extends ConsumerWidget {
             body: AppErrorWidget(message: errorDetails.exception.toString()),
           );
         };
+        if (child == null) return const SizedBox.shrink();
+
         // Lock text scaling to 1.0 so the UI looks identical on every device,
         // regardless of the user's system font-size accessibility setting.
         // This guarantees the same UI/UX across all screen sizes — text never
         // shrinks or grows based on device or OS preferences.
-        return MediaQuery.withNoTextScaling(child: child!);
+        return MediaQuery.withNoTextScaling(child: child);
       },
     );
   }

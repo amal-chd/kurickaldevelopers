@@ -98,15 +98,22 @@ class StorageService {
 
   // ── Out of scope (intentionally unavailable) ────────────────────────────────
 
-  Future<String> uploadTaskPhoto({
-    required String projectId,
+  Future<String> uploadTaskAttachment({
     required String taskId,
     required File file,
-    required void Function(double) onProgress,
-  }) =>
-      Future.error(const _StorageUnavailableException(
-        'Task photo uploads are not enabled.',
-      ));
+  }) async {
+    if (!isReady) throw const _StorageUnavailableException(_unavailableMsg);
+    final fileName = file.path.split('/').last;
+    final path = _key('tasks/$taskId', fileName);
+    await _client.storage.from(SupabaseConfig.documentsBucket).upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+    return _client.storage
+        .from(SupabaseConfig.documentsBucket)
+        .getPublicUrl(path);
+  }
 
   Future<String> uploadPhoto({required String projectId, required File file}) =>
       Future.error(const _StorageUnavailableException(

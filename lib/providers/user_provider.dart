@@ -20,6 +20,9 @@ final currentUserProvider = StreamProvider<UserModel?>((ref) async* {
     return;
   }
 
+  // Firestore `users` collection is the source of truth for personal details.
+  // We simply listen to the document so that changes made from the web app
+  // (which update Firestore directly) are immediately reflected here.
   yield* ref.watch(userRepositoryProvider).watchUser(firebaseUser.uid);
 });
 

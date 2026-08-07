@@ -55,6 +55,27 @@ class AttendanceModel {
     return '${h}h ${m}m';
   }
 
+  /// Returns minutes worked beyond 8 hours (480 minutes). Returns 0 if under 8 hours.
+  int get overtimeMinutes {
+    final total = durationMinutes;
+    const standardMinutes = 480; // 8 hours
+    if (total > standardMinutes) {
+      return total - standardMinutes;
+    }
+    return 0;
+  }
+
+  /// Formatted overtime string, e.g. "1h 30m". Returns empty string if no overtime.
+  String get overtimeFormatted {
+    final ot = overtimeMinutes;
+    if (ot == 0) return '';
+    final h = ot ~/ 60;
+    final m = ot % 60;
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
+  }
+
   // ── Firestore ─────────────────────────────────────────────────────────────
 
   factory AttendanceModel.fromFirestore(DocumentSnapshot doc) {

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -71,10 +72,17 @@ void main() async {
   // Initialise FCM so notifications work for users who already completed
   // onboarding (not just first-run). The navigator key is wired to GoRouter
   // so tapping a notification navigates to the correct screen.
-  await FcmService().initialize(appNavigatorKey);
+  // Note: We intentionally do NOT await this, because awaiting permission
+  // requests or APNs tokens before runApp() causes the app to hang on a white screen.
+  FcmService().initialize(appNavigatorKey);
 
   // Start auto-sync: replay queued offline mutations when connectivity returns.
   OfflineSyncService().startAutoSync();
+
+  // Use the bundled fonts in google_fonts/ instead of fetching from
+  // fonts.gstatic.com at runtime. Runtime fetching failed on flaky networks
+  // (e.g. the iOS simulator), leaving text unstyled / the screen blank.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   runApp(const ProviderScope(child: KurickalApp()));
 }

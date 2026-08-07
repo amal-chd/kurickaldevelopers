@@ -1,7 +1,7 @@
 name: task_pilot
 description: "Task Pilot - Construction Task Management System for Kurickal Developers LLP"
 publish_to: 'none'
-version: 1.0.15+20
+version: 1.0.19+24
 
 environment:
   sdk: ^3.9.2
@@ -95,3 +95,4 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - google_fonts/

@@ -1476,22 +1476,50 @@ class _BubbleContent extends StatelessWidget {
 
         // Image
         if (message.type == MessageType.image && message.attachmentUrl != null)
-          Image.network(
-            message.attachmentUrl!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: 200,
-            loadingBuilder: (_, child, progress) => progress == null
-                ? child
-                : Container(
-                    height: 200,
+          GestureDetector(
+            onTap: () async {
+              final uri = Uri.tryParse(message.attachmentUrl!);
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Stack(
+              children: [
+                Image.network(
+                  message.attachmentUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 200,
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          height: 200,
+                          color: Colors.grey.shade200,
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 80,
                     color: Colors.grey.shade200,
-                    child: const Center(child: CircularProgressIndicator()),
+                    child: const Icon(Icons.broken_image_rounded),
                   ),
-            errorBuilder: (_, __, ___) => Container(
-              height: 80,
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image_rounded),
+                ),
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.download_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -1533,7 +1561,7 @@ class _BubbleContent extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Tap to open',
+                          'Tap to download',
                           style: TextStyle(
                             fontSize: 11,
                             color: isMe
@@ -1543,6 +1571,14 @@ class _BubbleContent extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.download_rounded,
+                    size: 20,
+                    color: isMe
+                        ? Colors.white70
+                        : AppTheme.primary.withValues(alpha: 0.7),
                   ),
                 ],
               ),
