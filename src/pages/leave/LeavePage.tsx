@@ -14,6 +14,7 @@ import {
   createLeaveRequest, getMyLeaveRequests, getAllLeaveRequests, deleteLeaveRequest,
   getAllUsers, getAllRoles, createNotification,
 } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { LeaveRequest, LeaveType } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -102,6 +103,13 @@ const LeavePage: React.FC = () => {
       };
       await createLeaveRequest(payload);
       notifyManagers(payload);
+      void logAudit({
+        action: 'leave.submitted',
+        category: AuditCategory.leave,
+        targetName: appUser.name,
+        description: `Applied for ${form.type} leave (${days} day${days === 1 ? '' : 's'})`,
+        meta: { from: form.startDate, to: form.endDate, days },
+      });
       toast.success('Leave application submitted');
       setModal(false);
       setForm({ type: 'casual', startDate: '', endDate: '', reason: '' });
@@ -118,6 +126,14 @@ const LeavePage: React.FC = () => {
     try {
       await deleteLeaveRequest(leave.id);
       setLeaves((prev) => prev.filter((l) => l.id !== leave.id));
+      void logAudit({
+        action: 'leave.deleted',
+        category: AuditCategory.leave,
+        targetId: leave.id,
+        targetName: leave.userName,
+        description: `Deleted a ${leave.type} leave application`,
+        severity: 'warning',
+      });
       toast.success('Deleted');
     } catch {
       toast.error('Failed to delete');

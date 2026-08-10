@@ -9,13 +9,13 @@ import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/ui/EmptyState';
-import { getAllUsers, getAllRoles, updateUser, deleteUser, addAuditLog } from '../../lib/firestore';
+import { getAllUsers, getAllRoles, updateUser, deleteUser } from '../../lib/firestore';
+import { logAudit, diff, AuditCategory } from '../../lib/auditLog';
 import { deleteUserAccount, resetUserPassword, createUserAccount } from '../../lib/push';
 import { AppUser, Role } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import toast from 'react-hot-toast';
-import { serverTimestamp } from '../../lib/firestore';
 
 const UserManagementPage: React.FC = () => {
   const { appUser } = useAuthStore();
@@ -142,14 +142,13 @@ const UserManagementPage: React.FC = () => {
       toast.success('User created');
 
       // Best-effort audit trail — never blocks or fails the creation.
-      void addAuditLog({
-        action: 'user_created',
-        userId: appUser.id,
-        userName: appUser.name,
+      void logAudit({
+        action: 'user.created',
+        category: AuditCategory.user,
         targetId: newUid,
-        targetType: 'user',
-        details: `Created user ${name} (${email})`,
-        createdAt: serverTimestamp() as any,
+        targetName: name,
+        description: `Created user "${name}"`,
+        meta: { email },
       });
     } catch (err: any) {
       toast.error(err.message || 'Failed to create user');
@@ -163,14 +162,17 @@ const UserManagementPage: React.FC = () => {
     setSaving(true);
     try {
       await updateUser(editUser.id, { name: editName, email: editEmail, roleId: editRole });
-      await addAuditLog({
-        action: 'user_updated',
-        userId: appUser.id,
-        userName: appUser.name,
+      await logAudit({
+        action: 'user.updated',
+        category: AuditCategory.user,
         targetId: editUser.id,
-        targetType: 'user',
-        details: `Updated user ${editUser.name}`,
-        createdAt: serverTimestamp() as any,
+        targetName: editName,
+        description: `Updated user "${editUser.name}"`,
+        changes: [
+          ...diff('name', editUser.name, editName),
+          ...diff('email', editUser.email, editEmail),
+          ...diff('roleId', editUser.roleId, editRole, 'Role'),
+        ],
       });
       setUsers((prev) =>
         prev.map((u) =>
@@ -207,14 +209,13 @@ const UserManagementPage: React.FC = () => {
     setResettingPassword(true);
     try {
       await resetUserPassword(passwordUser.id, newPassword);
-      await addAuditLog({
-        action: 'password_reset',
-        userId: appUser.id,
-        userName: appUser.name,
+      await logAudit({
+        action: 'user.password_reset',
+        category: AuditCategory.user,
         targetId: passwordUser.id,
-        targetType: 'user',
-        details: `Admin reset password for ${passwordUser.name}`,
-        createdAt: serverTimestamp() as any,
+        targetName: passwordUser.name,
+        description: `Reset password for "${passwordUser.name}"`,
+        severity: 'warning',
       });
       setPasswordModal(false);
       toast.success(`Password reset for ${passwordUser.name}`);
@@ -228,14 +229,13 @@ const UserManagementPage: React.FC = () => {
   const toggleActive = async (user: AppUser) => {
     if (!appUser) return;
     await updateUser(user.id, { isActive: !user.isActive });
-    await addAuditLog({
-      action: user.isActive ? 'user_deactivated' : 'user_activated',
-      userId: appUser.id,
-      userName: appUser.name,
+    await logAudit({
+      action: user.isActive ? 'user.deactivated' : 'user.activated',
+      category: AuditCategory.user,
       targetId: user.id,
-      targetType: 'user',
-      details: `${user.isActive ? 'Deactivated' : 'Activated'} user ${user.name}`,
-      createdAt: serverTimestamp() as any,
+      targetName: user.name,
+      description: `${user.isActive ? 'Deactivated' : 'Activated'} user "${user.name}"`,
+      severity: user.isActive ? 'warning' : 'info',
     });
     setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
     toast.success(`User ${user.isActive ? 'deactivated' : 'activated'}`);
@@ -250,14 +250,14 @@ const UserManagementPage: React.FC = () => {
       // 2. Delete Firestore user document
       await deleteUser(user.id);
       
-      await addAuditLog({
-        action: 'user_deleted',
-        userId: appUser.id,
-        userName: appUser.name,
+      await logAudit({
+        action: 'user.deleted',
+        category: AuditCategory.user,
         targetId: user.id,
-        targetType: 'user',
-        details: `Permanently deleted user ${user.name} (${user.email})`,
-        createdAt: serverTimestamp() as any,
+        targetName: user.name,
+        description: `Permanently deleted user "${user.name}"`,
+        meta: { email: user.email },
+        severity: 'critical',
       });
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
       toast.success('User permanently deleted');

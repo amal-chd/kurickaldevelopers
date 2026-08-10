@@ -26,7 +26,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   AppUser, Role, Project, Task, Subtask, TaskComment, Document as TDocument,
   Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
-  OrgSettings, AuditLog, AppNotification, ContactInquiry, TaskAssignmentConfig,
+  OrgSettings, AppNotification, ContactInquiry, TaskAssignmentConfig,
   PerformanceScore, PerformanceReview, PerformanceConfig,
   LeaveRequest, SalarySlip, Expense,
 } from '../types';
@@ -1091,29 +1091,9 @@ export const subscribeTaskAssignmentConfig = (
 };
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
-export const getAuditLogs = async (pageLimit = 50): Promise<AuditLog[]> => {
-  try {
-    const snap = await getDocs(
-      query(collection(db, 'audit_logs'), orderBy('createdAt', 'desc'), limit(pageLimit))
-    );
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLog));
-  } catch (err: any) {
-    console.warn('Gracefully handled getAuditLogs error:', err);
-    return [];
-  }
-};
-
-export const addAuditLog = async (data: Omit<AuditLog, 'id'>): Promise<void> => {
-  // Audit logging is a best-effort side-effect. It must NEVER throw into the
-  // primary operation — a failed audit write (e.g. rules, offline) previously
-  // made a *successful* action like user creation report "Failed", prompting
-  // retries that then hit "email already exists".
-  try {
-    await addDoc(collection(db, 'audit_logs'), { ...data, createdAt: serverTimestamp() });
-  } catch (err) {
-    console.warn('addAuditLog failed (non-fatal):', err);
-  }
-};
+// Audit logging now lives in `src/lib/auditLog.ts` (`logAudit` / `fetchAuditLogs`),
+// which writes the canonical schema shared with the mobile app and satisfies the
+// `actorId == auth.uid` Firestore rule. The old helpers were removed.
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const subscribeNotifications = (userId: string, cb: (notifs: AppNotification[]) => void) => {

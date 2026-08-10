@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Avatar from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
 import { createNotification, getAllUsers, getAllRoles } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { notifyPush } from '../../lib/push';
 import { AppUser, AppNotification, Role } from '../../types';
 import toast from 'react-hot-toast';
@@ -121,6 +122,16 @@ const NotificationAdminPage: React.FC = () => {
           : { event: 'broadcast', title: title.trim(), body: body.trim(), userIds: targets }
       );
       const targetRoleName = targetMode === 'role' ? roles.find((r) => r.id === selectedRoleId)?.name : '';
+      void logAudit({
+        action: 'notification.sent',
+        category: AuditCategory.notification,
+        targetName: title.trim(),
+        description: `Sent notification "${title.trim()}"`,
+        meta: {
+          audience: targetMode === 'broadcast' ? 'All users' : targetMode === 'role' ? `Role: ${targetRoleName}` : `${selectedUserIds.length} user(s)`,
+          recipients: targetMode === 'broadcast' ? 'all' : targets.length,
+        },
+      });
       toast.success(
         targetMode === 'broadcast'
           ? 'Broadcast sent to all users!'

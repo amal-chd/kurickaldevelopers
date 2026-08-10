@@ -11,6 +11,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { createProject, updateProject, getProject, getAllUsers, syncProjectChannel } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { AppUser, Project, ProjectStatus } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -111,11 +112,27 @@ const CreateProjectPage: React.FC = () => {
       if (isEdit && projectId) {
         await updateProject(projectId, data);
         await syncProjectChannel(projectId, data.name, data.memberIds, data.projectManagerId).catch(() => {});
+        void logAudit({
+          action: 'project.updated',
+          category: AuditCategory.project,
+          targetId: projectId,
+          targetName: data.name,
+          description: `Updated project "${data.name}"`,
+          meta: { members: data.memberIds.length },
+        });
         toast.success('Project updated');
         navigate(`/app/projects/${projectId}`);
       } else {
         const id = await createProject(data);
         await syncProjectChannel(id, data.name, data.memberIds, data.projectManagerId).catch(() => {});
+        void logAudit({
+          action: 'project.created',
+          category: AuditCategory.project,
+          targetId: id,
+          targetName: data.name,
+          description: `Created project "${data.name}"`,
+          meta: { client: data.clientName, members: data.memberIds.length },
+        });
         toast.success('Project created');
         navigate(`/app/projects/${id}`);
       }

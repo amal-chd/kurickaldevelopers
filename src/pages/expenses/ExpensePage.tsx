@@ -13,6 +13,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   createExpense, getMyExpenses, getAllExpenses, deleteExpense, getProjects,
 } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { Expense, ExpenseCategory, Project } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -89,6 +90,13 @@ const ExpensePage: React.FC = () => {
         note: form.note.trim() || undefined,
         orgId: appUser.orgId || 'main',
       });
+      void logAudit({
+        action: 'expense.submitted',
+        category: AuditCategory.expense,
+        targetName: form.title.trim(),
+        description: `Logged expense "${form.title.trim()}"`,
+        meta: { amount: Number(form.amount), category: form.category, project: project?.name ?? '—' },
+      });
       toast.success('Expense logged');
       setModal(false);
       load();
@@ -104,6 +112,15 @@ const ExpensePage: React.FC = () => {
     try {
       await deleteExpense(exp.id);
       setExpenses((prev) => prev.filter((e) => e.id !== exp.id));
+      void logAudit({
+        action: 'expense.deleted',
+        category: AuditCategory.expense,
+        targetId: exp.id,
+        targetName: exp.title,
+        description: `Deleted expense "${exp.title}"`,
+        meta: { amount: exp.amount },
+        severity: 'warning',
+      });
       toast.success('Deleted');
     } catch {
       toast.error('Failed to delete');

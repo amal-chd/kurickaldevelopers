@@ -13,6 +13,7 @@ import {
   createSalarySlip, getMySalarySlips, getAllSalarySlips, deleteSalarySlip,
   getAllUsers, createNotification,
 } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { SalarySlip, SalaryComponent, AppUser } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -161,6 +162,14 @@ const SalaryPage: React.FC = () => {
         createdByName: appUser.name,
       };
       await createSalarySlip(payload);
+      void logAudit({
+        action: 'salary.created',
+        category: AuditCategory.salary,
+        targetId: emp.id,
+        targetName: emp.name,
+        description: `Issued payslip for "${emp.name}" (${monthLabel(form.month)})`,
+        meta: { month: form.month, net, gross },
+      });
       createNotification({
         title: 'Payslip Available',
         body: `Your payslip for ${monthLabel(form.month)} is ready (Net ${money(net)}).`,
@@ -184,6 +193,15 @@ const SalaryPage: React.FC = () => {
     try {
       await deleteSalarySlip(slip.id);
       setSlips((prev) => prev.filter((s) => s.id !== slip.id));
+      void logAudit({
+        action: 'salary.deleted',
+        category: AuditCategory.salary,
+        targetId: slip.id,
+        targetName: slip.userName,
+        description: `Deleted payslip for "${slip.userName}" (${monthLabel(slip.month)})`,
+        meta: { net: slip.net },
+        severity: 'warning',
+      });
       toast.success('Deleted');
     } catch {
       toast.error('Failed to delete');

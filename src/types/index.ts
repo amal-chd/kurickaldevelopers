@@ -285,15 +285,36 @@ export interface OrgSettings {
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
+export interface AuditChange {
+  field: string;
+  label?: string;
+  from?: string | null;
+  to?: string | null;
+}
+
 export interface AuditLog {
   id: string;
   action: string;
-  userId: string;
-  userName: string;
+  actorId: string;
+  actorName: string;
+  actorRole?: string;
+  actorAvatar?: string;
   targetId: string;
   targetType: string;
-  details: string;
+  targetName?: string;
+  description: string;
+  changes?: AuditChange[];
+  meta?: Record<string, unknown>;
+  severity?: 'info' | 'warning' | 'critical';
   createdAt: Timestamp;
+
+  // ── legacy aliases kept for any code still reading the old shape ──
+  /** @deprecated use actorId */
+  userId?: string;
+  /** @deprecated use actorName */
+  userName?: string;
+  /** @deprecated use description */
+  details?: string;
 }
 
 // ─── Contact Inquiry ──────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal';
 import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import { getAllRoles, createRole, updateRole, deleteRole } from '../../lib/firestore';
+import { logAudit, diff, AuditCategory } from '../../lib/auditLog';
 import { Role, Permissions } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -106,10 +107,30 @@ const RoleManagementPage: React.FC = () => {
       if (editing) {
         await updateRole(editing.id, data);
         setRoles((prev) => prev.map((r) => r.id === editing.id ? { ...r, ...data } : r));
+        void logAudit({
+          action: 'role.updated',
+          category: AuditCategory.role,
+          targetId: editing.id,
+          targetName: data.name,
+          description: `Updated role "${data.name}"`,
+          changes: [
+            ...diff('name', editing.name, data.name),
+            ...diff('level', editing.level, data.level),
+            ...diff('color', editing.color, data.color),
+          ],
+        });
         toast.success('Role updated');
       } else {
         const id = await createRole(data);
         setRoles((prev) => [...prev, { id, ...data }]);
+        void logAudit({
+          action: 'role.created',
+          category: AuditCategory.role,
+          targetId: id,
+          targetName: data.name,
+          description: `Created role "${data.name}"`,
+          meta: { level: data.level },
+        });
         toast.success('Role created');
       }
       setModal(false);
@@ -123,8 +144,17 @@ const RoleManagementPage: React.FC = () => {
 
   const handleDelete = async (roleId: string) => {
     if (!window.confirm('Delete this role?')) return;
+    const roleName = roles.find((r) => r.id === roleId)?.name ?? '';
     await deleteRole(roleId);
     setRoles((prev) => prev.filter((r) => r.id !== roleId));
+    void logAudit({
+      action: 'role.deleted',
+      category: AuditCategory.role,
+      targetId: roleId,
+      targetName: roleName,
+      description: roleName ? `Deleted role "${roleName}"` : 'Deleted a role',
+      severity: 'warning',
+    });
     toast.success('Role deleted');
   };
 

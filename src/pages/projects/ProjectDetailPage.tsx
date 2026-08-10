@@ -16,6 +16,7 @@ import {
   getProject, getTasks, getAllUsers, getDocuments, getSiteDiary,
   deleteProject,
 } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { Project, Task, AppUser, Document as TDocument, SiteDiaryEntry } from '../../types';
 import { formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -140,7 +141,16 @@ const ProjectDetailPage: React.FC = () => {
               variant="danger"
               onClick={async () => {
                 if (window.confirm('Delete this project?')) {
+                  const projectName = project?.name ?? '';
                   await deleteProject(projectId!);
+                  void logAudit({
+                    action: 'project.deleted',
+                    category: AuditCategory.project,
+                    targetId: projectId!,
+                    targetName: projectName,
+                    description: projectName ? `Deleted project "${projectName}"` : 'Deleted a project',
+                    severity: 'warning',
+                  });
                   toast.success('Project deleted');
                   navigate('/app/projects');
                 }
