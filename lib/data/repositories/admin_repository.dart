@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/utils/error_translator.dart';
+import '../services/audit_service.dart';
 import 'package:rxdart/rxdart.dart';
 
 // ─── Org Settings Model ────────────────────────────────────────────────────────
@@ -140,10 +141,15 @@ class AuditLogEntry {
   final String action; // e.g. 'user.created', 'role.deleted'
   final String actorId;
   final String actorName;
+  final String actorRole;
+  final String actorAvatar;
   final String targetId;
   final String targetType; // 'user', 'role', 'project', 'settings'
+  final String targetName;
   final String description;
+  final List<AuditChange> changes;
   final Map<String, dynamic> meta;
+  final String severity; // 'info' | 'warning' | 'critical'
   final DateTime timestamp;
 
   const AuditLogEntry({
@@ -151,25 +157,47 @@ class AuditLogEntry {
     required this.action,
     required this.actorId,
     required this.actorName,
+    this.actorRole = '',
+    this.actorAvatar = '',
     required this.targetId,
     required this.targetType,
+    this.targetName = '',
     required this.description,
+    this.changes = const [],
     this.meta = const {},
+    this.severity = 'info',
     required this.timestamp,
   });
 
+  /// Tolerant of BOTH the modern schema and the legacy web schema
+  /// (`userId` / `userName` / `details` / `createdAt`) so historical entries
+  /// written by either client still render.
   factory AuditLogEntry.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
+    String pick(String a, String b) =>
+        (d[a] ?? d[b] ?? '').toString();
+    final rawChanges = (d['changes'] as List?) ?? const [];
     return AuditLogEntry(
       id: doc.id,
-      action: d['action'] ?? '',
-      actorId: d['actorId'] ?? '',
-      actorName: d['actorName'] ?? '',
-      targetId: d['targetId'] ?? '',
-      targetType: d['targetType'] ?? '',
-      description: d['description'] ?? '',
+      action: (d['action'] ?? '').toString(),
+      actorId: pick('actorId', 'userId'),
+      actorName: pick('actorName', 'userName'),
+      actorRole: (d['actorRole'] ?? '').toString(),
+      actorAvatar: (d['actorAvatar'] ?? '').toString(),
+      targetId: (d['targetId'] ?? '').toString(),
+      targetType: (d['targetType'] ?? d['category'] ?? '').toString(),
+      targetName: (d['targetName'] ?? '').toString(),
+      description: pick('description', 'details'),
+      changes: rawChanges
+          .whereType<Map>()
+          .map((m) => AuditChange.fromMap(Map<String, dynamic>.from(m)))
+          .toList(),
       meta: Map<String, dynamic>.from(d['meta'] ?? {}),
-      timestamp: (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      severity: (d['severity'] ?? 'info').toString(),
+      timestamp:
+          (d['timestamp'] as Timestamp?)?.toDate() ??
+          (d['createdAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
     );
   }
 }
@@ -310,24 +338,36 @@ class AdminRepository {
     required String action,
     required String actorId,
     required String actorName,
+    String actorRole = '',
+    String actorAvatar = '',
     String targetId = '',
     String targetType = '',
+    String targetName = '',
     required String description,
+    List<AuditChange> changes = const [],
     Map<String, dynamic> meta = const {},
+    String severity = 'info',
   }) async {
+    // Best-effort: an audit failure must never break the primary operation.
     try {
-      await _db.collection('audit_logs').add({
-        'action': action,
-        'actorId': actorId,
-        'actorName': actorName,
-        'targetId': targetId,
-        'targetType': targetType,
-        'description': description,
-        'meta': meta,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
+      await _db.collection('audit_logs').add(
+        buildAuditDoc(
+          action: action,
+          category: targetType,
+          actorId: actorId,
+          actorName: actorName,
+          actorRole: actorRole,
+          actorAvatar: actorAvatar,
+          targetId: targetId,
+          targetName: targetName,
+          description: description,
+          changes: changes,
+          meta: meta,
+          severity: severity,
+        ),
+      );
+    } catch (_) {
+      // Swallow — logging is a side-effect, not part of the operation.
     }
   }
 

@@ -14,6 +14,7 @@ import '../../core/utils/validators.dart';
 import '../../data/models/role_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/role_provider.dart';
@@ -214,6 +215,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           'attachmentUrls': [..._existingAttachmentUrls, ...uploadedUrls],
         };
         await repo.updateTask(widget.taskId!, updates);
+        ref.read(auditServiceProvider).log(
+          action: 'task.updated',
+          category: AuditCategory.task,
+          targetId: widget.taskId!,
+          targetName: _titleCtrl.text.trim(),
+          description: 'Updated task "${_titleCtrl.text.trim()}"',
+          meta: {'assignees': _selectedAssigneeIds.length},
+        );
       } else {
         // Create a temporary task ID to use for storage prefix
         final tempTaskId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -248,7 +257,18 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
-        await repo.createTask(task);
+        final newTaskId = await repo.createTask(task);
+        ref.read(auditServiceProvider).log(
+          action: 'task.created',
+          category: AuditCategory.task,
+          targetId: newTaskId,
+          targetName: task.title,
+          description: 'Created task "${task.title}"',
+          meta: {
+            'priority': _priority.value,
+            'assignees': _selectedAssigneeIds.length,
+          },
+        );
       }
       if (mounted) context.pop();
     } catch (e) {

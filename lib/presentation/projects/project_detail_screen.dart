@@ -12,6 +12,7 @@ import '../../data/models/attendance_model.dart';
 import '../../data/models/document_model.dart';
 import '../../data/models/project_model.dart';
 import '../../data/models/site_diary_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/document_provider.dart';
@@ -83,7 +84,19 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
     if (!confirmed) return;
 
     try {
+      final projectName =
+          ref.read(projectProvider(widget.projectId)).value?.name ?? '';
       await ref.read(projectRepositoryProvider).deleteProject(widget.projectId);
+      ref.read(auditServiceProvider).log(
+        action: 'project.deleted',
+        category: AuditCategory.project,
+        targetId: widget.projectId,
+        targetName: projectName,
+        description: projectName.isEmpty
+            ? 'Deleted a project'
+            : 'Deleted project "$projectName"',
+        severity: 'warning',
+      );
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {

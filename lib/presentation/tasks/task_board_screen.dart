@@ -8,6 +8,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/extensions/datetime_ext.dart';
 import '../../data/models/task_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/project_provider.dart';
@@ -424,9 +425,20 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen>
           onTap: () => context.push('/tasks/${tasks[i].id}'),
           onStatusUpdate: (status) async {
             final uid = ref.read(currentUserProvider).value?.uid ?? '';
+            final prev = tasks[i].status;
             await ref
                 .read(taskRepositoryProvider)
                 .updateStatus(tasks[i].id, status, uid);
+            ref.read(auditServiceProvider).log(
+              action: 'task.status_changed',
+              category: AuditCategory.task,
+              targetId: tasks[i].id,
+              targetName: tasks[i].title,
+              description: 'Moved "${tasks[i].title}" to ${status.label}',
+              changes: [
+                AuditChange(field: 'status', label: 'Status', from: prev.label, to: status.label),
+              ],
+            );
           },
         ),
       ),

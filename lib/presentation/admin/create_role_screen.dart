@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/role_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/role_provider.dart';
 
@@ -24,6 +25,10 @@ class _CreateRoleScreenState extends ConsumerState<CreateRoleScreen> {
   bool _isLoading = false;
   late PermissionModel _permissions;
   int _level = 50;
+  // Snapshot of the role as loaded, used to compute audit change-diffs on edit.
+  String _origName = '';
+  int _origLevel = 50;
+  String _origColor = '';
 
   static const _presetColors = [
     '#1A3A5C',
@@ -53,6 +58,9 @@ class _CreateRoleScreenState extends ConsumerState<CreateRoleScreen> {
           _selectedColor = role.color;
           _permissions = role.permissions;
           _level = role.level;
+          _origName = role.name;
+          _origLevel = role.level;
+          _origColor = role.color;
         });
       }
     } catch (e) {
@@ -74,18 +82,35 @@ class _CreateRoleScreenState extends ConsumerState<CreateRoleScreen> {
       final userId = ref.read(authRepositoryProvider).currentUser?.uid ?? '';
       final repo = ref.read(roleRepositoryProvider);
 
+      final newName = _nameCtrl.text.trim();
       if (widget.roleId != null) {
         await repo.updateRole(widget.roleId!, {
-          'name': _nameCtrl.text.trim(),
+          'name': newName,
           'description': _descCtrl.text.trim(),
           'color': _selectedColor,
           'permissions': _permissions.toMap(),
           'level': _level,
         });
+        final changes = <AuditChange>[
+          if (newName != _origName)
+            AuditChange(field: 'name', from: _origName, to: newName),
+          if (_level != _origLevel)
+            AuditChange(field: 'level', from: _origLevel, to: _level),
+          if (_selectedColor != _origColor)
+            AuditChange(field: 'color', from: _origColor, to: _selectedColor),
+        ];
+        ref.read(auditServiceProvider).log(
+          action: 'role.updated',
+          category: AuditCategory.role,
+          targetId: widget.roleId!,
+          targetName: newName,
+          description: 'Updated role "$newName"',
+          changes: changes,
+        );
       } else {
         final role = RoleModel(
           id: '',
-          name: _nameCtrl.text.trim(),
+          name: newName,
           description: _descCtrl.text.trim(),
           color: _selectedColor,
           createdBy: userId,
@@ -93,7 +118,15 @@ class _CreateRoleScreenState extends ConsumerState<CreateRoleScreen> {
           permissions: _permissions,
           level: _level,
         );
-        await repo.createRole(role);
+        final newId = await repo.createRole(role);
+        ref.read(auditServiceProvider).log(
+          action: 'role.created',
+          category: AuditCategory.role,
+          targetId: newId,
+          targetName: newName,
+          description: 'Created role "$newName"',
+          meta: {'level': _level},
+        );
       }
       if (mounted) context.pop();
     } catch (e) {

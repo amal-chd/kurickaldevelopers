@@ -472,10 +472,14 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
 
     match /audit_logs/{logId} {
-      // Any admin with roles_manage can read; system writes come from clients with that permission
+      // Reading the trail is an admin-only privilege.
       allow read: if hasPermission('roles_manage') || hasPermission('settings_manage');
-      allow create: if hasPermission('roles_manage') || hasPermission('team_manage') ||
-                       hasPermission('settings_manage');
+      // Any authenticated user may append an entry, but ONLY one that records
+      // themselves as the actor — this enables comprehensive activity logging
+      // (e.g. an employee moving a task) while preventing identity spoofing.
+      allow create: if isAuthenticated() &&
+                       request.resource.data.actorId == request.auth.uid;
+      // Append-only: entries can never be edited or removed (tamper-proof).
       allow update: if false;
       allow delete: if false;
     }

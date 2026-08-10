@@ -19,8 +19,13 @@ final taskAssignmentConfigProvider = StreamProvider<TaskAssignmentConfig>((ref) 
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────
 
+/// How many audit entries to fetch. Bumped by the "Load more" action so the
+/// stream widens without losing its live-update behaviour.
+final auditLogLimitProvider = StateProvider<int>((_) => 80);
+
 final auditLogsProvider = StreamProvider<List<AuditLogEntry>>((ref) {
-  return ref.watch(adminRepositoryProvider).watchAuditLogs();
+  final limit = ref.watch(auditLogLimitProvider);
+  return ref.watch(adminRepositoryProvider).watchAuditLogs(limit: limit);
 });
 
 final auditLogsByTypeProvider =

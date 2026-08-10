@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 import '../../data/models/role_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/user_provider.dart';
 import '../shared/widgets/loading_widget.dart';
@@ -129,6 +130,14 @@ class RoleManagementScreen extends ConsumerWidget {
     if (confirm == true) {
       try {
         await repo.deleteRole(role.id);
+        ref.read(auditServiceProvider).log(
+          action: 'role.deleted',
+          category: AuditCategory.role,
+          targetId: role.id,
+          targetName: role.name,
+          description: 'Deleted role "${role.name}"',
+          severity: 'warning',
+        );
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

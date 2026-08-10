@@ -16,6 +16,7 @@ import '../../data/models/project_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/subtask_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/task_provider.dart';
@@ -181,7 +182,23 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     if (result != null && mounted) {
       final currentUser = ref.read(currentUserProvider).value;
       if (currentUser != null) {
+        final prevStatus = task.status;
         await ref.read(taskRepositoryProvider).updateStatus(task.id, result, currentUser.uid);
+        ref.read(auditServiceProvider).log(
+          action: 'task.status_changed',
+          category: AuditCategory.task,
+          targetId: task.id,
+          targetName: task.title,
+          description: 'Moved "${task.title}" to ${result.label}',
+          changes: [
+            AuditChange(
+              field: 'status',
+              label: 'Status',
+              from: prevStatus.label,
+              to: result.label,
+            ),
+          ],
+        );
       }
 
       // Post system message to project channel when status changes
@@ -493,7 +510,18 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                         OutlinedButton(
                           onPressed: () {
                             if (currentUser != null) {
+                              final prev = task.status;
                               ref.read(taskRepositoryProvider).updateStatus(task.id, TaskStatus.inProgress, currentUser.uid);
+                              ref.read(auditServiceProvider).log(
+                                action: 'task.status_changed',
+                                category: AuditCategory.task,
+                                targetId: task.id,
+                                targetName: task.title,
+                                description: 'Requested re-work on "${task.title}"',
+                                changes: [
+                                  AuditChange(field: 'status', label: 'Status', from: prev.label, to: TaskStatus.inProgress.label),
+                                ],
+                              );
                             }
                           },
                           style: OutlinedButton.styleFrom(
@@ -506,7 +534,18 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                         ElevatedButton.icon(
                           onPressed: () {
                             if (currentUser != null) {
+                              final prev = task.status;
                               ref.read(taskRepositoryProvider).updateStatus(task.id, TaskStatus.done, currentUser.uid);
+                              ref.read(auditServiceProvider).log(
+                                action: 'task.status_changed',
+                                category: AuditCategory.task,
+                                targetId: task.id,
+                                targetName: task.title,
+                                description: 'Verified & marked "${task.title}" as Done',
+                                changes: [
+                                  AuditChange(field: 'status', label: 'Status', from: prev.label, to: TaskStatus.done.label),
+                                ],
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -1537,7 +1576,18 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
       ),
     );
     if (confirm == true && mounted) {
+      final taskTitle = ref.read(taskProvider(taskId)).value?.title ?? '';
       await ref.read(taskRepositoryProvider).deleteTask(taskId);
+      ref.read(auditServiceProvider).log(
+        action: 'task.deleted',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: taskTitle,
+        description: taskTitle.isEmpty
+            ? 'Deleted a task'
+            : 'Deleted task "$taskTitle"',
+        severity: 'warning',
+      );
       if (mounted) context.pop();
     }
   }

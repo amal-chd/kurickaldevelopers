@@ -8,6 +8,7 @@ import '../../core/utils/date_utils.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/project_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/user_provider.dart';
@@ -168,6 +169,14 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
           memberIds: members,
           managerId: managerId,
         );
+        ref.read(auditServiceProvider).log(
+          action: 'project.updated',
+          category: AuditCategory.project,
+          targetId: widget.projectId!,
+          targetName: _nameCtrl.text.trim(),
+          description: 'Updated project "${_nameCtrl.text.trim()}"',
+          meta: {'members': members.length},
+        );
       } else {
         // Include the manager and the creator so they always have access.
         final members = {..._memberIds, managerId, user.uid}
@@ -191,6 +200,14 @@ class _CreateProjectScreenState extends ConsumerState<CreateProjectScreen> {
           projectName: project.name,
           memberIds: members,
           managerId: managerId,
+        );
+        ref.read(auditServiceProvider).log(
+          action: 'project.created',
+          category: AuditCategory.project,
+          targetId: newId,
+          targetName: project.name,
+          description: 'Created project "${project.name}"',
+          meta: {'client': project.clientName, 'members': members.length},
         );
       }
       if (mounted) context.pop();
