@@ -91,6 +91,7 @@ service cloud.firestore {
            getUserData() != null &&
            getUserData().roleId in get(tPath).data.get('assignedRoleIds', []))
         );
+    }
     function canApproveOrMarkDone(taskData) {
       return isAuthenticated() && (
         request.auth.uid == taskData.createdBy ||
