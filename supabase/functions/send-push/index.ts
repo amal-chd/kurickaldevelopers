@@ -245,18 +245,37 @@ serve(async (req) => {
       }
       const task = taskSnap.data()!;
 
+      const assigneeIds: string[] = task.assigneeIds || [];
+      const createdBy: string = task.createdBy || "";
+
       let recipients: string[] = [];
       let title = "";
       let bodyText = "";
-      let type = "";
+      let type = "task_updated";
 
       if (kind === "status") {
-        if (task.createdBy) recipients = [task.createdBy];
+        if (createdBy) recipients = [createdBy];
         title = "Task Status Updated";
         bodyText = `${task.title} is now ${task.status}`;
-        type = "task_updated";
+      } else if (kind === "comment_added" || kind === "comment") {
+        // New comment → notify the assignees and the creator (never the author).
+        recipients = [...assigneeIds, createdBy].filter(
+          (id: string) => id && id !== caller.uid,
+        );
+        const commenterSnap = await db.collection("users").doc(caller.uid).get();
+        const commenterName = commenterSnap.exists
+          ? (commenterSnap.data()?.name ?? "Someone")
+          : "Someone";
+        title = "New Comment";
+        bodyText = `${commenterName} commented on "${task.title}"`;
+      } else if (kind === "subtask_added") {
+        // New subtask → notify the assignees (never the person who added it).
+        recipients = assigneeIds.filter((id: string) => id && id !== caller.uid);
+        title = "New Subtask";
+        bodyText = `A subtask was added to "${task.title}"`;
       } else {
-        recipients = (task.assigneeIds || []).filter((id: string) => id !== caller.uid);
+        // Default: task assigned.
+        recipients = assigneeIds.filter((id: string) => id !== caller.uid);
 
         // Role-based assignment: also notify every user holding one of the
         // task's assignedRoleIds (server-derived — the client sends only ids).
