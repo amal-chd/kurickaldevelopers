@@ -585,6 +585,10 @@ class TaskRepository {
           final createdBy = data['createdBy'] as String? ?? '';
           final title = data['title'] as String? ?? 'Task';
 
+          // Push (FCM) to assignees + creator — recipients/message are rebuilt
+          // server-side from the task; the author is excluded there too.
+          PushSender.instance.task(taskId: taskId, kind: 'comment_added');
+
           final notifySet = <String>{...assigneeIds, if (createdBy.isNotEmpty) createdBy};
           for (final uid in notifySet) {
             if (uid == comment.authorId || uid.isEmpty) continue;

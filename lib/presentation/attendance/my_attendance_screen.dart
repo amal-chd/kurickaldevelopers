@@ -11,6 +11,7 @@ import '../../core/utils/location_utils.dart';
 import '../../data/models/attendance_model.dart';
 import '../../data/models/project_model.dart';
 import '../../data/models/user_model.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/user_provider.dart';
@@ -109,6 +110,14 @@ class _MyAttendanceScreenState extends ConsumerState<MyAttendanceScreen> {
       if (existing != null && existing.checkOutTime == null) {
         // ── Check Out ──
         await repo.checkOut(existing.id, GeoPoint(lat, lng), DateTime.now());
+        ref.read(auditServiceProvider).log(
+          action: 'attendance.checked_out',
+          category: AuditCategory.attendance,
+          targetId: existing.id,
+          targetName: user.name,
+          description: 'Checked out from ${project.name}',
+          meta: {'project': project.name},
+        );
         _showSnack('Checked out successfully.');
         // Async: reverse-geocode check-out location
         LocationUtils.getAddressFromCoords(lat, lng).then((addr) {
@@ -148,6 +157,18 @@ class _MyAttendanceScreenState extends ConsumerState<MyAttendanceScreen> {
         );
 
         final docId = await repo.checkIn(record);
+        ref.read(auditServiceProvider).log(
+          action: 'attendance.checked_in',
+          category: AuditCategory.attendance,
+          targetId: docId,
+          targetName: user.name,
+          description: 'Checked in at ${project.name}',
+          meta: {
+            'project': project.name,
+            if (!isWithin) 'geofence': 'outside',
+          },
+          severity: isWithin ? 'info' : 'warning',
+        );
         _showSnack('Checked in successfully.');
         // Async: reverse-geocode check-in location
         LocationUtils.getAddressFromCoords(lat, lng).then((addr) {
