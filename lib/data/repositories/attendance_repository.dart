@@ -64,9 +64,34 @@ class AttendanceRepository {
   // ─── Check-in / Check-out ─────────────────────────────────────────────────
 
   Future<String> checkIn(AttendanceModel record) async {
+    // A deterministic per-day document id makes check-in idempotent: a rapid
+    // double-tap, or two devices at once, can never create a second attendance
+    // record for the same user+project+day. The transaction also decides what a
+    // repeat check-in means:
+    //   • already checked in & on site → no-op (returns the same record)
+    //   • checked out earlier today     → re-open the SAME record (continued
+    //     session; keeps the original check-in time, clears the check-out)
+    final id = '${record.userId}_${record.projectId}_${record.date}';
+    final ref = _attendance.doc(id);
     try {
-      final doc = await _attendance.add(record.toFirestore());
-      return doc.id;
+      await _db.runTransaction((txn) async {
+        final snap = await txn.get(ref);
+        if (snap.exists) {
+          final data = snap.data() as Map<String, dynamic>?;
+          if (data != null && data['checkOutTime'] == null) {
+            return; // already on site — nothing to do
+          }
+          txn.update(ref, {
+            'checkOutTime': FieldValue.delete(),
+            'checkOutLocation': FieldValue.delete(),
+            'checkOutAddress': FieldValue.delete(),
+            'autoCheckout': FieldValue.delete(),
+          });
+          return;
+        }
+        txn.set(ref, record.toFirestore());
+      });
+      return id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -122,11 +147,16 @@ class AttendanceRepository {
     final record = AttendanceModel.fromFirestore(doc);
     if (record.checkOutTime == null) {
       final now = DateTime.now();
-      if (now.difference(record.checkInTime).inHours >= 8) {
-        // Auto checkout exactly at 8 hours
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      // Only auto-close a FORGOTTEN check-in from a PREVIOUS day. Today's open
+      // sessions are left running so the real check-out time — and any overtime
+      // beyond 8h — is preserved. (Auto-closing every record at exactly 8h used
+      // to cap everyone at 8h, making overtime impossible to accrue.)
+      if (record.checkInTime.isBefore(startOfToday)) {
         final autoOut = record.checkInTime.add(const Duration(hours: 8));
         doc.reference.update({
           'checkOutTime': AppDateUtils.toTimestamp(autoOut),
+          'autoCheckout': true,
         }).ignore();
       }
     }
