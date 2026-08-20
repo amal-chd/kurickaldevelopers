@@ -51,10 +51,10 @@ class DocumentModel {
     required this.uploadedAt,
   });
 
-  factory DocumentModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory DocumentModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return DocumentModel(
-      id: doc.id,
+      id: id,
       projectId: data['projectId'] ?? '',
       taskId: data['taskId'],
       name: data['name'] ?? '',

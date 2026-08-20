@@ -89,9 +89,9 @@ class NotificationModel {
     DocumentSnapshot doc, [
     String currentUid = '',
   ]) {
-    final data = doc.data() as Map<String, dynamic>;
+    
     return NotificationModel(
-      id: doc.id,
+      id: id,
       // Prefer the unified `userId`; fall back to the legacy `recipientId`.
       userId: (data['userId'] ?? data['recipientId'] ?? '') as String,
       type: NotificationTypeX.fromString(data['type'] ?? 'task_assigned'),

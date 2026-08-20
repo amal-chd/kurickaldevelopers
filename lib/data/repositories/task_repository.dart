@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/task_model.dart';
@@ -10,158 +10,149 @@ import '../services/push_sender.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint, FieldValue;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+
+  final dateKeys = [
+    'createdAt', 'updatedAt', 'completedAt', 'dueDate', 
+    'approvedAt', 'slaDeadline', 'startTime', 'endTime',
+    'lastMessageAt', 'doneAt', 'done_at', 'created_at', 'updated_at', 'completed_at', 'due_date', 'approved_at', 'sla_deadline', 'start_time', 'end_time', 'last_message_at'
+  ];
+  
+  for (final k in dateKeys) {
+    if (map.containsKey(k) && map[k] != null && map[k] is String) {
+      try {
+        map[k] = Timestamp.fromDate(DateTime.parse(map[k]));
+      } catch (_) {}
+    }
+  }
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else if (value is GeoPoint) {
+      map[snakeKey] = {'lat': value.latitude, 'lng': value.longitude};
+    } else if (value != null && value.runtimeType.toString().contains('FieldValue')) {
+      map[snakeKey] = DateTime.now().toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class TaskRepository {
-  final _db = FirebaseFirestore.instance;
+  final _supabase = Supabase.instance.client;
 
-  CollectionReference get _tasks => _db.collection('tasks');
+  TaskModel _fromSupabase(Map<String, dynamic> data) {
+    return TaskModel.fromMap(_toCamelCase(data), data['id']);
+  }
 
-  Stream<List<TaskModel>> watchTasksForProject(String projectId, [int attempt = 0]) async* {
-    try {
-      await for (final s in _tasks.where('projectId', isEqualTo: projectId).orderBy('createdAt', descending: true).snapshots()) {
-        yield s.docs.map(TaskModel.fromFirestore).toList();
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchTasksForProject(projectId, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
+  Stream<List<TaskModel>> watchTasksForProject(String projectId, [int attempt = 0]) {
+    return _supabase.from('tasks').stream(primaryKey: ['id'])
+        .eq('project_id', projectId)
+        .order('created_at', ascending: false)
+        .map((list) => list.map(_fromSupabase).toList())
+        .handleError((e) {
+          throw ErrorTranslator.translate(e);
+        });
   }
 
   void _logStreamError(String streamName, Object error, String userId, {String? roleId}) {
-    // debugPrint is a no-op in release builds, so these diagnostics never
-    // reach production logs (unlike print()).
-    if (error is FirebaseException) {
-      debugPrint('[AUTHORIZATION ERROR] Mobile TaskRepository stream "$streamName" failed: '
-            'code=${error.code}, message=${error.message}, userId=$userId, roleId=$roleId');
-    } else {
-      debugPrint('[API ERROR] Mobile TaskRepository stream "$streamName" failed: $error, userId=$userId, roleId=$roleId');
-    }
+    debugPrint('[API ERROR] Mobile TaskRepository stream "\$streamName" failed: \$error, userId=\$userId, roleId=\$roleId');
   }
+
 
   Stream<List<TaskModel>> watchUserTasks(String userId, {String? roleId, int attempt = 0}) {
-    final userTasksStream = _tasks
-        .where('assigneeIds', arrayContains: userId)
-        .snapshots()
-        .map((s) => s.docs.map(TaskModel.fromFirestore).toList())
+    final allTasksStream = _supabase.from('tasks').stream(primaryKey: ['id'])
         .handleError((e) {
-          _logStreamError('userTasksStream', e, userId, roleId: roleId);
+          _logStreamError('watchUserTasks', e, userId, roleId: roleId);
           throw ErrorTranslator.translate(e);
         });
 
-    if (roleId == null || roleId.isEmpty) {
-      return userTasksStream.map((list) {
-        list.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-        return list;
-      });
-    }
+    return allTasksStream.map((list) {
+      final filtered = list.where((data) {
+        final assignees = List<String>.from(data['assignee_ids'] ?? []);
+        final assignedRoles = List<String>.from(data['assigned_role_ids'] ?? 
+            (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
+        
+        final isAssignee = assignees.contains(userId);
+        final isRole = roleId != null && roleId.isNotEmpty && assignedRoles.contains(roleId);
+        return isAssignee || isRole;
+      }).map(_fromSupabase).toList();
+      
+      filtered.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      return filtered;
+    });
+  }
 
-    final roleTasksStream = _tasks
-        .where('assignedRoleIds', arrayContains: roleId)
-        .snapshots()
-        .map((s) => s.docs.map(TaskModel.fromFirestore).toList())
+  Stream<List<TaskModel>> watchAllTasks([int attempt = 0]) {
+    return _supabase.from('tasks').stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .limit(200)
+        .map((list) {
+          final result = list.map(_fromSupabase).toList();
+          result.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+          return result;
+        })
         .handleError((e) {
-          _logStreamError('roleTasksStream', e, userId, roleId: roleId);
           throw ErrorTranslator.translate(e);
         });
-
-    return Rx.combineLatest2<List<TaskModel>, List<TaskModel>, List<TaskModel>>(
-      userTasksStream,
-      roleTasksStream,
-      (userTasks, roleTasks) {
-        final Map<String, TaskModel> merged = {};
-        for (final t in userTasks) {
-          merged[t.id] = t;
-        }
-        for (final t in roleTasks) {
-          merged[t.id] = t;
-        }
-        final list = merged.values.toList();
-        list.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-        return list;
-      },
-    );
   }
 
-  /// All tasks in the system — for manager / admin views.
-  /// Capped at 200 to prevent unbounded reads.
-  ///
-  /// NOTE: ordered by createdAt (always present) — ordering by dueDate would
-  /// silently EXCLUDE legacy tasks that were created without the field
-  /// (Firestore drops docs missing the orderBy field). Due-date ordering for
-  /// display is done client-side.
-  Stream<List<TaskModel>> watchAllTasks([int attempt = 0]) async* {
-    try {
-      await for (final s
-          in _tasks.orderBy('createdAt', descending: true).limit(200).snapshots()) {
-        final list = s.docs.map(TaskModel.fromFirestore).toList()
-          ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-        yield list;
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchAllTasks(attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
-  }
-
-  /// Paginated fetch for "load more" pattern.
-  /// Returns [pageSize] tasks starting after [lastDocument].
   Future<List<TaskModel>> fetchTasksPage({
     int pageSize = 50,
     DocumentSnapshot? lastDocument,
   }) async {
     try {
-      // createdAt is always present; dueDate is not (legacy docs) — see note
-      // on watchAllTasks.
-      Query query =
-          _tasks.orderBy('createdAt', descending: true).limit(pageSize);
+      var query = _supabase.from('tasks').select();
       if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
+        final lastData = _toSnakeCase(lastDocument.data() as Map<String, dynamic>);
+        if (lastData['created_at'] != null) {
+          query = query.lt('created_at', lastData['created_at']);
+        }
       }
-      final snap = await query.get();
-      return snap.docs.map(TaskModel.fromFirestore).toList();
+      final data = await query.order('created_at', ascending: false).limit(pageSize);
+      return data.map((d) => _fromSupabase(d)).toList();
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Stream<TaskModel?> watchTask(String taskId, [int attempt = 0]) async* {
-    try {
-      await for (final doc in _tasks.doc(taskId).snapshots()) {
-        if (!doc.exists) {
-          yield null;
-        } else {
-          yield TaskModel.fromFirestore(doc);
-        }
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchTask(taskId, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
+  Stream<TaskModel?> watchTask(String taskId, [int attempt = 0]) {
+    return _supabase.from('tasks').stream(primaryKey: ['id'])
+        .eq('id', taskId)
+        .map((list) => list.isEmpty ? null : _fromSupabase(list.first))
+        .handleError((e) {
+          throw ErrorTranslator.translate(e);
+        });
   }
 
   Future<TaskModel?> getTask(String taskId) async {
     try {
-      final doc = await _tasks.doc(taskId).get();
-      if (!doc.exists) return null;
-      return TaskModel.fromFirestore(doc);
+      final data = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+      if (data == null) return null;
+      return _fromSupabase(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -169,50 +160,48 @@ class TaskRepository {
 
   Future<String> createTask(TaskModel task) async {
     try {
-      final doc = await _tasks.add(task.toFirestore());
+      final data = _toSnakeCase(task.toFirestore());
+      final result = await _supabase.from('tasks').insert(data).select().single();
+      final id = result['id'] as String;
+      
       if (task.assigneeIds.isNotEmpty) {
-        // Push (best-effort) + in-app notification for each assignee.
-        PushSender.instance.task(taskId: doc.id, kind: 'assigned');
+        PushSender.instance.task(taskId: id, kind: 'assigned');
         for (final uid in task.assigneeIds.toSet()) {
           if (uid == task.createdBy) continue;
           await _writeNotif(
             userId: uid,
             type: 'task_assigned',
             title: 'New Task Assigned',
-            body: 'You have been assigned to: ${task.title}',
-            relatedId: doc.id,
+            body: 'You have been assigned to: \${task.title}',
+            relatedId: id,
           );
         }
       }
       if (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty) {
         try {
-          final usersSnap = await _db.collection('users')
-              .where('roleId', isEqualTo: task.assignedRoleId)
-              .where('isActive', isEqualTo: true)
-              .get();
-          final roleUsers = usersSnap.docs.map(UserModel.fromFirestore).toList();
-          for (final u in roleUsers) {
-            if (u.uid == task.createdBy) continue;
+          final usersData = await _supabase.from('users')
+              .select()
+              .eq('role_id', task.assignedRoleId!)
+              .eq('is_active', true);
+          for (final u in usersData) {
+            final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
+            if (uid.isEmpty || uid == task.createdBy) continue;
             await _writeNotif(
-              userId: u.uid,
+              userId: uid,
               type: 'task_assigned',
               title: 'New Role Task Assigned',
-              body: 'A task has been assigned to your role: ${task.title}',
-              relatedId: doc.id,
+              body: 'A task has been assigned to your role: \${task.title}',
+              relatedId: id,
             );
           }
-        } catch (_) {
-          // ignore notification failure
-        }
+        } catch (_) {}
       }
-      return doc.id;
+      return id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // Writes an in-app notification document (best-effort; never blocks the task
-  // action). Schema matches the web app: userId-targeted with an isRead map.
   Future<void> _writeNotif({
     required String userId,
     required String type,
@@ -222,77 +211,74 @@ class TaskRepository {
   }) async {
     if (userId.isEmpty) return;
     try {
-      await _db.collection('notifications').add({
-        'userId': userId,
+      await _supabase.from('notifications').insert({
+        'user_id': userId,
         'type': type,
         'title': title,
         'body': body,
-        'relatedId': relatedId,
-        'relatedType': 'task',
-        'isRead': <String, bool>{},
-        'createdAt': FieldValue.serverTimestamp(),
+        'related_id': relatedId,
+        'related_type': 'task',
+        'is_read': {},
+        'created_at': DateTime.now().toIso8601String(),
       });
-    } catch (_) {
-      // Ignore — notification delivery must not break task creation/updates.
-    }
+    } catch (_) {}
   }
 
-  Future<void> updateTask(String taskId, Map<String, dynamic> data) async {
+  Future<void> updateTask(String taskId, Map<String, dynamic> updates) async {
     try {
-      data['updatedAt'] = AppDateUtils.toTimestamp(DateTime.now());
+      updates['updatedAt'] = AppDateUtils.toTimestamp(DateTime.now());
 
-      // Fetch the old task to compare assignees
-      final doc = await _tasks.doc(taskId).get();
-      final oldAssignees = List<String>.from((doc.data() as Map?)?['assigneeIds'] ?? []);
-      final oldRoleId = (doc.data() as Map?)?['assignedRoleId'] as String?;
+      final doc = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+      if (doc == null) return;
+      
+      final oldAssignees = List<String>.from(doc['assignee_ids'] ?? []);
+      final oldRoleId = doc['assigned_role_id'] as String?;
 
-      await _tasks.doc(taskId).update(data);
+      await _supabase.from('tasks').update(_toSnakeCase(updates)).eq('id', taskId);
 
-      if (data.containsKey('assigneeIds')) {
-        final newAssignees = List<String>.from(data['assigneeIds'] ?? []);
+      if (updates.containsKey('assigneeIds')) {
+        final newAssignees = List<String>.from(updates['assigneeIds'] ?? []);
         final added = newAssignees.where((id) => !oldAssignees.contains(id)).toList();
 
         if (added.isNotEmpty) {
           PushSender.instance.task(taskId: taskId, kind: 'assigned');
-          final taskTitle = (data['title'] ?? (doc.data() as Map?)?['title'] ?? 'Task') as String;
-          final createdBy = (doc.data() as Map?)?['createdBy'] as String? ?? '';
+          final taskTitle = (updates['title'] ?? doc['title'] ?? 'Task') as String;
+          final createdBy = doc['created_by'] as String? ?? '';
           for (final uid in added) {
             if (uid == createdBy) continue;
             await _writeNotif(
               userId: uid,
               type: 'task_assigned',
               title: 'New Task Assigned',
-              body: 'You have been assigned to: $taskTitle',
+              body: 'You have been assigned to: \$taskTitle',
               relatedId: taskId,
             );
           }
         }
       }
 
-      if (data.containsKey('assignedRoleId')) {
-        final newRoleId = data['assignedRoleId'] as String?;
+      if (updates.containsKey('assignedRoleId')) {
+        final newRoleId = updates['assignedRoleId'] as String?;
         if (newRoleId != null && newRoleId.isNotEmpty && newRoleId != oldRoleId) {
-          final taskTitle = (data['title'] ?? (doc.data() as Map?)?['title'] ?? 'Task') as String;
-          final createdBy = (doc.data() as Map?)?['createdBy'] as String? ?? '';
+          final taskTitle = (updates['title'] ?? doc['title'] ?? 'Task') as String;
+          final createdBy = doc['created_by'] as String? ?? '';
           try {
-            final usersSnap = await _db.collection('users')
-                .where('roleId', isEqualTo: newRoleId)
-                .where('isActive', isEqualTo: true)
-                .get();
-            final roleUsers = usersSnap.docs.map(UserModel.fromFirestore).toList();
-            for (final u in roleUsers) {
-              if (u.uid == createdBy) continue;
+            final usersData = await _supabase.from('users')
+                .select()
+                .eq('role_id', newRoleId)
+                .eq('is_active', true);
+            for (final u in usersData) {
+              final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
+              if (uid.isEmpty || uid == createdBy) continue;
               await _writeNotif(
-                userId: u.uid,
+                userId: uid,
                 type: 'task_assigned',
                 title: 'New Role Task Assigned',
-                body: 'A task has been assigned to your role: $taskTitle',
+                body: 'A task has been assigned to your role: \$taskTitle',
                 relatedId: taskId,
               );
             }
-          } catch (_) {
-            // ignore notification failure
-          }
+          } catch (_) {}
         }
       }
     } catch (e) {
@@ -302,38 +288,34 @@ class TaskRepository {
 
   Future<void> updateStatus(String taskId, TaskStatus newStatus, String userId) async {
     try {
-      final taskDoc = await _tasks.doc(taskId).get();
-      if (!taskDoc.exists) return;
-      final data = taskDoc.data() as Map<String, dynamic>;
+      final data = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+      if (data == null) return;
       
-      final dueDate = AppDateUtils.fromTimestamp(data['dueDate']);
-      final memberProgress = Map<String, dynamic>.from(data['memberProgress'] ?? {});
+      final dueDateStr = data['due_date'];
+      final dueDate = dueDateStr != null ? DateTime.tryParse(dueDateStr) : null;
+      final memberProgress = Map<String, dynamic>.from(data['member_progress'] ?? {});
       
-      // Check if user is project manager, role approver/editor, or task creator
-      final createdBy = (data['createdBy'] as String?) ?? '';
-      final projectId = (data['projectId'] as String?) ?? '';
+      final createdBy = (data['created_by'] as String?) ?? '';
+      final projectId = (data['project_id'] as String?) ?? '';
       bool isProjectManager = false;
       String? projectManagerId;
       if (projectId.isNotEmpty) {
-        final projSnap = await _db.collection('projects').doc(projectId).get();
-        if (projSnap.exists) {
-          final projData = projSnap.data() as Map<String, dynamic>;
-          projectManagerId = projData['projectManagerId'] as String? ?? projData['managerId'] as String?;
+        final projData = await _supabase.from('projects').select().eq('id', projectId).maybeSingle();
+        if (projData != null) {
+          projectManagerId = projData['project_manager_id'] as String? ?? projData['manager_id'] as String?;
           isProjectManager = projectManagerId == userId;
         }
       }
 
-      final userSnap = await _db.collection('users').doc(userId).get();
+      final userSnap = await _supabase.from('users').select().eq('id', userId).maybeSingle();
       String userName = 'Someone';
       bool isManager = false;
-      if (userSnap.exists) {
-        final userData = userSnap.data() as Map<String, dynamic>;
-        userName = userData['name'] as String? ?? 'Someone';
-        final roleId = userData['roleId'] as String? ?? '';
+      if (userSnap != null) {
+        userName = userSnap['name'] as String? ?? 'Someone';
+        final roleId = userSnap['role_id'] as String? ?? '';
         if (roleId.isNotEmpty) {
-          final roleSnap = await _db.collection('roles').doc(roleId).get();
-          if (roleSnap.exists) {
-            final roleData = roleSnap.data() as Map<String, dynamic>;
+          final roleData = await _supabase.from('roles').select().eq('id', roleId).maybeSingle();
+          if (roleData != null) {
             final permissions = Map<String, dynamic>.from(roleData['permissions'] ?? {});
             final level = (roleData['level'] as num?)?.toInt() ?? 0;
             isManager = permissions['tasks_approve'] == true || permissions['tasks_edit'] == true || level >= 60;
@@ -350,15 +332,15 @@ class TaskRepository {
         final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
         memberProgress[userId] = {
           'status': actualStatus.value,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'completedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
+          'completedAt': DateTime.now().toIso8601String(),
           'completionStatus': details.completionStatus,
           'delaySeconds': details.delaySeconds,
         };
       } else {
         memberProgress[userId] = {
           'status': actualStatus.value,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         };
       }
 
@@ -370,21 +352,16 @@ class TaskRepository {
         updates['status'] = actualStatus.value;
         if (actualStatus == TaskStatus.done) {
           final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
-          final explicitUids = List<String>.from(data['assigneeIds'] ?? []);
+          final explicitUids = List<String>.from(data['assignee_ids'] ?? []);
           final roleUids = <String>[];
-          final assignedRoleIds = List<String>.from(data['assignedRoleIds'] ??
-              (data['assignedRoleId'] != null ? [data['assignedRoleId']] : []));
+          final assignedRoleIds = List<String>.from(data['assigned_role_ids'] ??
+              (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
           if (assignedRoleIds.isNotEmpty) {
-            final usersSnap = await _db
-                .collection('users')
-                .where('roleId', whereIn: assignedRoleIds)
-                .get();
-            for (final uDoc in usersSnap.docs) {
-              if (uDoc.exists) {
-                final userData = uDoc.data();
-                if (userData['isActive'] != false) {
-                  roleUids.add(uDoc.id);
-                }
+            final usersSnap = await _supabase.from('users').select().inFilter('role_id', assignedRoleIds);
+            for (final uData in usersSnap) {
+              if (uData['is_active'] != false) {
+                final uid = uData['id'] as String? ?? uData['uid'] as String? ?? '';
+                if (uid.isNotEmpty) roleUids.add(uid);
               }
             }
           }
@@ -392,54 +369,51 @@ class TaskRepository {
           for (final uid in allAssigneeUids) {
             memberProgress[uid] = {
               'status': TaskStatus.done.value,
-              'updatedAt': FieldValue.serverTimestamp(),
-              'completedAt': FieldValue.serverTimestamp(),
+              'updatedAt': DateTime.now().toIso8601String(),
+              'completedAt': DateTime.now().toIso8601String(),
               'completionStatus': details.completionStatus,
               'delaySeconds': details.delaySeconds,
             };
           }
           updates['memberProgress'] = memberProgress;
-          updates['completedAt'] = FieldValue.serverTimestamp();
+          updates['completedAt'] = DateTime.now().toIso8601String();
           updates['completionStatus'] = details.completionStatus;
           updates['delaySeconds'] = details.delaySeconds;
         } else if (actualStatus == TaskStatus.underReview) {
-          updates['completedAt'] = FieldValue.delete();
-          updates['completionStatus'] = FieldValue.delete();
-          updates['delaySeconds'] = FieldValue.delete();
+          updates['completedAt'] = null;
+          updates['completionStatus'] = null;
+          updates['delaySeconds'] = null;
         } else {
-          updates['completedAt'] = FieldValue.delete();
-          updates['completionStatus'] = FieldValue.delete();
-          updates['delaySeconds'] = FieldValue.delete();
+          updates['completedAt'] = null;
+          updates['completionStatus'] = null;
+          updates['delaySeconds'] = null;
         }
       } else {
-        // Employee/Assignee workflow
         if (actualStatus == TaskStatus.underReview) {
           updates['status'] = TaskStatus.underReview.value;
-          updates['completedAt'] = FieldValue.delete();
-          updates['completionStatus'] = FieldValue.delete();
-          updates['delaySeconds'] = FieldValue.delete();
+          updates['completedAt'] = null;
+          updates['completionStatus'] = null;
+          updates['delaySeconds'] = null;
         } else {
           updates['status'] = TaskStatus.inProgress.value;
-          updates['completedAt'] = FieldValue.delete();
-          updates['completionStatus'] = FieldValue.delete();
-          updates['delaySeconds'] = FieldValue.delete();
+          updates['completedAt'] = null;
+          updates['completionStatus'] = null;
+          updates['delaySeconds'] = null;
         }
       }
 
       await updateTask(taskId, updates);
       PushSender.instance.task(taskId: taskId, kind: 'status');
 
-      // Notify relevant parties based on status change
       try {
         final title = (data['title'] as String?) ?? 'Task';
         if (actualStatus == TaskStatus.underReview && !canMarkDone) {
-          // Assignee raised/submitted task for review -> notify Assigner and Project Manager
           if (createdBy.isNotEmpty && createdBy != userId) {
             await _writeNotif(
               userId: createdBy,
               type: 'task_updated',
               title: 'Verification Required',
-              body: '$userName raised task "$title" for review.',
+              body: '\$userName raised task "\$title" for review.',
               relatedId: taskId,
             );
           }
@@ -448,13 +422,12 @@ class TaskRepository {
               userId: projectManagerId,
               type: 'task_updated',
               title: 'Verification Required',
-              body: '$userName submitted task "$title" for verification.',
+              body: '\$userName submitted task "\$title" for verification.',
               relatedId: taskId,
             );
           }
         } else if (actualStatus == TaskStatus.done && canMarkDone) {
-          // Verified and marked done -> notify assignees and assigner
-          final explicitUids = List<String>.from(data['assigneeIds'] ?? []);
+          final explicitUids = List<String>.from(data['assignee_ids'] ?? []);
           final notifyUids = <String>{...explicitUids, if (createdBy.isNotEmpty) createdBy};
           for (final uid in notifyUids) {
             if (uid == userId) continue;
@@ -462,18 +435,17 @@ class TaskRepository {
               userId: uid,
               type: 'task_updated',
               title: 'Task Verified & Completed',
-              body: 'Task "$title" has been verified and marked as Done by $userName.',
+              body: 'Task "\$title" has been verified and marked as Done by \$userName.',
               relatedId: taskId,
             );
           }
         } else {
-          // General status update -> notify creator if changed by someone else
           if (createdBy.isNotEmpty && createdBy != userId) {
             await _writeNotif(
               userId: createdBy,
               type: 'task_updated',
               title: 'Task Status Updated',
-              body: 'Task "$title" is now ${actualStatus.label}',
+              body: 'Task "\$title" is now \${actualStatus.label}',
               relatedId: taskId,
             );
           }
@@ -486,40 +458,38 @@ class TaskRepository {
 
   Future<void> deleteTask(String taskId) async {
     try {
-      await _tasks.doc(taskId).delete();
+      await _supabase.from('tasks').delete().eq('id', taskId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // Subtasks
-  CollectionReference _subtasks(String taskId) =>
-      _tasks.doc(taskId).collection('subtasks');
+  SubtaskModel _fromSubtask(Map<String, dynamic> data) {
+    return SubtaskModel.fromMap(_toCamelCase(data), data['id']);
+  }
 
   Stream<List<SubtaskModel>> watchSubtasks(String taskId) {
-    // Sort client-side by title for stable ordering — the model has no createdAt.
-    return _subtasks(taskId)
-        .snapshots()
-        .map((s) {
-          final list = s.docs.map(SubtaskModel.fromFirestore).toList();
-          list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-          return list;
+    return _supabase.from('subtasks').stream(primaryKey: ['id']).eq('task_id', taskId)
+        .map((list) {
+          final result = list.map(_fromSubtask).toList();
+          result.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+          return result;
         })
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<void> addSubtask(String taskId, SubtaskModel subtask, {String? addedByUid}) async {
     try {
-      await _subtasks(taskId).add(subtask.toFirestore());
+      final data = _toSnakeCase(subtask.toFirestore());
+      data['task_id'] = taskId;
+      await _supabase.from('subtasks').insert(data);
 
-      // Notify assignees about the new subtask (best-effort).
       if (addedByUid != null) {
         try {
-          final taskDoc = await _tasks.doc(taskId).get();
-          if (taskDoc.exists) {
-            final data = taskDoc.data() as Map<String, dynamic>;
-            final assigneeIds = List<String>.from(data['assigneeIds'] ?? []);
-            final title = data['title'] as String? ?? 'Task';
+          final taskData = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+          if (taskData != null) {
+            final assigneeIds = List<String>.from(taskData['assignee_ids'] ?? []);
+            final title = taskData['title'] as String? ?? 'Task';
 
             PushSender.instance.task(taskId: taskId, kind: 'subtask_added');
 
@@ -529,14 +499,12 @@ class TaskRepository {
                 userId: uid,
                 type: 'task_updated',
                 title: 'New Subtask Added',
-                body: 'A subtask "${subtask.title}" was added to: $title',
+                body: 'A subtask "\${subtask.title}" was added to: \$title',
                 relatedId: taskId,
               );
             }
           }
-        } catch (_) {
-          // Notification delivery must not break subtask creation.
-        }
+        } catch (_) {}
       }
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -550,43 +518,40 @@ class TaskRepository {
     String userId,
   ) async {
     try {
-      await _subtasks(taskId).doc(subtaskId).update({
-        'isDone': isDone,
-        'doneAt': isDone ? AppDateUtils.toTimestamp(DateTime.now()) : null,
-        'doneBy': isDone ? userId : null,
-      });
+      await _supabase.from('subtasks').update({
+        'is_done': isDone,
+        'done_at': isDone ? DateTime.now().toIso8601String() : null,
+        'done_by': isDone ? userId : null,
+      }).eq('id', subtaskId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // Comments
-  CollectionReference _comments(String taskId) =>
-      _tasks.doc(taskId).collection('comments');
+  CommentModel _fromComment(Map<String, dynamic> data) {
+    return CommentModel.fromMap(_toCamelCase(data), data['id']);
+  }
 
   Stream<List<CommentModel>> watchComments(String taskId) {
-    return _comments(taskId)
-        .orderBy('createdAt')
-        .snapshots()
-        .map((s) => s.docs.map(CommentModel.fromFirestore).toList())
+    return _supabase.from('comments').stream(primaryKey: ['id']).eq('task_id', taskId)
+        .order('created_at', ascending: true)
+        .map((list) => list.map(_fromComment).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<void> addComment(String taskId, CommentModel comment) async {
     try {
-      await _comments(taskId).add(comment.toFirestore());
+      final data = _toSnakeCase(comment.toFirestore());
+      data['task_id'] = taskId;
+      await _supabase.from('comments').insert(data);
 
-      // Notify assignees + creator about the new comment (best-effort).
       try {
-        final taskDoc = await _tasks.doc(taskId).get();
-        if (taskDoc.exists) {
-          final data = taskDoc.data() as Map<String, dynamic>;
-          final assigneeIds = List<String>.from(data['assigneeIds'] ?? []);
-          final createdBy = data['createdBy'] as String? ?? '';
-          final title = data['title'] as String? ?? 'Task';
+        final taskData = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+        if (taskData != null) {
+          final assigneeIds = List<String>.from(taskData['assignee_ids'] ?? []);
+          final createdBy = taskData['created_by'] as String? ?? '';
+          final title = taskData['title'] as String? ?? 'Task';
 
-          // Push (FCM) to assignees + creator — recipients/message are rebuilt
-          // server-side from the task; the author is excluded there too.
           PushSender.instance.task(taskId: taskId, kind: 'comment_added');
 
           final notifySet = <String>{...assigneeIds, if (createdBy.isNotEmpty) createdBy};
@@ -596,35 +561,34 @@ class TaskRepository {
               userId: uid,
               type: 'task_updated',
               title: 'New Comment on Task',
-              body: 'New comment on "$title"',
+              body: 'New comment on "\$title"',
               relatedId: taskId,
             );
           }
         }
-      } catch (_) {
-        // Notification delivery must not break comment creation.
-      }
+      } catch (_) {}
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // Time logs
-  CollectionReference _timeLogs(String taskId) =>
-      _tasks.doc(taskId).collection('timeLogs');
+  TimeLogModel _fromTimeLog(Map<String, dynamic> data) {
+    return TimeLogModel.fromMap(_toCamelCase(data), data['id']);
+  }
 
   Stream<List<TimeLogModel>> watchTimeLogs(String taskId) {
-    return _timeLogs(taskId)
-        .orderBy('startTime', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map(TimeLogModel.fromFirestore).toList())
+    return _supabase.from('time_logs').stream(primaryKey: ['id']).eq('task_id', taskId)
+        .order('start_time', ascending: false)
+        .map((list) => list.map(_fromTimeLog).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<String> startTimer(String taskId, TimeLogModel log) async {
     try {
-      final doc = await _timeLogs(taskId).add(log.toFirestore());
-      return doc.id;
+      final data = _toSnakeCase(log.toFirestore());
+      data['task_id'] = taskId;
+      final result = await _supabase.from('time_logs').insert(data).select().single();
+      return result['id'] as String;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -637,10 +601,10 @@ class TaskRepository {
     int durationMinutes,
   ) async {
     try {
-      await _timeLogs(taskId).doc(logId).update({
-        'endTime': AppDateUtils.toTimestamp(endTime),
-        'durationMinutes': durationMinutes,
-      });
+      await _supabase.from('time_logs').update({
+        'end_time': endTime.toIso8601String(),
+        'duration_minutes': durationMinutes,
+      }).eq('id', logId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

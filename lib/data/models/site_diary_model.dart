@@ -71,10 +71,10 @@ class SiteDiaryModel {
     required this.updatedAt,
   });
 
-  factory SiteDiaryModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory SiteDiaryModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return SiteDiaryModel(
-      id: doc.id,
+      id: id,
       projectId: data['projectId'] ?? '',
       authorId: data['authorId'] ?? '',
       date: data['date'] ?? '',

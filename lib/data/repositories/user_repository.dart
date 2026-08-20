@@ -15,7 +15,7 @@ class UserRepository {
   Stream<UserModel?> watchUser(String uid, [int attempt = 0]) async* {
     try {
       await for (final doc in _users.doc(uid).snapshots()) {
-        yield doc.exists ? UserModel.fromFirestore(doc) : null;
+        yield doc.exists ? UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null;
       }
     } on FirebaseException catch (e) {
       if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 6) {
@@ -35,7 +35,7 @@ class UserRepository {
     try {
       final doc = await _users.doc(uid).get();
       if (!doc.exists) return null;
-      return UserModel.fromFirestore(doc);
+      return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -66,14 +66,14 @@ class UserRepository {
     return _users
         .where(FieldPath.documentId, whereIn: memberIds)
         .snapshots()
-        .map((s) => s.docs.map(UserModel.fromFirestore).toList())
+        .map((s) => s.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<List<UserModel>> getAllUsers() async {
     try {
       final snap = await _users.orderBy('name').get();
-      return snap.docs.map(UserModel.fromFirestore).toList();
+      return snap.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList();
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -121,7 +121,7 @@ class UserRepository {
         final users = <UserModel>[];
         for (final d in snap.docs) {
           try {
-            users.add(UserModel.fromFirestore(d));
+            users.add(UserModel.fromMap(d.data() as Map<String, dynamic>, d.id));
           } catch (_) {
             // skip a malformed user doc rather than break the whole picker
           }
@@ -151,7 +151,7 @@ class UserRepository {
         .where('roleId', isEqualTo: roleId)
         .where('isActive', isEqualTo: true)
         .snapshots()
-        .map((s) => s.docs.map(UserModel.fromFirestore).toList())
+        .map((s) => s.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 }

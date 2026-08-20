@@ -1,69 +1,99 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/document_model.dart';
 import '../../core/utils/error_translator.dart';
-import '../services/push_sender.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+  
+  if (data['uploaded_at'] != null && data['uploaded_at'] is String) map['uploadedAt'] = Timestamp.fromDate(DateTime.parse(data['uploaded_at']));
+  if (data['created_at'] != null && data['created_at'] is String) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
+  
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class DocumentRepository {
-  final _db = FirebaseFirestore.instance;
-
-  CollectionReference get _docs => _db.collection('documents');
+  final _supabase = Supabase.instance.client;
+  String get _table => 'documents';
 
   Stream<List<DocumentModel>> watchProjectDocuments(String projectId) {
-    return _docs
-        .where('projectId', isEqualTo: projectId)
-        .orderBy('uploadedAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map(DocumentModel.fromFirestore).toList())
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('uploaded_at', ascending: false)
+        .map((list) => list.map((data) => DocumentModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  Stream<DocumentModel?> watchDocument(String docId) {
-    return _docs
-        .doc(docId)
-        .snapshots()
-        .map((doc) {
-          if (!doc.exists) return null;
-          return DocumentModel.fromFirestore(doc);
-        })
+  Future<DocumentModel?> getDocument(String documentId) async {
+    try {
+      final data = await _supabase.from(_table).select().eq('id', documentId).maybeSingle();
+      if (data == null) return null;
+      return DocumentModel.fromMap(_toCamelCase(data), data['id']);
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
+  Stream<DocumentModel?> watchDocument(String documentId) {
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('id', documentId)
+        .map((list) => list.isEmpty ? null : DocumentModel.fromMap(_toCamelCase(list.first), list.first['id']))
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
+
 
   Future<String> createDocument(DocumentModel document) async {
     try {
-      final doc = await _docs.add(document.toFirestore());
-      PushSender.instance.document(docId: doc.id);
-      return doc.id;
+      final data = await _supabase.from(_table).insert(_toSnakeCase(document.toFirestore())).select('id').single();
+      return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> updateDocument(String docId, Map<String, dynamic> data) async {
+  Future<void> updateDocument(String documentId, Map<String, dynamic> data) async {
     try {
-      await _docs.doc(docId).update(data);
+      await _supabase.from(_table).update(_toSnakeCase(data)).eq('id', documentId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> deleteDocument(String docId) async {
+  Future<void> deleteDocument(String documentId) async {
     try {
-      await _docs.doc(docId).delete();
+      await _supabase.from(_table).delete().eq('id', documentId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<List<DocumentModel>> getDocumentsByName(
-    String projectId,
-    String name,
-  ) async {
+  Future<List<DocumentModel>> getDocumentsForTask(String taskId) async {
     try {
-      final snap = await _docs
-          .where('projectId', isEqualTo: projectId)
-          .where('name', isEqualTo: name)
-          .get();
-      return snap.docs.map(DocumentModel.fromFirestore).toList();
+      final data = await _supabase.from(_table).select().eq('task_id', taskId);
+      return data.map((d) => DocumentModel.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList();
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

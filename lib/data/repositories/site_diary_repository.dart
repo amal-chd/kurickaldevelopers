@@ -1,67 +1,91 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/site_diary_model.dart';
-import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
-import '../services/push_sender.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+  
+  if (data['date'] != null && data['date'] is String) map['date'] = Timestamp.fromDate(DateTime.parse(data['date']));
+  if (data['created_at'] != null && data['created_at'] is String) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
+  if (data['updated_at'] != null && data['updated_at'] is String) map['updatedAt'] = Timestamp.fromDate(DateTime.parse(data['updated_at']));
+  
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class SiteDiaryRepository {
-  final _db = FirebaseFirestore.instance;
-
-  CollectionReference get _diaries => _db.collection('site_diaries');
+  final _supabase = Supabase.instance.client;
+  String get _table => 'site_diaries';
 
   Stream<List<SiteDiaryModel>> watchProjectDiaries(String projectId) {
-    return _diaries
-        .where('projectId', isEqualTo: projectId)
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map(SiteDiaryModel.fromFirestore).toList())
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('date', ascending: false)
+        .map((list) => list.map((data) => SiteDiaryModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  Future<SiteDiaryModel?> getEntryForDate(
-    String projectId,
-    String authorId,
-    String date,
-  ) async {
+  Future<SiteDiaryModel?> getDiaryForDate(String projectId, DateTime date) async {
     try {
-      final snap = await _diaries
-          .where('projectId', isEqualTo: projectId)
-          .where('authorId', isEqualTo: authorId)
-          .where('date', isEqualTo: date)
-          .limit(1)
-          .get();
-      if (snap.docs.isEmpty) return null;
-      return SiteDiaryModel.fromFirestore(snap.docs.first);
+      final startOfDay = DateTime(date.year, date.month, date.day).toIso8601String();
+      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59).toIso8601String();
+
+      final data = await _supabase.from(_table).select()
+          .eq('project_id', projectId)
+          .gte('date', startOfDay)
+          .lte('date', endOfDay)
+          .maybeSingle();
+      if (data == null) return null;
+      return SiteDiaryModel.fromMap(_toCamelCase(data), data['id']);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<SiteDiaryModel?> getTodayEntry(
-    String projectId,
-    String authorId,
-  ) async {
-    return getEntryForDate(
-      projectId,
-      authorId,
-      AppDateUtils.toYMD(DateTime.now()),
-    );
-  }
-
-  Future<String> createEntry(SiteDiaryModel entry) async {
+  Future<String> createDiary(SiteDiaryModel diary) async {
     try {
-      final doc = await _diaries.add(entry.toFirestore());
-      PushSender.instance.diaryEntry(diaryId: doc.id);
-      return doc.id;
+      final data = await _supabase.from(_table).insert(_toSnakeCase(diary.toFirestore())).select('id').single();
+      return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> updateEntry(String id, Map<String, dynamic> data) async {
+  Future<void> updateDiary(String diaryId, Map<String, dynamic> data) async {
     try {
-      data['updatedAt'] = AppDateUtils.toTimestamp(DateTime.now());
-      await _diaries.doc(id).update(data);
+      await _supabase.from(_table).update(_toSnakeCase(data)).eq('id', diaryId);
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
+  Future<void> deleteDiary(String diaryId) async {
+    try {
+      await _supabase.from(_table).delete().eq('id', diaryId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

@@ -85,10 +85,10 @@ class AttendanceModel {
 
   // ── Firestore ─────────────────────────────────────────────────────────────
 
-  factory AttendanceModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory AttendanceModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return AttendanceModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       projectId: data['projectId'] ?? '',
       checkInTime:

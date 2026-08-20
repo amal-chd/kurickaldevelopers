@@ -1,120 +1,118 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/chat_channel_model.dart';
 import '../models/chat_message_model.dart';
 import '../services/push_sender.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+
+  final dateKeys = [
+    'createdAt', 'updatedAt', 'lastMessageAt', 'editedAt', 'lastReadAt',
+    'created_at', 'updated_at', 'last_message_at', 'edited_at', 'last_read_at'
+  ];
+  
+  for (final k in dateKeys) {
+    if (map.containsKey(k) && map[k] != null && map[k] is String) {
+      try {
+        map[k] = Timestamp.fromDate(DateTime.parse(map[k]));
+      } catch (_) {}
+    }
+  }
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else if (value != null && value.runtimeType.toString().contains('FieldValue')) {
+      map[snakeKey] = DateTime.now().toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class ChatRepository {
-  final _db = FirebaseFirestore.instance;
+  final _supabase = Supabase.instance.client;
 
-  CollectionReference get _channels => _db.collection('chats');
-
-  CollectionReference _messages(String channelId) =>
-      _channels.doc(channelId).collection('messages');
-
-  // ── Channels ──────────────────────────────────────────────────────────────
-
-  /// Watch the channels visible to [uid]: every channel they are a member of,
-  /// PLUS all company announcement channels (which all staff can read via the
-  /// chat_view permission) — so company announcements always show in chat.
-  ///
-  /// Single-field queries only (no composite index needed); archived-filtering
-  /// and sorting happen client-side.
-  Stream<List<ChatChannelModel>> watchUserChannels(String uid, [int attempt = 0]) async* {
-    try {
-      List<ChatChannelModel> parse(QuerySnapshot s) =>
-          s.docs.map(ChatChannelModel.fromFirestore).toList();
-
-      final mine =
-          _channels.where('memberIds', arrayContains: uid).snapshots().map(parse);
-
-      // Announcement channels are readable by all staff; tolerate a permission
-      // error (e.g. a custom role without chat_view) by falling back to none.
-      final announcements = _channels
-          .where('type', isEqualTo: 'announcement')
-          .snapshots()
-          .map(parse)
-          .onErrorReturn(<ChatChannelModel>[]);
-
-      final combined = Rx.combineLatest2<List<ChatChannelModel>, List<ChatChannelModel>,
-          List<ChatChannelModel>>(mine, announcements, (a, b) {
-        final byId = <String, ChatChannelModel>{};
-        for (final c in [...a, ...b]) {
-          if (!c.isArchived) byId[c.id] = c;
-        }
-        final list = byId.values.toList()
-          ..sort((x, y) {
-            final ax = x.lastMessageAt;
-            final ay = y.lastMessageAt;
-            if (ax == null && ay == null) return 0;
-            if (ax == null) return 1;
-            if (ay == null) return -1;
-            return ay.compareTo(ax);
-          });
-        return list;
-      });
-
-      await for (final list in combined) {
-        yield list;
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchUserChannels(uid, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      if (e is FirebaseException) {
-        if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-          await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-          yield* watchUserChannels(uid, attempt + 1);
-          return;
-        }
-      }
-      throw ErrorTranslator.translate(e);
-    }
+  ChatChannelModel _fromChannel(Map<String, dynamic> data) {
+    return ChatChannelModel.fromMap(_toCamelCase(data), data['id']);
   }
 
-  /// Watch a single channel
-  Stream<ChatChannelModel?> watchChannel(String channelId, [int attempt = 0]) async* {
-    try {
-      await for (final doc in _channels.doc(channelId).snapshots()) {
-        if (!doc.exists) {
-          yield null;
-        } else {
-          yield ChatChannelModel.fromFirestore(doc);
-        }
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchChannel(channelId, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
+  ChatMessageModel _fromMessage(Map<String, dynamic> data) {
+    return ChatMessageModel.fromMap(_toCamelCase(data), data['id']);
   }
 
-  /// Create a new channel (group or announcement)
+  Stream<List<ChatChannelModel>> watchUserChannels(String uid, [int attempt = 0]) {
+    final mine = _supabase.from('chats').stream(primaryKey: ['id'])
+        .contains('member_ids', [uid])
+        .map((list) => list.map(_fromChannel).toList());
+
+    final announcements = _supabase.from('chats').stream(primaryKey: ['id'])
+        .eq('type', 'announcement')
+        .map((list) => list.map(_fromChannel).toList())
+        .onErrorReturn(<ChatChannelModel>[]);
+
+    final combined = Rx.combineLatest2<List<ChatChannelModel>, List<ChatChannelModel>, List<ChatChannelModel>>(
+      mine, announcements, (a, b) {
+      final byId = <String, ChatChannelModel>{};
+      for (final c in [...a, ...b]) {
+        if (!c.isArchived) byId[c.id] = c;
+      }
+      final list = byId.values.toList()
+        ..sort((x, y) {
+          final ax = x.lastMessageAt;
+          final ay = y.lastMessageAt;
+          if (ax == null && ay == null) return 0;
+          if (ax == null) return 1;
+          if (ay == null) return -1;
+          return ay.compareTo(ax);
+        });
+      return list;
+    });
+
+    return combined.handleError((e) => throw ErrorTranslator.translate(e));
+  }
+
+  Stream<ChatChannelModel?> watchChannel(String channelId, [int attempt = 0]) {
+    return _supabase.from('chats').stream(primaryKey: ['id'])
+        .eq('id', channelId)
+        .map((list) => list.isEmpty ? null : _fromChannel(list.first))
+        .handleError((e) => throw ErrorTranslator.translate(e));
+  }
+
   Future<String> createChannel(ChatChannelModel channel) async {
     try {
-      final doc = _channels.doc();
-      await doc.set(channel.copyWith().toFirestore()..['id'] = doc.id);
-      return doc.id;
+      final data = _toSnakeCase(channel.copyWith().toFirestore());
+      final res = await _supabase.from('chats').insert(data).select().single();
+      return res['id'] as String;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Deterministic project-channel id so web + mobile share one channel.
-  static String projectChannelId(String projectId) => 'project_$projectId';
+  static String projectChannelId(String projectId) => 'project_\$projectId';
 
-  /// Create or fetch the project's chat channel (deterministic id).
   Future<String> getOrCreateProjectChannel({
     required String projectId,
     required String projectName,
@@ -123,20 +121,16 @@ class ChatRepository {
   }) async {
     try {
       final id = projectChannelId(projectId);
-      final ref = _channels.doc(id);
-      final snap = await ref.get();
-      if (snap.exists) return id;
+      final snap = await _supabase.from('chats').select().eq('id', id).maybeSingle();
+      if (snap != null) return id;
 
-      // Seed with the project membership, plus the creator so they can
-      // immediately read the channel they just created.
-      final seededMembers =
-          {...memberIds, createdBy}.where((e) => e.isNotEmpty).toList();
+      final seededMembers = {...memberIds, createdBy}.where((e) => e.isNotEmpty).toList();
 
       final channel = ChatChannelModel(
         id: id,
         type: ChannelType.project,
         name: projectName,
-        description: 'Project channel for $projectName',
+        description: 'Project channel for \$projectName',
         projectId: projectId,
         iconEmoji: '🏗️',
         memberIds: seededMembers,
@@ -147,16 +141,15 @@ class ChatRepository {
         lastMessageAt: DateTime.now(),
       );
 
-      final data = channel.toFirestore();
+      var data = _toSnakeCase(channel.toFirestore());
       data['id'] = id;
-      await ref.set(data);
+      await _supabase.from('chats').insert(data);
       return id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Create or fetch DM channel between two users
   Future<String> getOrCreateDmChannel({
     required String myUid,
     required String peerUid,
@@ -164,30 +157,28 @@ class ChatRepository {
     required String peerName,
   }) async {
     try {
-      // DM channel id is deterministic: sorted uids joined
       final sortedIds = [myUid, peerUid]..sort();
-      final dmId = 'dm_${sortedIds[0]}_${sortedIds[1]}';
+      final dmId = 'dm_\${sortedIds[0]}_\${sortedIds[1]}';
 
-      final doc = _channels.doc(dmId);
-      final snap = await doc.get();
-      if (snap.exists) return dmId;
+      final snap = await _supabase.from('chats').select().eq('id', dmId).maybeSingle();
+      if (snap != null) return dmId;
 
-      await doc.set({
+      await _supabase.from('chats').insert({
         'id': dmId,
         'type': 'direct',
-        'name': '', // derived from peer name in UI
+        'name': '',
         'description': '',
-        'projectId': null,
-        'iconEmoji': null,
-        'memberIds': sortedIds,
-        'adminIds': [],
-        'createdBy': myUid,
-        'createdAt': AppDateUtils.toTimestamp(DateTime.now()),
-        'lastMessageText': '',
-        'lastMessageAt': null, // null until first message — avoids fake ordering
-        'lastMessageBy': null,
-        'isArchived': false,
-        'unreadCounts': {},
+        'project_id': null,
+        'icon_emoji': null,
+        'member_ids': sortedIds,
+        'admin_ids': [],
+        'created_by': myUid,
+        'created_at': DateTime.now().toIso8601String(),
+        'last_message_text': '',
+        'last_message_at': null,
+        'last_message_by': null,
+        'is_archived': false,
+        'unread_counts': {},
       });
       return dmId;
     } catch (e) {
@@ -195,141 +186,105 @@ class ChatRepository {
     }
   }
 
-  /// Add a member to a channel
   Future<void> addMember(String channelId, String uid) async {
     try {
-      await _channels.doc(channelId).update({
-        'memberIds': FieldValue.arrayUnion([uid]),
-      });
+      final doc = await _supabase.from('chats').select('member_ids').eq('id', channelId).single();
+      final members = List<String>.from(doc['member_ids'] ?? []);
+      if (!members.contains(uid)) {
+        members.add(uid);
+        await _supabase.from('chats').update({'member_ids': members}).eq('id', channelId);
+      }
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Remove a member from a channel
   Future<void> removeMember(String channelId, String uid) async {
     try {
-      await _channels.doc(channelId).update({
-        'memberIds': FieldValue.arrayRemove([uid]),
-      });
+      final doc = await _supabase.from('chats').select('member_ids').eq('id', channelId).single();
+      final members = List<String>.from(doc['member_ids'] ?? []);
+      if (members.contains(uid)) {
+        members.remove(uid);
+        await _supabase.from('chats').update({'member_ids': members}).eq('id', channelId);
+      }
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Update channel metadata
-  Future<void> updateChannel(
-    String channelId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<void> updateChannel(String channelId, Map<String, dynamic> data) async {
     try {
-      await _channels.doc(channelId).update(data);
+      await _supabase.from('chats').update(_toSnakeCase(data)).eq('id', channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Soft-delete a conversation: archived channels are hidden from every
-  /// member's chat list (watchUserChannels filters out isArchived == true).
   Future<void> archiveChannel(String channelId) async {
     try {
-      await _channels.doc(channelId).update({'isArchived': true});
+      await _supabase.from('chats').update({'is_archived': true}).eq('id', channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // ── Messages ──────────────────────────────────────────────────────────────
+  Stream<List<ChatMessageModel>> watchMessages(String channelId, {int limit = 50, int attempt = 0}) {
+    return _supabase.from('chat_messages').stream(primaryKey: ['id'])
+        .eq('channel_id', channelId)
+        .order('created_at', ascending: false)
+        .limit(limit)
+        .map((list) => list.map(_fromMessage).toList())
+        .handleError((e) => throw ErrorTranslator.translate(e));
+  }
 
-  /// Watch latest N messages in a channel (real-time)
-  Stream<List<ChatMessageModel>> watchMessages(
-    String channelId, {
-    int limit = 50,
-    int attempt = 0,
-  }) async* {
+  Future<List<ChatMessageModel>> loadOlderMessages(String channelId, {required DocumentSnapshot lastDoc, int limit = 30}) async {
     try {
-      await for (final s in _messages(channelId)
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .snapshots()) {
-        yield s.docs.map(ChatMessageModel.fromFirestore).toList();
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchMessages(channelId, limit: limit, attempt: attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
+      final lastData = _toSnakeCase(lastDoc.data() as Map<String, dynamic>);
+      final snap = await _supabase.from('chat_messages').select()
+          .eq('channel_id', channelId)
+          .lt('created_at', lastData['created_at'])
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return snap.map(_fromMessage).toList();
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Paginate older messages
-  Future<List<ChatMessageModel>> loadOlderMessages(
-    String channelId, {
-    required DocumentSnapshot lastDoc,
-    int limit = 30,
-  }) async {
-    try {
-      final snap = await _messages(channelId)
-          .orderBy('createdAt', descending: true)
-          .startAfterDocument(lastDoc)
-          .limit(limit)
-          .get();
-      return snap.docs.map(ChatMessageModel.fromFirestore).toList();
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
-  }
-
-  /// Send a message and update channel last-message metadata + unread counts
   Future<String> sendMessage({
     required String channelId,
     required ChatMessageModel message,
     required List<String> channelMemberIds,
   }) async {
     try {
-      final batch = _db.batch();
-
-      // Write message
-      final msgRef = _messages(channelId).doc();
-      final data = message.toFirestore();
-      data['channelId'] = channelId;
-      data['createdAt'] = FieldValue.serverTimestamp();
-      batch.set(msgRef, data);
-
-      // Increment unread counts for all members except sender
-      final unreadUpdate = <String, dynamic>{};
+      final channelSnap = await _supabase.from('chats').select().eq('id', channelId).maybeSingle();
+      final channelData = channelSnap ?? {};
+      final unreadCounts = Map<String, dynamic>.from(channelData['unread_counts'] ?? {});
       for (final uid in channelMemberIds) {
         if (uid != message.senderId) {
-          unreadUpdate['unreadCounts.$uid'] = FieldValue.increment(1);
+          unreadCounts[uid] = (unreadCounts[uid] as num? ?? 0) + 1;
         }
       }
 
-      // Update channel denormalized fields
+      final msgData = _toSnakeCase(message.toFirestore());
+      msgData['channel_id'] = channelId;
+      msgData['created_at'] = DateTime.now().toIso8601String();
+      final msgRef = await _supabase.from('chat_messages').insert(msgData).select().single();
+      final msgId = msgRef['id'] as String;
+
       final channelUpdate = <String, dynamic>{
-        'lastMessageText': message.isDeleted ? '' : _previewText(message),
-        'lastMessageAt': FieldValue.serverTimestamp(),
-        'lastMessageBy': message.senderId,
-        ...unreadUpdate,
+        'last_message_text': message.isDeleted ? '' : _previewText(message),
+        'last_message_at': DateTime.now().toIso8601String(),
+        'last_message_by': message.senderId,
+        'unread_counts': unreadCounts,
       };
-      batch.update(_channels.doc(channelId), channelUpdate);
+      await _supabase.from('chats').update(channelUpdate).eq('id', channelId);
 
-      // Fetch channel details to know type & name
-      final channelSnap = await _channels.doc(channelId).get();
-      final channelData = channelSnap.exists ? (channelSnap.data() as Map<String, dynamic>?) : null;
-      final channelType = channelData?['type'] as String? ?? 'group';
-      final channelName = channelData?['name'] as String? ?? 'Group';
+      final channelType = channelData['type'] as String? ?? 'group';
+      final channelName = channelData['name'] as String? ?? 'Group';
 
-      await batch.commit();
+      PushSender.instance.chatMessage(channelId: channelId, messageId: msgId);
 
-      // Fire push to the other channel members (best-effort, non-blocking).
-      PushSender.instance.chatMessage(channelId: channelId, messageId: msgRef.id);
-
-      // Also create in-app notification docs for the other members so messages
-      // appear in the Notifications screen (best-effort, non-blocking).
       _writeChatNotifications(
         channelId: channelId,
         channelType: channelType,
@@ -339,51 +294,44 @@ class ChatRepository {
         previewText: message.isDeleted ? '' : _previewText(message),
       );
 
-      return msgRef.id;
+      return msgId;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Mark channel as read for a user (clear unread count)
   Future<void> markAsRead(String channelId, String uid) async {
     try {
-      await _channels.doc(channelId).update({'unreadCounts.$uid': 0});
+      final doc = await _supabase.from('chats').select('unread_counts').eq('id', channelId).single();
+      final unreadCounts = Map<String, dynamic>.from(doc['unread_counts'] ?? {});
+      unreadCounts[uid] = 0;
+      await _supabase.from('chats').update({'unread_counts': unreadCounts}).eq('id', channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Edit a message
-  Future<void> editMessage(
-    String channelId,
-    String messageId,
-    String newText,
-  ) async {
+  Future<void> editMessage(String channelId, String messageId, String newText) async {
     try {
-      await _messages(channelId).doc(messageId).update({
+      await _supabase.from('chat_messages').update({
         'text': newText,
-        'editedAt': AppDateUtils.toTimestamp(DateTime.now()),
-      });
+        'edited_at': DateTime.now().toIso8601String(),
+      }).eq('id', messageId);
       await _syncChannelPreview(channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Soft-delete a message
   Future<void> deleteMessage(String channelId, String messageId) async {
     try {
-      await _messages(
-        channelId,
-      ).doc(messageId).update({'isDeleted': true, 'text': ''});
+      await _supabase.from('chat_messages').update({'is_deleted': true, 'text': ''}).eq('id', messageId);
       await _syncChannelPreview(channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Toggle emoji reaction
   Future<void> toggleReaction({
     required String channelId,
     required String messageId,
@@ -392,24 +340,23 @@ class ChatRepository {
     required bool currentlyReacted,
   }) async {
     try {
-      final ref = _messages(channelId).doc(messageId);
+      final doc = await _supabase.from('chat_messages').select('reactions').eq('id', messageId).single();
+      final reactions = Map<String, dynamic>.from(doc['reactions'] ?? {});
+      final users = List<String>.from(reactions[emoji] ?? []);
+      
       if (currentlyReacted) {
-        await ref.update({
-          'reactions.$emoji': FieldValue.arrayRemove([uid]),
-        });
+        users.remove(uid);
       } else {
-        await ref.update({
-          'reactions.$emoji': FieldValue.arrayUnion([uid]),
-        });
+        if (!users.contains(uid)) users.add(uid);
       }
+      reactions[emoji] = users;
+      
+      await _supabase.from('chat_messages').update({'reactions': reactions}).eq('id', messageId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // ── System Messages ───────────────────────────────────────────────────────
-
-  /// Post a system message (task created, status changed, etc.)
   Future<void> postSystemMessage({
     required String channelId,
     required String text,
@@ -434,90 +381,58 @@ class ChatRepository {
     );
   }
 
-  // ── Typing Indicators ────────────────────────────────────────────────────
-
-  /// Set (or clear) this user's typing status in a channel
-  Future<void> updateTyping(
-    String channelId,
-    String uid,
-    String displayName,
-    bool isTyping,
-  ) async {
-    final ref = _channels.doc(channelId).collection('typing').doc(uid);
-    if (isTyping) {
-      await ref.set({'name': displayName, 'at': FieldValue.serverTimestamp()});
-    } else {
-      await ref.delete().catchError((_) {});
-    }
-  }
-
-  /// Stream the names of users currently typing (excluding self)
-  Stream<List<String>> watchTypingNames(String channelId, String myUid, [int attempt = 0]) async* {
+  Future<void> updateTyping(String channelId, String uid, String displayName, bool isTyping) async {
     try {
-      await for (final snap in _channels
-          .doc(channelId)
-          .collection('typing')
-          .snapshots()) {
-        yield snap.docs
-            .where((d) => d.id != myUid)
-            .map((d) => (d.data()['name'] as String?) ?? '')
-            .where((n) => n.isNotEmpty)
-            .toSet()
-            .toList();
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchTypingNames(channelId, myUid, attempt + 1);
+      if (isTyping) {
+        await _supabase.from('chat_typing').upsert({
+          'channel_id': channelId,
+          'user_id': uid,
+          'name': displayName,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
       } else {
-        throw ErrorTranslator.translate(e);
+        await _supabase.from('chat_typing').delete().eq('channel_id', channelId).eq('user_id', uid);
       }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
+    } catch (_) {}
   }
 
-  // ── Read Receipts ─────────────────────────────────────────────────────────
+  Stream<List<String>> watchTypingNames(String channelId, String myUid, [int attempt = 0]) {
+    return _supabase.from('chat_typing').stream(primaryKey: ['channel_id', 'user_id'])
+        .eq('channel_id', channelId)
+        .map((list) => list.where((d) => d['user_id'] != myUid).map((d) => (d['name'] as String?) ?? '').where((n) => n.isNotEmpty).toSet().toList())
+        .handleError((e) => throw ErrorTranslator.translate(e));
+  }
 
-  /// Store a per-user "last read" timestamp so we can show seen indicators
   Future<void> markAsReadWithTimestamp(String channelId, String uid) async {
     try {
-      await _db.runTransaction((tx) async {
-        final docRef = _channels.doc(channelId);
-        final doc = await tx.get(docRef);
-        if (!doc.exists) return;
-
-        tx.update(docRef, {
-          'unreadCounts.$uid': 0,
-          'lastReadAt.$uid': FieldValue.serverTimestamp(),
-        });
-      });
+      final doc = await _supabase.from('chats').select().eq('id', channelId).single();
+      final unreadCounts = Map<String, dynamic>.from(doc['unread_counts'] ?? {});
+      final lastReadAt = Map<String, dynamic>.from(doc['last_read_at'] ?? {});
+      
+      unreadCounts[uid] = 0;
+      lastReadAt[uid] = DateTime.now().toIso8601String();
+      
+      await _supabase.from('chats').update({
+        'unread_counts': unreadCounts,
+        'last_read_at': lastReadAt,
+      }).eq('id', channelId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // ── Project Channel Discovery ─────────────────────────────────────────────
-
-  /// Return the channelId of the project's chat channel if it exists and the
-  /// user is a member; null otherwise. Uses the deterministic id.
   Future<String?> findProjectChannelId(String projectId, String uid) async {
     try {
       final id = projectChannelId(projectId);
-      final snap = await _channels.doc(id).get();
-      if (!snap.exists) return null;
-      final data = snap.data() as Map<String, dynamic>;
-      final members = List<String>.from(data['memberIds'] ?? const []);
+      final snap = await _supabase.from('chats').select().eq('id', id).maybeSingle();
+      if (snap == null) return null;
+      final members = List<String>.from(snap['member_ids'] ?? const []);
       return members.contains(uid) ? id : null;
     } catch (_) {
       return null;
     }
   }
 
-  /// Keep a project's chat channel membership in sync with the project.
-  /// Creates the channel on first call, then upserts memberIds (project members
-  /// + manager) on every project edit — so adding a member to a project adds
-  /// them to the chat too. Best-effort: never throws.
   Future<void> syncProjectChannel({
     required String projectId,
     required String projectName,
@@ -530,16 +445,16 @@ class ChatRepository {
         ...memberIds,
         if (managerId.isNotEmpty) managerId,
       }.where((e) => e.isNotEmpty).toList();
-      final ref = _channels.doc(id);
-      final snap = await ref.get();
-      if (snap.exists) {
-        await ref.update({'name': projectName, 'memberIds': members});
+      
+      final snap = await _supabase.from('chats').select().eq('id', id).maybeSingle();
+      if (snap != null) {
+        await _supabase.from('chats').update({'name': projectName, 'member_ids': members}).eq('id', id);
       } else {
         final channel = ChatChannelModel(
           id: id,
           type: ChannelType.project,
           name: projectName,
-          description: 'Project channel for $projectName',
+          description: 'Project channel for \$projectName',
           projectId: projectId,
           iconEmoji: '🏗️',
           memberIds: members,
@@ -549,45 +464,37 @@ class ChatRepository {
           lastMessageText: 'Project channel created',
           lastMessageAt: DateTime.now(),
         );
-        final data = channel.toFirestore();
+        var data = _toSnakeCase(channel.toFirestore());
         data['id'] = id;
-        await ref.set(data);
+        await _supabase.from('chats').insert(data);
       }
-    } catch (_) {
-      // best-effort — chat sync must not block saving the project
-    }
+    } catch (_) {}
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String _previewText(ChatMessageModel msg) {
     switch (msg.type) {
       case MessageType.image:
         return '📷 Photo';
       case MessageType.file:
-        return '📎 ${msg.attachmentName ?? 'File'}';
+        return '📎 \${msg.attachmentName ?? 'File'}';
       case MessageType.taskRef:
-        return '📌 ${msg.taskTitle ?? 'Task'}';
+        return '📌 \${msg.taskTitle ?? 'Task'}';
       case MessageType.system:
         return msg.text;
       case MessageType.text:
-        return msg.text.length > 80
-            ? '${msg.text.substring(0, 80)}…'
-            : msg.text;
+        return msg.text.length > 80 ? '\${msg.text.substring(0, 80)}…' : msg.text;
     }
   }
 
   Future<void> _syncChannelPreview(String channelId) async {
-    // Pull the most recent messages and use the latest one that is NOT deleted
-    // as the channel preview. This keeps deleted messages from showing up as
-    // "Message deleted" in the chat list — the preview reflects real content.
-    final recent = await _messages(
-      channelId,
-    ).orderBy('createdAt', descending: true).limit(20).get();
+    final recent = await _supabase.from('chat_messages').select()
+        .eq('channel_id', channelId)
+        .order('created_at', ascending: false)
+        .limit(20);
 
     ChatMessageModel? lastVisible;
-    for (final doc in recent.docs) {
-      final msg = ChatMessageModel.fromFirestore(doc);
+    for (final doc in recent) {
+      final msg = _fromMessage(doc);
       if (!msg.isDeleted) {
         lastVisible = msg;
         break;
@@ -595,49 +502,36 @@ class ChatRepository {
     }
 
     if (lastVisible == null) {
-      // No visible messages left (channel empty or all messages deleted).
-      await _channels.doc(channelId).update({
-        'lastMessageText': '',
-        'lastMessageBy': null,
-        'lastMessageAt': null,
-      });
+      await _supabase.from('chats').update({
+        'last_message_text': '',
+        'last_message_by': null,
+        'last_message_at': null,
+      }).eq('id', channelId);
       return;
     }
 
-    await _channels.doc(channelId).update({
-      'lastMessageText': _previewText(lastVisible),
-      'lastMessageBy': lastVisible.senderId,
-      'lastMessageAt': AppDateUtils.toTimestamp(lastVisible.createdAt),
-    });
+    await _supabase.from('chats').update({
+      'last_message_text': _previewText(lastVisible),
+      'last_message_by': lastVisible.senderId,
+      'last_message_at': lastVisible.createdAt.toIso8601String(),
+    }).eq('id', channelId);
   }
 
-  Stream<int> watchTotalUnread(String uid, [int attempt = 0]) async* {
-    try {
-      await for (final snap in _channels
-          .where('memberIds', arrayContains: uid)
-          .where('isArchived', isEqualTo: false)
-          .snapshots()) {
-        int total = 0;
-        for (final doc in snap.docs) {
-          final channel = ChatChannelModel.fromFirestore(doc);
-          total += channel.unreadFor(uid);
-        }
-        yield total;
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchTotalUnread(uid, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      throw ErrorTranslator.translate(e);
-    }
+  Stream<int> watchTotalUnread(String uid, [int attempt = 0]) {
+    return _supabase.from('chats').stream(primaryKey: ['id'])
+        .contains('member_ids', [uid])
+        .eq('is_archived', false)
+        .map((list) {
+          int total = 0;
+          for (final doc in list) {
+            final channel = _fromChannel(doc);
+            total += channel.unreadFor(uid);
+          }
+          return total;
+        })
+        .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  // ── In-app notification for chat messages ─────────────────────────────
-  // Best-effort, fire-and-forget. Never blocks the send flow.
   Future<void> _writeChatNotifications({
     required String channelId,
     required String channelType,
@@ -647,15 +541,10 @@ class ChatRepository {
     required String previewText,
   }) async {
     try {
-      final notifCollection = _db.collection('notifications');
-
-      // Fetch sender name
       String senderName = 'Someone';
       try {
-        final senderSnap = await _db.collection('users').doc(senderId).get();
-        if (senderSnap.exists) {
-          senderName = (senderSnap.data() as Map<String, dynamic>)['name'] as String? ?? 'Someone';
-        }
+        final senderSnap = await _supabase.from('users').select().eq('id', senderId).maybeSingle();
+        if (senderSnap != null) senderName = senderSnap['name'] as String? ?? 'Someone';
       } catch (_) {}
 
       final isAnnouncement = channelType == 'announcement';
@@ -663,39 +552,31 @@ class ChatRepository {
       for (final uid in memberIds) {
         if (uid == senderId) continue;
 
-        // Check user preferences
         try {
-          final userSnap = await _db.collection('users').doc(uid).get();
-          if (userSnap.exists) {
-            final userData = userSnap.data() as Map<String, dynamic>;
-            final rawPrefs = userData['preferences'] as Map<String, dynamic>? ?? {};
+          final userSnap = await _supabase.from('users').select().eq('id', uid).maybeSingle();
+          if (userSnap != null) {
+            final rawPrefs = userSnap['preferences'] as Map<String, dynamic>? ?? {};
             final announcementsEnabled = rawPrefs['announcements'] as bool? ?? true;
             final chatsEnabled = rawPrefs['chats'] as bool? ?? true;
 
-            if (isAnnouncement && !announcementsEnabled) {
-              continue;
-            }
-            if (!isAnnouncement && !chatsEnabled) {
-              continue;
-            }
+            if (isAnnouncement && !announcementsEnabled) continue;
+            if (!isAnnouncement && !chatsEnabled) continue;
           }
         } catch (_) {}
 
-        await notifCollection.add({
-          'userId': uid,
+        await _supabase.from('notifications').insert({
+          'user_id': uid,
           'type': isAnnouncement ? 'announcement' : 'chat_message',
-          'title': isAnnouncement ? 'Announcement in $channelName' : 'New Message',
+          'title': isAnnouncement ? 'Announcement in \$channelName' : 'New Message',
           'body': isAnnouncement
-              ? '$senderName: $previewText'
+              ? '\$senderName: \$previewText'
               : (previewText.isNotEmpty ? previewText : 'You have a new message'),
-          'relatedId': channelId,
-          'relatedType': 'chat',
-          'isRead': <String, bool>{},
-          'createdAt': FieldValue.serverTimestamp(),
+          'related_id': channelId,
+          'related_type': 'chat',
+          'is_read': {},
+          'created_at': DateTime.now().toIso8601String(),
         });
       }
-    } catch (_) {
-      // Ignore — notification delivery must not break chat messaging.
-    }
+    } catch (_) {}
   }
 }

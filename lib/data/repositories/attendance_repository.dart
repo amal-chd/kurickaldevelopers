@@ -1,208 +1,186 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/attendance_model.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+
+  if (data['check_in_time'] != null) map['checkInTime'] = Timestamp.fromDate(DateTime.parse(data['check_in_time']));
+  if (data['check_out_time'] != null) map['checkOutTime'] = Timestamp.fromDate(DateTime.parse(data['check_out_time']));
+  
+  // If location is returned as json, convert it to GeoPoint
+  if (data['check_in_location'] is Map) {
+    map['checkInLocation'] = GeoPoint((data['check_in_location']['lat'] as num).toDouble(), (data['check_in_location']['lng'] as num).toDouble());
+  }
+  if (data['check_out_location'] is Map) {
+    map['checkOutLocation'] = GeoPoint((data['check_out_location']['lat'] as num).toDouble(), (data['check_out_location']['lng'] as num).toDouble());
+  }
+
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else if (value is GeoPoint) {
+      map[snakeKey] = {'lat': value.latitude, 'lng': value.longitude};
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class AttendanceRepository {
-  final _db = FirebaseFirestore.instance;
+  final _supabase = Supabase.instance.client;
+  String get _table => 'attendance';
 
-  CollectionReference get _attendance => _db.collection('attendance');
-
-  // ─── Personal queries ─────────────────────────────────────────────────────
-
-  Future<AttendanceModel?> getTodayAttendance(
-    String userId,
-    String projectId,
-  ) async {
+  Future<AttendanceModel?> getTodayAttendance(String userId, String projectId) async {
     try {
       final today = AppDateUtils.toYMD(DateTime.now());
-      final snap = await _attendance
-          .where('userId', isEqualTo: userId)
-          .where('projectId', isEqualTo: projectId)
-          .where('date', isEqualTo: today)
+      final data = await _supabase.from(_table).select()
+          .eq('user_id', userId)
+          .eq('project_id', projectId)
+          .eq('date', today)
           .limit(1)
-          .get();
-      if (snap.docs.isEmpty) return null;
-      return _fromFirestore(snap.docs.first);
+          .maybeSingle();
+      if (data == null) return null;
+      return _fromSupabase(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Stream<AttendanceModel?> watchTodayAttendance(
-    String userId,
-    String projectId,
-  ) {
+  Stream<AttendanceModel?> watchTodayAttendance(String userId, String projectId) {
     final today = AppDateUtils.toYMD(DateTime.now());
-    return _attendance
-        .where('userId', isEqualTo: userId)
-        .where('projectId', isEqualTo: projectId)
-        .where('date', isEqualTo: today)
-        .limit(1)
-        .snapshots()
-        .map(
-          (s) => s.docs.isEmpty
-              ? null
-              : _fromFirestore(s.docs.first),
-        )
+    return _supabase.from(_table).stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .eq('project_id', projectId)
+        .eq('date', today)
+        .map((list) => list.isEmpty ? null : _fromSupabase(list.first))
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  Stream<List<AttendanceModel>> watchMonthAttendance(
-    String userId,
-    String month,
-  ) {
-    return _attendance
-        .where('userId', isEqualTo: userId)
-        .where('date', isGreaterThanOrEqualTo: '$month-01')
-        .where('date', isLessThanOrEqualTo: '$month-31')
-        .snapshots()
-        .map((s) => s.docs.map(_fromFirestore).toList())
+  Stream<List<AttendanceModel>> watchMonthAttendance(String userId, String month) {
+    return _supabase.from(_table).stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .gte('date', '$month-01')
+        .lte('date', '$month-31')
+        .map((list) => list.map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
-
-  // ─── Check-in / Check-out ─────────────────────────────────────────────────
 
   Future<String> checkIn(AttendanceModel record) async {
-    // A deterministic per-day document id makes check-in idempotent: a rapid
-    // double-tap, or two devices at once, can never create a second attendance
-    // record for the same user+project+day. The transaction also decides what a
-    // repeat check-in means:
-    //   • already checked in & on site → no-op (returns the same record)
-    //   • checked out earlier today     → re-open the SAME record (continued
-    //     session; keeps the original check-in time, clears the check-out)
     final id = '${record.userId}_${record.projectId}_${record.date}';
-    final ref = _attendance.doc(id);
     try {
-      await _db.runTransaction((txn) async {
-        final snap = await txn.get(ref);
-        if (snap.exists) {
-          final data = snap.data() as Map<String, dynamic>?;
-          if (data != null && data['checkOutTime'] == null) {
-            return; // already on site — nothing to do
-          }
-          txn.update(ref, {
-            'checkOutTime': FieldValue.delete(),
-            'checkOutLocation': FieldValue.delete(),
-            'checkOutAddress': FieldValue.delete(),
-            'autoCheckout': FieldValue.delete(),
-          });
-          return;
-        }
-        txn.set(ref, record.toFirestore());
-      });
+      final existing = await _supabase.from(_table).select().eq('id', id).maybeSingle();
+      if (existing != null) {
+        if (existing['check_out_time'] == null) return id;
+        await _supabase.from(_table).update({
+          'check_out_time': null,
+          'check_out_location': null,
+          'check_out_address': null,
+          'auto_checkout': null,
+        }).eq('id', id);
+        return id;
+      }
+      
+      var data = _toSnakeCase(record.toFirestore());
+      data['id'] = id;
+      await _supabase.from(_table).insert(data);
       return id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> checkOut(
-    String attendanceId,
-    GeoPoint location,
-    DateTime time,
-  ) async {
+  Future<void> checkOut(String attendanceId, GeoPoint location, DateTime time) async {
     try {
-      await _attendance.doc(attendanceId).update({
-        'checkOutTime': AppDateUtils.toTimestamp(time),
-        'checkOutLocation': location,
-      });
+      await _supabase.from(_table).update({
+        'check_out_time': time.toIso8601String(),
+        'check_out_location': {'lat': location.latitude, 'lng': location.longitude},
+      }).eq('id', attendanceId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
-
-  // ─── Address patch (called asynchronously after GPS + reverse-geocode) ────
 
   Future<void> updateCheckInAddress(String attendanceId, String address) async {
     try {
-      await _attendance.doc(attendanceId).update({'checkInAddress': address});
-    } catch (_) {} // best-effort; ignore if record was deleted
-  }
-
-  Future<void> updateCheckOutAddress(
-    String attendanceId,
-    String address,
-  ) async {
-    try {
-      await _attendance.doc(attendanceId).update({'checkOutAddress': address});
+      await _supabase.from(_table).update({'check_in_address': address}).eq('id', attendanceId);
     } catch (_) {}
   }
 
-  /// Update attendance fields directly (e.g. check-in/out times, overtime override).
-  Future<void> updateAttendance(
-    String attendanceId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<void> updateCheckOutAddress(String attendanceId, String address) async {
     try {
-      await _attendance.doc(attendanceId).update(data);
+      await _supabase.from(_table).update({'check_out_address': address}).eq('id', attendanceId);
+    } catch (_) {}
+  }
+
+  Future<void> updateAttendance(String attendanceId, Map<String, dynamic> data) async {
+    try {
+      await _supabase.from(_table).update(_toSnakeCase(data)).eq('id', attendanceId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // ─── Project "today" feed ─────────────────────────────────────────────────
-
   Stream<List<AttendanceModel>> watchTodayProjectAttendance(String projectId) {
     final today = AppDateUtils.toYMD(DateTime.now());
-    return _attendance
-        .where('projectId', isEqualTo: projectId)
-        .where('date', isEqualTo: today)
-        .snapshots()
-        .map((s) => s.docs.map(_fromFirestore).toList())
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).eq('date', today)
+        .map((list) => list.map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  // ─── Internal Auto-Checkout Logic ─────────────────────────────────────────
-
-  AttendanceModel _fromFirestore(DocumentSnapshot doc) {
-    final record = AttendanceModel.fromFirestore(doc);
+  AttendanceModel _fromSupabase(Map<String, dynamic> data) {
+    final record = AttendanceModel.fromMap(_toCamelCase(data), data['id']);
     if (record.checkOutTime == null) {
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
-      // Only auto-close a FORGOTTEN check-in from a PREVIOUS day. Today's open
-      // sessions are left running so the real check-out time — and any overtime
-      // beyond 8h — is preserved. (Auto-closing every record at exactly 8h used
-      // to cap everyone at 8h, making overtime impossible to accrue.)
       if (record.checkInTime.isBefore(startOfToday)) {
         final autoOut = record.checkInTime.add(const Duration(hours: 8));
-        doc.reference.update({
-          'checkOutTime': AppDateUtils.toTimestamp(autoOut),
-          'autoCheckout': true,
-        }).ignore();
+        _supabase.from(_table).update({
+          'check_out_time': autoOut.toIso8601String(),
+          'auto_checkout': true,
+        }).eq('id', data['id']).then((_) {});
       }
     }
     return record;
   }
 
-  // ─── Admin queries ────────────────────────────────────────────────────────
-
-  /// All staff attendance records for a specific date (any project).
-  /// Requires composite Firestore index: date ASC.
   Stream<List<AttendanceModel>> watchAllAttendanceForDate(String date) {
-    return _attendance
-        .where('date', isEqualTo: date)
-        .snapshots()
-        .map((s) => s.docs.map(_fromFirestore).toList())
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('date', date)
+        .map((list) => list.map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  /// A specific user's attendance records between two date strings (inclusive).
-  /// Requires composite Firestore index: userId + date.
-  Stream<List<AttendanceModel>> watchUserAttendanceRange(
-    String userId,
-    String startDate, // "yyyy-MM-dd"
-    String endDate, // "yyyy-MM-dd"
-  ) {
-    return _attendance
-        .where('userId', isEqualTo: userId)
-        .where('date', isGreaterThanOrEqualTo: startDate)
-        .where('date', isLessThanOrEqualTo: endDate)
-        .snapshots()
-        .map((s) {
-          final list = s.docs.map(_fromFirestore).toList();
-          list.sort((a, b) => b.date.compareTo(a.date)); // newest first
-          return list;
+  Stream<List<AttendanceModel>> watchUserAttendanceRange(String userId, String startDate, String endDate) {
+    return _supabase.from(_table).stream(primaryKey: ['id'])
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .map((list) {
+          final models = list.map(_fromSupabase).toList();
+          models.sort((a, b) => b.date.compareTo(a.date));
+          return models;
         })
         .handleError((e) => throw ErrorTranslator.translate(e));
   }

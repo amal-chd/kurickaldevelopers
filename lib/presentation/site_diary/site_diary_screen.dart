@@ -91,7 +91,7 @@ class _SiteDiaryScreenState extends ConsumerState<SiteDiaryScreen> {
     final today = AppDateUtils.toYMD(DateTime.now());
     final existing = await ref
         .read(siteDiaryRepositoryProvider)
-        .getEntryForDate(projectId, user.uid, today);
+        .getDiaryForDate(projectId, DateTime.now());
 
     if (!mounted) return;
     showModalBottomSheet(
@@ -478,7 +478,7 @@ class _CreateDiaryEntrySheetState
       final today = AppDateUtils.toYMD(DateTime.now());
 
       if (widget.existing != null) {
-        await repo.updateEntry(widget.existing!.id, {
+        await repo.updateDiary(widget.existing!.id, {
           'weather': _weather.value,
           'workerCount': _workerCount,
           'progressNotes': _progressCtrl.text.trim(),
@@ -501,7 +501,7 @@ class _CreateDiaryEntrySheetState
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
-        await repo.createEntry(entry);
+        await repo.createDiary(entry);
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {

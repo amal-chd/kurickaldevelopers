@@ -1,89 +1,68 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 import '../../core/utils/error_translator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+  
+  if (data['created_at'] != null && data['created_at'] is String) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
+  if (data['read_at'] != null && data['read_at'] is String) map['readAt'] = Timestamp.fromDate(DateTime.parse(data['read_at']));
+  
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
 
 class NotificationRepository {
-  final _db = FirebaseFirestore.instance;
-
-  CollectionReference get _notifs => _db.collection('notifications');
+  final _supabase = Supabase.instance.client;
+  String get _table => 'notifications';
 
   Stream<List<NotificationModel>> watchUserNotifications(String userId, [int attempt = 0]) async* {
     try {
-      final targeted = _notifs
-          .where('userId', isEqualTo: userId)
-          .limit(50)
-          .snapshots();
-
-      final broadcast = _notifs
-          .where('userId', isEqualTo: '')
-          .limit(20)
-          .snapshots();
-
-      final combinedStream = Rx.combineLatest2<QuerySnapshot, QuerySnapshot,
-          List<NotificationModel>>(
-        targeted,
-        broadcast,
-        (t, b) {
-          final list = [
-            ...t.docs.map((d) => NotificationModel.fromFirestore(d, userId)),
-            ...b.docs.map((d) => NotificationModel.fromFirestore(d, userId)),
-          ];
-          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return list.take(50).toList();
-        },
-      );
-
-      await for (final list in combinedStream) {
-        yield list;
-      }
-    } on FirebaseException catch (e) {
-      if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        yield* watchUserNotifications(userId, attempt + 1);
-      } else {
-        throw ErrorTranslator.translate(e);
-      }
-    } catch (e) {
-      if (e is FirebaseException) {
-        if ((e.code == 'permission-denied' || e.code == 'unavailable') && attempt < 5) {
-          await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-          yield* watchUserNotifications(userId, attempt + 1);
-          return;
-        }
-      }
-      throw ErrorTranslator.translate(e);
-    }
-  }
-
-  /// Fetch older notifications for infinite scroll.
-  Future<List<NotificationModel>> fetchMoreNotifications(
-    String userId, {
-    int pageSize = 30,
-    DocumentSnapshot? lastDocument,
-  }) async {
-    try {
-      Query query = _notifs
-          .where('userId', isEqualTo: userId)
-          .limit(pageSize);
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
-      }
-      final snap = await query.get();
-      final list = snap.docs
-          .map((d) => NotificationModel.fromFirestore(d, userId))
-          .toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
+      yield* _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId).order('created_at', ascending: false)
+          .map((list) => list.map((data) => NotificationModel.fromMap(_toCamelCase(data), data['id'])).toList());
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Mark a single notification read for [uid] (per-user read map).
-  Future<void> markAsRead(String notifId, String uid) async {
+  Stream<int> watchUnreadCount(String userId) {
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId).eq('is_read', false)
+        .map((list) => list.length)
+        .handleError((e) => throw ErrorTranslator.translate(e));
+  }
+
+  Future<void> markAsRead(String notificationId) async {
     try {
-      await _notifs.doc(notifId).update({'isRead.$uid': true});
+      await _supabase.from(_table).update({
+        'is_read': true,
+        'read_at': DateTime.now().toIso8601String(),
+      }).eq('id', notificationId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -91,57 +70,26 @@ class NotificationRepository {
 
   Future<void> markAllAsRead(String userId) async {
     try {
-      final batch = _db.batch();
-      // 1. Mark all targeted notifications as read
-      final targetedSnap = await _notifs
-          .where('userId', isEqualTo: userId)
-          .get();
-      for (final doc in targetedSnap.docs) {
-        batch.update(doc.reference, {'isRead.$userId': true});
-      }
-
-      // 2. Mark all broadcast notifications as read for this user
-      final broadcastSnap = await _notifs
-          .where('userId', isEqualTo: '')
-          .get();
-      for (final doc in broadcastSnap.docs) {
-        batch.update(doc.reference, {'isRead.$userId': true});
-      }
-
-      await batch.commit();
+      await _supabase.from(_table).update({
+        'is_read': true,
+        'read_at': DateTime.now().toIso8601String(),
+      }).eq('user_id', userId).eq('is_read', false);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  /// Create a targeted in-app notification. [userId] '' makes it a broadcast.
-  Future<void> createNotification({
-    required String userId,
-    required NotificationType type,
-    required String title,
-    required String body,
-    String relatedId = '',
-    String relatedType = '',
-  }) async {
+  Future<void> deleteNotification(String notificationId) async {
     try {
-      await _notifs.add({
-        'userId': userId,
-        'type': type.value,
-        'title': title,
-        'body': body,
-        'relatedId': relatedId,
-        'relatedType': relatedType,
-        'isRead': <String, bool>{},
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _supabase.from(_table).delete().eq('id', notificationId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> deleteNotification(String notifId) async {
+  Future<void> createNotification(NotificationModel notification) async {
     try {
-      await _notifs.doc(notifId).delete();
+      await _supabase.from(_table).insert(_toSnakeCase(notification.toFirestore()));
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

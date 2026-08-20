@@ -93,10 +93,10 @@ class ChatChannelModel {
     return memberIds.firstWhere((id) => id != myUid, orElse: () => '');
   }
 
-  factory ChatChannelModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ChatChannelModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return ChatChannelModel(
-      id: doc.id,
+      id: id,
       type: ChannelTypeX.fromString(data['type'] ?? 'group'),
       name: data['name'] ?? '',
       description: data['description'] ?? '',

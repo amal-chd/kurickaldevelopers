@@ -76,14 +76,14 @@ class PerformanceScoreModel {
     required this.lastRecalculatedAt,
   });
 
-  factory PerformanceScoreModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory PerformanceScoreModel.fromMap(Map<String, dynamic> data, String id) {
+    
     
     final priorityMap = Map<String, dynamic>.from(data['completedByPriority'] ?? {});
     final penaltyMap = Map<String, dynamic>.from(data['penaltyBreakdown'] ?? {});
     
     return PerformanceScoreModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       totalTasksCompleted: data['totalTasksCompleted'] ?? 0,
       totalTasksAssigned: data['totalTasksAssigned'] ?? 0,

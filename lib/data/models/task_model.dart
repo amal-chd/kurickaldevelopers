@@ -75,10 +75,10 @@ class TaskModel {
     this.delaySeconds,
   });
 
-  factory TaskModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory TaskModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return TaskModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       projectId: data['projectId'] ?? '',

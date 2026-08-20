@@ -20,10 +20,10 @@ class TimeLogModel {
     this.notes = '',
   });
 
-  factory TimeLogModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory TimeLogModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return TimeLogModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       startTime:
           AppDateUtils.fromTimestamp(data['startTime']) ?? DateTime.now(),

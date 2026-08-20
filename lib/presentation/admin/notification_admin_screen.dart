@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -344,10 +345,16 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
 
       // 2. Create an in-app notification doc (shows in users' notification screens).
       await NotificationRepository().createNotification(
-        userId: '', // empty = broadcast to all users
-        type: NotificationType.dailyDigest, // closest match for admin broadcast
-        title: title,
-        body: body,
+        NotificationModel(
+          id: const Uuid().v4(),
+          userId: '', // empty = broadcast to all users
+          type: NotificationType.dailyDigest, // closest match for admin broadcast
+          title: title,
+          body: body,
+          createdAt: DateTime.now(),
+          relatedId: '',
+          relatedType: '',
+        ),
       );
 
       // 3. Trigger OS push notification delivery via Vercel.

@@ -36,12 +36,12 @@ class UserModel {
     },
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory UserModel.fromMap(Map<String, dynamic> data, String id) {
+    
     final rawPrefs = data['preferences'] as Map<String, dynamic>? ?? {};
     
     return UserModel(
-      uid: doc.id,
+      uid: id,
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',

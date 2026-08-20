@@ -20,10 +20,10 @@ class CommentModel {
     this.editedAt,
   });
 
-  factory CommentModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory CommentModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return CommentModel(
-      id: doc.id,
+      id: id,
       authorId: data['authorId'] ?? '',
       text: data['text'] ?? '',
       mentions: List<String>.from(data['mentions'] ?? []),

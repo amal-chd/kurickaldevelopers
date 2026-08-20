@@ -12,7 +12,7 @@ final performanceScoreProvider = StreamProvider.family<PerformanceScoreModel?, S
       .collection('performance_scores')
       .doc(userId)
       .snapshots()
-      .map((doc) => doc.exists ? PerformanceScoreModel.fromFirestore(doc) : null);
+      .map((doc) => doc.exists ? PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null);
 });
 
 // Stream of current logged-in user's score (observes snapshots directly to avoid deprecated .stream)
@@ -27,7 +27,7 @@ final myPerformanceScoreProvider = StreamProvider<PerformanceScoreModel?>((ref) 
       .collection('performance_scores')
       .doc(user.uid)
       .snapshots()
-      .map((doc) => doc.exists ? PerformanceScoreModel.fromFirestore(doc) : null);
+      .map((doc) => doc.exists ? PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null);
 });
 
 // Stream of all scores (for leaderboards) sorted by OPI descending
@@ -37,8 +37,8 @@ final leaderboardProvider = StreamProvider<List<PerformanceScoreModel>>((ref) {
       .collection('performance_scores')
       .snapshots()
       .map((snap) {
-        final list = snap.docs.map((doc) => PerformanceScoreModel.fromFirestore(doc)).toList();
-        list.sort((a, b) => b.overallPerformanceIndex.compareTo(a.overallPerformanceIndex));
+        final list = snap.docs.map((doc) => PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+        list.sort((a, b) => (b.overallPerformanceIndex ?? 0.0).compareTo(a.overallPerformanceIndex ?? 0.0));
         return list;
       });
 });

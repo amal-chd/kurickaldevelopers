@@ -16,10 +16,10 @@ class SubtaskModel {
     this.doneBy,
   });
 
-  factory SubtaskModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory SubtaskModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return SubtaskModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       isDone: data['isDone'] ?? false,
       doneAt: AppDateUtils.fromTimestamp(data['doneAt']),

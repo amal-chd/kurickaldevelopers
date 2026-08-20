@@ -76,10 +76,10 @@ class ProjectModel {
     this.siteCoordinates,
   });
 
-  factory ProjectModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ProjectModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return ProjectModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
       siteAddress: data['siteAddress'] ?? '',

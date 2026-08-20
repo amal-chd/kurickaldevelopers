@@ -191,10 +191,10 @@ class RoleModel {
     this.level = 50,
   });
 
-  factory RoleModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory RoleModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return RoleModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
       color: data['color'] ?? '#1A3A5C',

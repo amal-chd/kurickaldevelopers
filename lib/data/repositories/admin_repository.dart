@@ -1,4 +1,41 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, FieldValue, QuerySnapshot;
+
+
+Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    if (key.contains('_')) {
+      final parts = key.split('_');
+      final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
+      map[camelKey] = value;
+    } else {
+      map[key] = value;
+    }
+  });
+  if (data['timestamp'] != null && data['timestamp'] is String) map['timestamp'] = Timestamp.fromDate(DateTime.parse(data['timestamp']));
+  if (data['invited_at'] != null && data['invited_at'] is String) map['invitedAt'] = Timestamp.fromDate(DateTime.parse(data['invited_at']));
+  if (data['sent_at'] != null && data['sent_at'] is String) map['sentAt'] = Timestamp.fromDate(DateTime.parse(data['sent_at']));
+  return map;
+}
+
+Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
+  final map = <String, dynamic>{};
+  data.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
+    
+    if (value is Timestamp) {
+      map[snakeKey] = value.toDate().toIso8601String();
+    } else if (value is DateTime) {
+      map[snakeKey] = value.toIso8601String();
+    } else {
+      map[snakeKey] = value;
+    }
+  });
+  return map;
+}
+
 import '../../core/utils/error_translator.dart';
 import '../services/audit_service.dart';
 import 'package:rxdart/rxdart.dart';
@@ -172,7 +209,7 @@ class AuditLogEntry {
   /// Tolerant of BOTH the modern schema and the legacy web schema
   /// (`userId` / `userName` / `details` / `createdAt`) so historical entries
   /// written by either client still render.
-  factory AuditLogEntry.fromFirestore(DocumentSnapshot doc) {
+  factory AuditLogEntry.fromMap(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
     String pick(String a, String b) =>
         (d[a] ?? d[b] ?? '').toString();
@@ -225,7 +262,7 @@ class UserInvitation {
     this.status = 'pending',
   });
 
-  factory UserInvitation.fromFirestore(DocumentSnapshot doc) {
+  factory UserInvitation.fromMap(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
     return UserInvitation(
       id: doc.id,
@@ -250,31 +287,24 @@ class UserInvitation {
   };
 }
 
+
 // ─── Admin Repository ──────────────────────────────────────────────────────────
 
 class AdminRepository {
-  final _db = FirebaseFirestore.instance;
-
-  // ── Org Settings ─────────────────────────────────────────────────────────────
+  final _supabase = Supabase.instance.client;
 
   Stream<OrgSettings> watchOrgSettings() {
-    return _db
-        .collection('settings')
-        .doc('org')
-        .snapshots()
-        .map(
-          (snap) => snap.exists
-              ? OrgSettings.fromMap(snap.data()!)
-              : const OrgSettings(),
-        )
-        .handleError((e) => throw ErrorTranslator.translate(e));
+    return _supabase.from('settings').stream(primaryKey: ['id']).eq('id', 'org').map((list) {
+      if (list.isEmpty) return const OrgSettings();
+      return OrgSettings.fromMap(_toCamelCase(list.first));
+    }).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<OrgSettings> getOrgSettings() async {
     try {
-      final doc = await _db.collection('settings').doc('org').get();
-      if (!doc.exists) return const OrgSettings();
-      return OrgSettings.fromMap(doc.data()!);
+      final data = await _supabase.from('settings').select().eq('id', 'org').maybeSingle();
+      if (data == null) return const OrgSettings();
+      return OrgSettings.fromMap(_toCamelCase(data));
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -282,57 +312,42 @@ class AdminRepository {
 
   Future<void> saveOrgSettings(OrgSettings settings) async {
     try {
-      await _db
-          .collection('settings')
-          .doc('org')
-          .set(settings.toMap(), SetOptions(merge: true));
+      var data = _toSnakeCase(settings.toMap());
+      data['id'] = 'org';
+      await _supabase.from('settings').upsert(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  // ── Task Assignment Config ────────────────────────────────────────────────────
-
   Stream<TaskAssignmentConfig> watchTaskAssignmentConfig() {
-    return _db
-        .collection('settings')
-        .doc('task_assignment')
-        .snapshots()
-        .map(
-          (snap) => snap.exists
-              ? TaskAssignmentConfig.fromMap(snap.data()!)
-              : const TaskAssignmentConfig(),
-        )
-        .handleError((e) => throw ErrorTranslator.translate(e));
+    return _supabase.from('settings').stream(primaryKey: ['id']).eq('id', 'task_assignment').map((list) {
+      if (list.isEmpty) return const TaskAssignmentConfig();
+      return TaskAssignmentConfig.fromMap(_toCamelCase(list.first));
+    }).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<TaskAssignmentConfig> getTaskAssignmentConfig() async {
     try {
-      final doc =
-          await _db.collection('settings').doc('task_assignment').get();
-      if (!doc.exists) return const TaskAssignmentConfig();
-      return TaskAssignmentConfig.fromMap(doc.data()!);
+      final data = await _supabase.from('settings').select().eq('id', 'task_assignment').maybeSingle();
+      if (data == null) return const TaskAssignmentConfig();
+      return TaskAssignmentConfig.fromMap(_toCamelCase(data));
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
-  Future<void> saveTaskAssignmentConfig(
-    TaskAssignmentConfig config,
-    String updatedBy,
-  ) async {
+  Future<void> saveTaskAssignmentConfig(TaskAssignmentConfig config, String updatedBy) async {
     try {
-      await _db.collection('settings').doc('task_assignment').set({
-        ...config.toMap(),
-        'updatedBy': updatedBy,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      var data = _toSnakeCase(config.toMap());
+      data['id'] = 'task_assignment';
+      data['updated_by'] = updatedBy;
+      data['updated_at'] = DateTime.now().toIso8601String();
+      await _supabase.from('settings').upsert(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
-
-  // ── Audit Logs ────────────────────────────────────────────────────────────────
 
   Future<void> writeAuditLog({
     required String action,
@@ -348,82 +363,59 @@ class AdminRepository {
     Map<String, dynamic> meta = const {},
     String severity = 'info',
   }) async {
-    // Best-effort: an audit failure must never break the primary operation.
     try {
-      await _db.collection('audit_logs').add(
-        buildAuditDoc(
-          action: action,
-          category: targetType,
-          actorId: actorId,
-          actorName: actorName,
-          actorRole: actorRole,
-          actorAvatar: actorAvatar,
-          targetId: targetId,
-          targetName: targetName,
-          description: description,
-          changes: changes,
-          meta: meta,
-          severity: severity,
-        ),
+      final doc = buildAuditDoc(
+        action: action,
+        category: targetType,
+        actorId: actorId,
+        actorName: actorName,
+        actorRole: actorRole,
+        actorAvatar: actorAvatar,
+        targetId: targetId,
+        targetName: targetName,
+        description: description,
+        changes: changes,
+        meta: meta,
+        severity: severity,
       );
-    } catch (_) {
-      // Swallow — logging is a side-effect, not part of the operation.
-    }
+      await _supabase.from('audit_logs').insert(_toSnakeCase(doc));
+    } catch (_) {}
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogs({int limit = 100}) {
-    return _db
-        .collection('audit_logs')
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((s) => s.docs.map(AuditLogEntry.fromFirestore).toList())
+    return _supabase.from('audit_logs').stream(primaryKey: ['id']).order('timestamp', ascending: false).limit(limit)
+        .map((list) => list.map((d) => AuditLogEntry.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogsByType(String targetType) {
-    return _db
-        .collection('audit_logs')
-        .where('targetType', isEqualTo: targetType)
-        .orderBy('timestamp', descending: true)
-        .limit(50)
-        .snapshots()
-        .map((s) => s.docs.map(AuditLogEntry.fromFirestore).toList())
+    return _supabase.from('audit_logs').stream(primaryKey: ['id']).eq('target_type', targetType).order('timestamp', ascending: false).limit(50)
+        .map((list) => list.map((d) => AuditLogEntry.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  // ── Invitations ───────────────────────────────────────────────────────────────
-
   Future<String> createInvitation(UserInvitation inv) async {
     try {
-      final doc = await _db.collection('invitations').add(inv.toMap());
-      return doc.id;
+      final data = await _supabase.from('invitations').insert(_toSnakeCase(inv.toMap())).select('id').single();
+      return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
 
   Stream<List<UserInvitation>> watchInvitations() {
-    return _db
-        .collection('invitations')
-        .where('status', isEqualTo: 'pending')
-        .orderBy('invitedAt', descending: true)
-        .snapshots()
-        .map((s) => s.docs.map(UserInvitation.fromFirestore).toList())
+    return _supabase.from('invitations').stream(primaryKey: ['id']).eq('status', 'pending').order('invited_at', ascending: false)
+        .map((list) => list.map((d) => UserInvitation.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<void> cancelInvitation(String invId) async {
     try {
-      await _db.collection('invitations').doc(invId).update({
-        'status': 'cancelled',
-      });
+      await _supabase.from('invitations').update({'status': 'cancelled'}).eq('id', invId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
   }
-
-  // ── Push Notifications (via Firestore trigger or FCM REST) ────────────────────
 
   Future<void> sendBroadcastNotification({
     required String title,
@@ -432,12 +424,12 @@ class AdminRepository {
     Map<String, dynamic> data = const {},
   }) async {
     try {
-      await _db.collection('broadcast_notifications').add({
+      await _supabase.from('broadcast_notifications').insert({
         'title': title,
         'body': body,
-        'targetRoleId': targetRoleId,
+        'target_role_id': targetRoleId,
         'data': data,
-        'sentAt': FieldValue.serverTimestamp(),
+        'sent_at': DateTime.now().toIso8601String(),
         'status': 'queued',
       });
     } catch (e) {
@@ -446,44 +438,34 @@ class AdminRepository {
   }
 
   Stream<List<Map<String, dynamic>>> watchBroadcastHistory({int limit = 30}) {
-    return _db
-        .collection('broadcast_notifications')
-        .orderBy('sentAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList())
+    return _supabase.from('broadcast_notifications').stream(primaryKey: ['id']).order('sent_at', ascending: false).limit(limit)
+        .map((list) => list.map((d) => _toCamelCase(d)).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────────
-
   Stream<Map<String, int>> watchAdminStats() {
     return Rx.combineLatest5<
-          QuerySnapshot<Map<String, dynamic>>,
-          QuerySnapshot<Map<String, dynamic>>,
-          QuerySnapshot<Map<String, dynamic>>,
-          QuerySnapshot<Map<String, dynamic>>,
-          QuerySnapshot<Map<String, dynamic>>,
-          Map<String, int>
-        >(
-          _db.collection('users').snapshots(),
-          _db
-              .collection('users')
-              .where('isActive', isEqualTo: true)
-              .snapshots(),
-          _db.collection('projects').snapshots(),
-          _db.collection('tasks').snapshots(),
-          _db.collection('roles').snapshots(),
-          (users, activeUsers, projects, tasks, roles) {
-            return {
-              'totalUsers': users.docs.length,
-              'activeUsers': activeUsers.docs.length,
-              'totalProjects': projects.docs.length,
-              'totalTasks': tasks.docs.length,
-              'totalRoles': roles.docs.length,
-            };
-          },
-        )
-        .handleError((e) => throw ErrorTranslator.translate(e));
+      List<Map<String, dynamic>>,
+      List<Map<String, dynamic>>,
+      List<Map<String, dynamic>>,
+      List<Map<String, dynamic>>,
+      List<Map<String, dynamic>>,
+      Map<String, int>
+    >(
+      _supabase.from('users').stream(primaryKey: ['id']),
+      _supabase.from('users').stream(primaryKey: ['id']).eq('is_active', true),
+      _supabase.from('projects').stream(primaryKey: ['id']),
+      _supabase.from('tasks').stream(primaryKey: ['id']),
+      _supabase.from('roles').stream(primaryKey: ['id']),
+      (users, activeUsers, projects, tasks, roles) {
+        return {
+          'totalUsers': users.length,
+          'activeUsers': activeUsers.length,
+          'totalProjects': projects.length,
+          'totalTasks': tasks.length,
+          'totalRoles': roles.length,
+        };
+      },
+    ).handleError((e) => throw ErrorTranslator.translate(e));
   }
 }

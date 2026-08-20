@@ -92,11 +92,11 @@ class ChatMessageModel {
   bool hasReacted(String emoji, String uid) =>
       reactions[emoji]?.contains(uid) ?? false;
 
-  factory ChatMessageModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ChatMessageModel.fromMap(Map<String, dynamic> data, String id) {
+    
     final rawReactions = data['reactions'] as Map<String, dynamic>? ?? {};
     return ChatMessageModel(
-      id: doc.id,
+      id: id,
       channelId: data['channelId'] ?? '',
       senderId: data['senderId'] ?? '',
       text: data['text'] ?? '',

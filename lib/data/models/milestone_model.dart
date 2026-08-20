@@ -50,10 +50,10 @@ class MilestoneModel {
     this.progressPercent = 0,
   });
 
-  factory MilestoneModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory MilestoneModel.fromMap(Map<String, dynamic> data, String id) {
+    
     return MilestoneModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       phase: MilestonePhaseX.fromString(data['phase'] ?? 'foundation'),
       dueDate: AppDateUtils.fromTimestamp(data['dueDate']) ?? DateTime.now(),
