@@ -73,18 +73,20 @@ class AttendanceRepository {
     final today = AppDateUtils.toYMD(DateTime.now());
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .eq('project_id', projectId)
-        .eq('date', today)
-        .map((list) => list.isEmpty ? null : _fromSupabase(list.first))
+        .map((list) {
+          final filtered = list.where((data) => data['project_id'] == projectId && data['date'] == today);
+          return filtered.isEmpty ? null : _fromSupabase(filtered.first);
+        })
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AttendanceModel>> watchMonthAttendance(String userId, String month) {
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .gte('date', '$month-01')
-        .lte('date', '$month-31')
-        .map((list) => list.map(_fromSupabase).toList())
+        .map((list) => list.where((data) {
+          final d = data['date'] as String;
+          return d.compareTo('$month-01') >= 0 && d.compareTo('$month-31') <= 0;
+        }).map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -145,8 +147,8 @@ class AttendanceRepository {
 
   Stream<List<AttendanceModel>> watchTodayProjectAttendance(String projectId) {
     final today = AppDateUtils.toYMD(DateTime.now());
-    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).eq('date', today)
-        .map((list) => list.map(_fromSupabase).toList())
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId)
+        .map((list) => list.where((data) => data['date'] == today).map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -175,11 +177,13 @@ class AttendanceRepository {
   Stream<List<AttendanceModel>> watchUserAttendanceRange(String userId, String startDate, String endDate) {
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .gte('date', startDate)
-        .lte('date', endDate)
         .map((list) {
-          final models = list.map(_fromSupabase).toList();
-          models.sort((a, b) => b.date.compareTo(a.date));
+          final filtered = list.where((data) {
+            final d = data['date'] as String;
+            return d.compareTo(startDate) >= 0 && d.compareTo(endDate) <= 0;
+          });
+          final models = filtered.map(_fromSupabase).toList();
+          models.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
           return models;
         })
         .handleError((e) => throw ErrorTranslator.translate(e));

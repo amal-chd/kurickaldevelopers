@@ -52,8 +52,8 @@ class NotificationRepository {
   }
 
   Stream<int> watchUnreadCount(String userId) {
-    return _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId).eq('is_read', false)
-        .map((list) => list.length)
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId)
+        .map((list) => list.where((data) => data['is_read'] == false).length)
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 

@@ -65,8 +65,7 @@ class ChatRepository {
 
   Stream<List<ChatChannelModel>> watchUserChannels(String uid, [int attempt = 0]) {
     final mine = _supabase.from('chats').stream(primaryKey: ['id'])
-        .contains('member_ids', [uid])
-        .map((list) => list.map(_fromChannel).toList());
+        .map((list) => list.where((data) => (data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false).map(_fromChannel).toList());
 
     final announcements = _supabase.from('chats').stream(primaryKey: ['id'])
         .eq('type', 'announcement')
@@ -476,9 +475,9 @@ class ChatRepository {
       case MessageType.image:
         return '📷 Photo';
       case MessageType.file:
-        return '📎 \${msg.attachmentName ?? 'File'}';
+        return '📎 ${msg.attachmentName ?? "File"}';
       case MessageType.taskRef:
-        return '📌 \${msg.taskTitle ?? 'Task'}';
+        return '📌 ${msg.taskTitle ?? "Task"}';
       case MessageType.system:
         return msg.text;
       case MessageType.text:
@@ -519,11 +518,10 @@ class ChatRepository {
 
   Stream<int> watchTotalUnread(String uid, [int attempt = 0]) {
     return _supabase.from('chats').stream(primaryKey: ['id'])
-        .contains('member_ids', [uid])
-        .eq('is_archived', false)
         .map((list) {
+          final filtered = list.where((data) => ((data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false) && data['is_archived'] == false);
           int total = 0;
-          for (final doc in list) {
+          for (final doc in filtered) {
             final channel = _fromChannel(doc);
             total += channel.unreadFor(uid);
           }

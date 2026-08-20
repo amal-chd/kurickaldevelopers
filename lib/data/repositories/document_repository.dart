@@ -93,7 +93,7 @@ class DocumentRepository {
   Future<List<DocumentModel>> getDocumentsForTask(String taskId) async {
     try {
       final data = await _supabase.from(_table).select().eq('task_id', taskId);
-      return data.map((d) => DocumentModel.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList();
+      return data.map((d) => DocumentModel.fromMap(_toCamelCase(d), d['id'])).toList();
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

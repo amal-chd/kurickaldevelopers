@@ -85,11 +85,7 @@ class NotificationModel {
     return false;
   }
 
-  factory NotificationModel.fromFirestore(
-    DocumentSnapshot doc, [
-    String currentUid = '',
-  ]) {
-    
+  factory NotificationModel.fromMap(Map<String, dynamic> data, String id, [String currentUid = '']) {
     return NotificationModel(
       id: id,
       // Prefer the unified `userId`; fall back to the legacy `recipientId`.
@@ -100,8 +96,7 @@ class NotificationModel {
       relatedId: data['relatedId'] ?? '',
       relatedType: data['relatedType'] ?? '',
       isRead: _resolveRead(data['isRead'], currentUid),
-      createdAt:
-          AppDateUtils.fromTimestamp(data['createdAt']) ?? DateTime.now(),
+      createdAt: AppDateUtils.fromTimestamp(data['createdAt']) ?? DateTime.now(),
     );
   }
 

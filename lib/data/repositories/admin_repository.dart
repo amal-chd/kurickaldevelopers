@@ -1,7 +1,10 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, FieldValue, QuerySnapshot;
-
+import '../../core/utils/error_translator.dart';
+import '../../core/utils/date_utils.dart';
+import '../services/audit_service.dart';
+import 'package:rxdart/rxdart.dart';
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
@@ -35,10 +38,6 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   });
   return map;
 }
-
-import '../../core/utils/error_translator.dart';
-import '../services/audit_service.dart';
-import 'package:rxdart/rxdart.dart';
 
 // ─── Org Settings Model ────────────────────────────────────────────────────────
 
@@ -209,14 +208,13 @@ class AuditLogEntry {
   /// Tolerant of BOTH the modern schema and the legacy web schema
   /// (`userId` / `userName` / `details` / `createdAt`) so historical entries
   /// written by either client still render.
-  factory AuditLogEntry.fromMap(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+  factory AuditLogEntry.fromMap(Map<String, dynamic> d, String docId) {
     String pick(String a, String b) =>
         (d[a] ?? d[b] ?? '').toString();
     final rawChanges = (d['changes'] as List?) ?? const [];
     return AuditLogEntry(
-      id: doc.id,
-      action: (d['action'] ?? '').toString(),
+      id: docId,
+      action: d['action'] ?? '',
       actorId: pick('actorId', 'userId'),
       actorName: pick('actorName', 'userName'),
       actorRole: (d['actorRole'] ?? '').toString(),
@@ -231,10 +229,7 @@ class AuditLogEntry {
           .toList(),
       meta: Map<String, dynamic>.from(d['meta'] ?? {}),
       severity: (d['severity'] ?? 'info').toString(),
-      timestamp:
-          (d['timestamp'] as Timestamp?)?.toDate() ??
-          (d['createdAt'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      timestamp: AppDateUtils.fromTimestamp(d['timestamp']) ?? DateTime.now(),
     );
   }
 }
@@ -262,17 +257,16 @@ class UserInvitation {
     this.status = 'pending',
   });
 
-  factory UserInvitation.fromMap(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+  factory UserInvitation.fromMap(Map<String, dynamic> d, String docId) {
     return UserInvitation(
-      id: doc.id,
+      id: docId,
       email: d['email'] ?? '',
       name: d['name'] ?? '',
       phone: d['phone'] ?? '',
       roleId: d['roleId'] ?? '',
       invitedBy: d['invitedBy'] ?? '',
-      invitedAt: (d['invitedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: d['status'] ?? 'pending',
+      invitedAt: AppDateUtils.fromTimestamp(d['invitedAt']) ?? DateTime.now(),
     );
   }
 
@@ -384,13 +378,13 @@ class AdminRepository {
 
   Stream<List<AuditLogEntry>> watchAuditLogs({int limit = 100}) {
     return _supabase.from('audit_logs').stream(primaryKey: ['id']).order('timestamp', ascending: false).limit(limit)
-        .map((list) => list.map((d) => AuditLogEntry.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
+        .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogsByType(String targetType) {
     return _supabase.from('audit_logs').stream(primaryKey: ['id']).eq('target_type', targetType).order('timestamp', ascending: false).limit(50)
-        .map((list) => list.map((d) => AuditLogEntry.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
+        .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -405,7 +399,7 @@ class AdminRepository {
 
   Stream<List<UserInvitation>> watchInvitations() {
     return _supabase.from('invitations').stream(primaryKey: ['id']).eq('status', 'pending').order('invited_at', ascending: false)
-        .map((list) => list.map((d) => UserInvitation.fromMap(_FakeDocumentSnapshot(d['id'], _toCamelCase(d)))).toList())
+        .map((list) => list.map((d) => UserInvitation.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
