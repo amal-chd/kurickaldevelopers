@@ -289,6 +289,75 @@ service cloud.firestore {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Leave Requests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /leave_requests/{leaveId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('leave_manage') ||
+        hasPermission('team_manage') ||
+        myLevel() >= 80
+      );
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('leave_manage') ||
+        hasPermission('team_manage') ||
+        myLevel() >= 80
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('leave_manage') ||
+        hasPermission('team_manage') ||
+        myLevel() >= 80
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Salary Slips
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /salary_slips/{slipId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('payroll_manage') ||
+        hasPermission('settings_manage') ||
+        hasPermission('reports_export')
+      );
+      allow create, update, delete: if isAuthenticated() && (
+        hasPermission('payroll_manage') ||
+        hasPermission('settings_manage')
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Expenses
+    // ─────────────────────────────────────────────────────────────────────────
+
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('expense_manage') ||
+        hasPermission('reports_view') ||
+        myLevel() >= 80
+      );
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('expense_manage') ||
+        hasPermission('reports_view') ||
+        myLevel() >= 80
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        hasPermission('expense_manage') ||
+        hasPermission('reports_view') ||
+        myLevel() >= 80
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Attendance
     // ─────────────────────────────────────────────────────────────────────────
 
