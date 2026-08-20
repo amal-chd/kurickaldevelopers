@@ -70,7 +70,7 @@ const ProjectsPage: React.FC = () => {
 
   const filtered = scopedProjects.filter((p) => {
     if (filter !== 'all' && p.status !== filter) return false;
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !p.name?.toLowerCase().includes(search?.toLowerCase())) return false;
     return true;
   });
 

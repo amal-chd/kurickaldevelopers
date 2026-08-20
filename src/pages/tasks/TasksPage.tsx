@@ -90,7 +90,7 @@ const TasksPage: React.FC = () => {
       t.createdBy !== appUser?.id
     ) return false;
     if (projectFilter && t.projectId !== projectFilter) return false;
-    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !t.title?.toLowerCase().includes(search?.toLowerCase())) return false;
     
     const status = getTaskStatus(t);
     if (tab === 'all') return true;

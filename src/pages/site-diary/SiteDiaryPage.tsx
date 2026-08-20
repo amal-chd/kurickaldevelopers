@@ -131,10 +131,10 @@ const SiteDiaryPage: React.FC = () => {
   const getProjectName = (pid: string) => projects.find((p) => p.id === pid)?.name ?? '—';
 
   const weatherIcon = (w: string) => {
-    if (w.toLowerCase().includes('rain') || w.toLowerCase().includes('storm')) return '🌧️';
-    if (w.toLowerCase().includes('cloud')) return '☁️';
-    if (w.toLowerCase().includes('fog')) return '🌫️';
-    if (w.toLowerCase().includes('wind')) return '💨';
+    if (w?.toLowerCase().includes('rain') || w?.toLowerCase().includes('storm')) return '🌧️';
+    if (w?.toLowerCase().includes('cloud')) return '☁️';
+    if (w?.toLowerCase().includes('fog')) return '🌫️';
+    if (w?.toLowerCase().includes('wind')) return '💨';
     return '☀️';
   };
 

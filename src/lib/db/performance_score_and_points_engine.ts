@@ -30,29 +30,21 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 };
 
 // ─── Performance Score & Points Engine ────────────────────────────────────────
+const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+const mapScore = (d: any): PerformanceScore => {
+  const result: any = {};
+  for (const key of Object.keys(d)) {
+    result[toCamelCase(key)] = d[key];
+  }
+  result.badges = typeof d.badges === 'string' ? JSON.parse(d.badges) : (d.badges || []);
+  return result as PerformanceScore;
+};
+
 export const getPerformanceScore = async (userId: string): Promise<PerformanceScore | null> => {
   try {
     const { data, error } = await supabase.from('performance_scores').select('*').eq('id', userId).single();
     if (error || !data) return null;
-    const d: any = data;
-    return {
-      id: d.id,
-      userId: d.user_id,
-      totalTasksCompleted: d.total_tasks_completed,
-      totalTasksAssigned: d.total_tasks_assigned,
-      tasksCompletedOnTime: d.tasks_completed_on_time,
-      tasksCompletedLate: d.tasks_completed_late,
-      tasksOverdue: d.tasks_overdue,
-      tasksRejected: d.tasks_rejected,
-      averageCompletionTimeHrs: d.average_completion_time_hrs,
-      qualityScore: d.quality_score,
-      communicationScore: d.communication_score,
-      reliabilityScore: d.reliability_score,
-      overallPerformanceIndex: d.overall_performance_index,
-      pointsBalance: d.points_balance,
-      pointsLifetime: d.points_lifetime,
-      badges: typeof d.badges === 'string' ? JSON.parse(d.badges) : (d.badges || []),
-    } as PerformanceScore;
+    return mapScore(data);
   } catch (err: any) {
     logPermissionError('getPerformanceScore', err, { userId });
     return null;
@@ -63,24 +55,7 @@ export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => 
   try {
     const { data, error } = await supabase.from('performance_scores').select('*');
     if (error) throw error;
-    return (data || []).map((d: any) => ({
-      id: d.id,
-      userId: d.user_id,
-      totalTasksCompleted: d.total_tasks_completed,
-      totalTasksAssigned: d.total_tasks_assigned,
-      tasksCompletedOnTime: d.tasks_completed_on_time,
-      tasksCompletedLate: d.tasks_completed_late,
-      tasksOverdue: d.tasks_overdue,
-      tasksRejected: d.tasks_rejected,
-      averageCompletionTimeHrs: d.average_completion_time_hrs,
-      qualityScore: d.quality_score,
-      communicationScore: d.communication_score,
-      reliabilityScore: d.reliability_score,
-      overallPerformanceIndex: d.overall_performance_index,
-      pointsBalance: d.points_balance,
-      pointsLifetime: d.points_lifetime,
-      badges: typeof d.badges === 'string' ? JSON.parse(d.badges) : (d.badges || []),
-    })) as unknown as PerformanceScore[];
+    return (data || []).map(mapScore);
   } catch (err: any) {
     logPermissionError('getAllPerformanceScores', err);
     return [];

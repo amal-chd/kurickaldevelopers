@@ -536,14 +536,14 @@ const ChatPage: React.FC = () => {
     // Direct message channels are always shown if started (document exists).
     .filter((ch) => {
       if (ch.type === 'direct') return true;
-      const t = (ch.lastMessageText ?? '').trim().toLowerCase();
+      const t = (ch.lastMessageText ?? '').trim()?.toLowerCase();
       return t !== '' && t !== 'message deleted' && t !== 'this message was deleted';
     })
     .filter((ch) => {
       if (!search) return true;
       const otherUser = ch.type === 'direct' ? getUserById(ch.memberIds.find((id) => id !== appUser?.id) ?? '') : null;
       const name = ch.type === 'direct' ? (otherUser?.name || otherUser?.email || '') : ch.name;
-      return name.toLowerCase().includes(search.toLowerCase());
+      return name?.toLowerCase().includes(search?.toLowerCase());
     })
     .sort((a, b) => {
       const typeOrder = channelTypeOrder(a.type) - channelTypeOrder(b.type);
@@ -801,7 +801,7 @@ const ChatPage: React.FC = () => {
   });
 
   const mentionUsers = users
-    .filter((u) => (u.name || u.email || '').toLowerCase().includes(mentionQuery.toLowerCase()))
+    .filter((u) => (u.name || u.email || '')?.toLowerCase().includes(mentionQuery?.toLowerCase()))
     .slice(0, 6);
 
   // Header info for current channel
@@ -1244,7 +1244,7 @@ const ChatPage: React.FC = () => {
             <div className="space-y-1 max-h-52 overflow-y-auto">
               {activeOtherUsers
                 .filter((u) =>
-                  (u.name || u.email || '').toLowerCase().includes(groupSearch.toLowerCase())
+                  (u.name || u.email || '')?.toLowerCase().includes(groupSearch?.toLowerCase())
                 )
                 .map((u) => (
                   <label
@@ -1291,7 +1291,7 @@ const ChatPage: React.FC = () => {
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {activeOtherUsers
               .filter((u) =>
-                (u.name || u.email || '').toLowerCase().includes(dmSearch.toLowerCase())
+                (u.name || u.email || '')?.toLowerCase().includes(dmSearch?.toLowerCase())
               )
               .map((u) => (
                 <button
@@ -1309,7 +1309,7 @@ const ChatPage: React.FC = () => {
                 </button>
               ))}
             {activeOtherUsers.filter((u) =>
-              (u.name || u.email || '').toLowerCase().includes(dmSearch.toLowerCase())
+              (u.name || u.email || '')?.toLowerCase().includes(dmSearch?.toLowerCase())
             ).length === 0 && (
               <p className="text-sm text-slate-400 text-center py-4">
                 No users found

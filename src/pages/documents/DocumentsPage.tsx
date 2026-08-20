@@ -72,7 +72,7 @@ const DocumentsPage: React.FC = () => {
 
   const filtered = documents.filter((d) => {
     if (projectFilter && d.projectId !== projectFilter) return false;
-    if (search && !d.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !d.name?.toLowerCase().includes(search?.toLowerCase())) return false;
     return true;
   });
 

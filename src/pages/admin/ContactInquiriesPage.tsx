@@ -75,11 +75,11 @@ const ContactInquiriesPage: React.FC = () => {
     if (statusFilter !== 'all' && q.status !== statusFilter) return false;
     if (sourceFilter !== 'all' && q.source !== sourceFilter) return false;
     if (search) {
-      const s = search.toLowerCase();
-      if (!q.name.toLowerCase().includes(s) &&
+      const s = search?.toLowerCase();
+      if (!q.name?.toLowerCase().includes(s) &&
           !q.phone.includes(s) &&
-          !(q.email ?? '').toLowerCase().includes(s) &&
-          !q.projectType.toLowerCase().includes(s)) return false;
+          !(q.email ?? '')?.toLowerCase().includes(s) &&
+          !q.projectType?.toLowerCase().includes(s)) return false;
     }
     return true;
   });

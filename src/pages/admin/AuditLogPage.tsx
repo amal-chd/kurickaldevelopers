@@ -231,15 +231,15 @@ const AuditLogPage: React.FC = () => {
     );
   }
 
-  const q = search.toLowerCase().trim();
+  const q = search?.toLowerCase().trim();
   const filtered = logs.filter((l) => {
     if (category && l.targetType !== category) return false;
     if (actorId && l.actorId !== actorId) return false;
     if (q &&
-      !l.action.toLowerCase().includes(q) &&
-      !(l.actorName || '').toLowerCase().includes(q) &&
-      !(l.description || '').toLowerCase().includes(q) &&
-      !(l.targetName || '').toLowerCase().includes(q)) return false;
+      !l.action?.toLowerCase().includes(q) &&
+      !(l.actorName || '')?.toLowerCase().includes(q) &&
+      !(l.description || '')?.toLowerCase().includes(q) &&
+      !(l.targetName || '')?.toLowerCase().includes(q)) return false;
     return true;
   });
 

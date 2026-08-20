@@ -100,7 +100,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
 
         // Determine how to parse based on mimetype / extension
         const extension = doc.name ? doc.name.split('.').pop()?.toLowerCase() || '' : '';
-        const mime = (doc.mimeType || '').toLowerCase();
+        const mime = (doc.mimeType || '')?.toLowerCase();
         
         if (mime === 'application/pdf' || extension === 'pdf') {
           // Initialize PDF.js
@@ -285,9 +285,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
         const page = await pdfDoc.getPage(i);
         const textContent = await page.getTextContent();
         const textStr = textContent.items.map((item: any) => item.str).join(' ');
-        if (textStr.toLowerCase().includes(pdfSearchQuery.toLowerCase())) {
+        if (textStr?.toLowerCase().includes(pdfSearchQuery?.toLowerCase())) {
           // Highlight/snippet
-          const idx = textStr.toLowerCase().indexOf(pdfSearchQuery.toLowerCase());
+          const idx = textStr?.toLowerCase().indexOf(pdfSearchQuery?.toLowerCase());
           const snippet = '...' + textStr.substring(Math.max(0, idx - 30), Math.min(textStr.length, idx + pdfSearchQuery.length + 30)) + '...';
           results.push({ page: i, text: snippet });
         }
@@ -467,7 +467,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
     const filteredRows = csvRows.filter((row, idx) => {
       if (idx === 0) return true; // header
       if (!csvSearchQuery) return true;
-      return row.some(cell => cell.toLowerCase().includes(csvSearchQuery.toLowerCase()));
+      return row.some(cell => cell?.toLowerCase().includes(csvSearchQuery?.toLowerCase()));
     });
 
     if (filteredRows.length === 0) return <div className="text-center py-8 text-slate-500">No matches found</div>;
@@ -515,7 +515,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
     const filteredJson = json.filter((row, idx) => {
       if (idx === 0) return true; // headers
       if (!xlsxSearchQuery) return true;
-      return row.some(cell => String(cell).toLowerCase().includes(xlsxSearchQuery.toLowerCase()));
+      return row.some(cell => String(cell)?.toLowerCase().includes(xlsxSearchQuery?.toLowerCase()));
     });
 
     return (
