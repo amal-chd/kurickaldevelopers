@@ -42,7 +42,7 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    if (value == null) return;
+    if (value == null) { map[key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase())] = null; return; }
     
     if (key == 'checkInLocation') {
       map['check_in_lat'] = (value as dynamic).latitude;
