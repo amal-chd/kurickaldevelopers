@@ -129,6 +129,18 @@ class AttendanceRepository {
     } catch (_) {}
   }
 
+  /// Update attendance fields directly (e.g. check-in/out times, overtime override).
+  Future<void> updateAttendance(
+    String attendanceId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _attendance.doc(attendanceId).update(data);
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
   // ─── Project "today" feed ─────────────────────────────────────────────────
 
   Stream<List<AttendanceModel>> watchTodayProjectAttendance(String projectId) {

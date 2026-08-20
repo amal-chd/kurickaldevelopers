@@ -20,6 +20,9 @@ class AttendanceModel {
   /// ISO date string: "yyyy-MM-dd" — used for range queries in Firestore.
   final String date;
 
+  /// Optional manual override for overtime minutes set by an admin.
+  final int? overtimeOverrideMinutes;
+
   const AttendanceModel({
     required this.id,
     required this.userId,
@@ -32,6 +35,7 @@ class AttendanceModel {
     this.checkOutAddress,
     required this.isWithinGeofence,
     required this.date,
+    this.overtimeOverrideMinutes,
   });
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -55,8 +59,11 @@ class AttendanceModel {
     return '${h}h ${m}m';
   }
 
-  /// Returns minutes worked beyond 8 hours (480 minutes). Returns 0 if under 8 hours.
+  /// Returns minutes worked beyond 8 hours (480 minutes), or manual override if set. Returns 0 if under 8 hours.
   int get overtimeMinutes {
+    if (overtimeOverrideMinutes != null) {
+      return overtimeOverrideMinutes!;
+    }
     final total = durationMinutes;
     const standardMinutes = 480; // 8 hours
     if (total > standardMinutes) {
@@ -93,6 +100,7 @@ class AttendanceModel {
       checkOutAddress: data['checkOutAddress'] as String?,
       isWithinGeofence: data['isWithinGeofence'] ?? true,
       date: data['date'] ?? '',
+      overtimeOverrideMinutes: data['overtimeOverrideMinutes'] as int?,
     );
   }
 
@@ -109,5 +117,7 @@ class AttendanceModel {
     'checkOutAddress': checkOutAddress,
     'isWithinGeofence': isWithinGeofence,
     'date': date,
+    if (overtimeOverrideMinutes != null)
+      'overtimeOverrideMinutes': overtimeOverrideMinutes,
   };
 }

@@ -507,6 +507,7 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen>
             ...activeUsers.map((user) => _OvertimeStaffRow(
               user: user,
               month: month,
+              onTap: () => _showHistory(context, user),
             )),
           ],
         );
@@ -1464,7 +1465,7 @@ class _UserHistorySheetState extends ConsumerState<_UserHistorySheet> {
             ),
           )
         else
-          ...records.map((r) => _AttendanceDayTile(record: r)),
+          ...records.map((r) => _AttendanceDayTile(record: r, user: widget.user)),
       ],
     );
   }
@@ -1700,12 +1701,13 @@ class _LegendDot extends StatelessWidget {
 
 // ─── Attendance Day Tile ──────────────────────────────────────────────────────
 
-class _AttendanceDayTile extends StatelessWidget {
+class _AttendanceDayTile extends ConsumerWidget {
   final AttendanceModel record;
-  const _AttendanceDayTile({required this.record});
+  final UserModel? user;
+  const _AttendanceDayTile({required this.record, this.user});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = DateFormat('EEE, d MMM').format(record.checkInTime);
     final inTime = DateFormat('h:mm a').format(record.checkInTime);
     final outTime = record.checkOutTime != null
@@ -1767,29 +1769,42 @@ class _AttendanceDayTile extends StatelessWidget {
                   ],
                 ),
               ),
-              // Duration badge
+              // Duration, OT badge, & Edit Button
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isComplete
-                          ? AppTheme.success.withValues(alpha: 0.08)
-                          : AppTheme.accent.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-                    ),
-                    child: Text(
-                      isComplete ? record.durationFormatted : 'On Site',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: isComplete ? AppTheme.success : AppTheme.accent,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isComplete
+                              ? AppTheme.success.withValues(alpha: 0.08)
+                              : AppTheme.accent.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                        ),
+                        child: Text(
+                          isComplete ? record.durationFormatted : 'On Site',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isComplete ? AppTheme.success : AppTheme.accent,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 16, color: AppTheme.primary),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Edit Record & Overtime',
+                        onPressed: () => _showEditAttendanceSheet(context, ref, record, user: user),
+                      ),
+                    ],
                   ),
                   if (record.overtimeMinutes > 0) ...[
                     const SizedBox(height: 4),
@@ -1800,7 +1815,9 @@ class _AttendanceDayTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AppTheme.radiusXs),
                       ),
                       child: Text(
-                        'OT: ${record.overtimeFormatted}',
+                        record.overtimeOverrideMinutes != null
+                            ? 'OT: ${record.overtimeFormatted} (Manual)'
+                            : 'OT: ${record.overtimeFormatted}',
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -1871,6 +1888,258 @@ class _AttendanceDayTile extends StatelessWidget {
   }
 }
 
+Future<void> _showEditAttendanceSheet(
+  BuildContext context,
+  WidgetRef ref,
+  AttendanceModel record, {
+  UserModel? user,
+}) async {
+  DateTime checkIn = record.checkInTime;
+  DateTime? checkOut = record.checkOutTime;
+  final otController = TextEditingController(
+    text: record.overtimeOverrideMinutes?.toString() ?? '',
+  );
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheetState) {
+        final dateStr = DateFormat('EEE, dd MMM yyyy').format(record.checkInTime);
+        final inTimeStr = DateFormat('hh:mm a').format(checkIn);
+        final outTimeStr = checkOut != null ? DateFormat('hh:mm a').format(checkOut!) : 'Not set';
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusMd)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.edit_calendar_rounded, color: AppTheme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Edit Attendance & Overtime',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user != null ? '${user.name} • $dateStr' : dateStr,
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                ),
+                const SizedBox(height: 20),
+                // Check-in and Check-out time pickers
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: ctx,
+                            initialTime: TimeOfDay.fromDateTime(checkIn),
+                          );
+                          if (picked != null) {
+                            setSheetState(() {
+                              checkIn = DateTime(
+                                checkIn.year,
+                                checkIn.month,
+                                checkIn.day,
+                                picked.hour,
+                                picked.minute,
+                              );
+                            });
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.divider),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Check-In Time', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                              const SizedBox(height: 4),
+                              Text(inTimeStr, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final initial = checkOut != null ? TimeOfDay.fromDateTime(checkOut!) : TimeOfDay.fromDateTime(checkIn.add(const Duration(hours: 8)));
+                          final picked = await showTimePicker(
+                            context: ctx,
+                            initialTime: initial,
+                          );
+                          if (picked != null) {
+                            setSheetState(() {
+                              checkOut = DateTime(
+                                checkIn.year,
+                                checkIn.month,
+                                checkIn.day,
+                                picked.hour,
+                                picked.minute,
+                              );
+                            });
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.divider),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Check-Out Time', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                              const SizedBox(height: 4),
+                              Text(outTimeStr, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Overtime Override
+                const Text(
+                  'Overtime Override (Minutes)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.onSurface),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: otController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. 60 (leave empty for auto 8h calculation)',
+                    hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                    filled: true,
+                    fillColor: AppTheme.surfaceAlt,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      borderSide: const BorderSide(color: AppTheme.divider),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    suffixIcon: otController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            onPressed: () {
+                              setSheetState(() {
+                                otController.clear();
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                          ),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final updates = <String, dynamic>{
+                            'checkInTime': AppDateUtils.toTimestamp(checkIn),
+                          };
+                          if (checkOut != null) {
+                            updates['checkOutTime'] = AppDateUtils.toTimestamp(checkOut!);
+                          }
+                          if (otController.text.trim().isNotEmpty) {
+                            final ot = int.tryParse(otController.text.trim());
+                            if (ot != null) {
+                              updates['overtimeOverrideMinutes'] = ot;
+                            }
+                          } else {
+                            updates['overtimeOverrideMinutes'] = FieldValue.delete();
+                          }
+
+                          try {
+                            await ref.read(attendanceRepositoryProvider).updateAttendance(record.id, updates);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Attendance and overtime updated')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to update: $e')),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                          ),
+                        ),
+                        child: const Text('Save Changes'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
 class _LocationRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1914,15 +2183,20 @@ class _LocationRow extends StatelessWidget {
 class _OvertimeStaffRow extends ConsumerWidget {
   final UserModel user;
   final String month;
-  
-  const _OvertimeStaffRow({required this.user, required this.month});
-  
+  final VoidCallback? onTap;
+
+  const _OvertimeStaffRow({
+    required this.user,
+    required this.month,
+    this.onTap,
+  });
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final attendanceAsync = ref.watch(
       userMonthAttendanceProvider((userId: user.uid, month: month)),
     );
-    
+
     return attendanceAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
@@ -1935,16 +2209,15 @@ class _OvertimeStaffRow extends ConsumerWidget {
             daysWithOt++;
           }
         }
-        
+
         // Don't show staff with zero overtime
         if (totalOvertimeMins == 0) return const SizedBox.shrink();
-        
+
         final oH = totalOvertimeMins ~/ 60;
         final oM = totalOvertimeMins % 60;
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
@@ -1957,53 +2230,70 @@ class _OvertimeStaffRow extends ConsumerWidget {
               ),
             ],
           ),
-          child: Row(
-            children: [
-              AvatarWidget(
-                name: user.name,
-                imageUrl: user.avatarUrl,
-                size: 40,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
                   children: [
-                    Text(
-                      user.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppTheme.onSurface,
+                    AvatarWidget(
+                      name: user.name,
+                      imageUrl: user.avatarUrl,
+                      size: 40,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: AppTheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$daysWithOt day${daysWithOt == 1 ? '' : 's'} with overtime',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$daysWithOt day${daysWithOt == 1 ? '' : 's'} with overtime',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textMuted,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusXs),
                       ),
+                      child: Text(
+                        '${oH}h ${oM}m',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.warning,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: AppTheme.textLight,
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-                ),
-                child: Text(
-                  '${oH}h ${oM}m',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.warning,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
