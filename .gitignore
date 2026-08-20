@@ -26,3 +26,19 @@ Thumbs.db
 *.log
 npm-debug.log*
 .vercel
+
+# keys & secrets
+*serviceAccount*
+*.json-secret
+*.key
+*.pem
+
+# scratch / temp scripts
+test_*.ts
+test_*.js
+fix_*.cjs
+fix_*.ts
+rewrite_*.cjs
+generate_*.cjs
+update_*.cjs
+check_*.ts
