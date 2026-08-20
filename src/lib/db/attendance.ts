@@ -35,12 +35,22 @@ const convertRowToAttendance = (row: any): Attendance => {
       }
     }
   }
+  
+  // Reconstruct GeoPoints
+  if (row.check_in_lat != null && row.check_in_lng != null) {
+    attendance.checkInLocation = { latitude: row.check_in_lat, longitude: row.check_in_lng };
+  }
+  if (row.check_out_lat != null && row.check_out_lng != null) {
+    attendance.checkOutLocation = { latitude: row.check_out_lat, longitude: row.check_out_lng };
+  }
+  
   return attendance as Attendance;
 };
 
 const convertAttendanceToRow = (attendance: any): any => {
   const row: any = {};
   for (const key in attendance) {
+    if (key === 'checkInLocation' || key === 'checkOutLocation') continue;
     if (Object.prototype.hasOwnProperty.call(attendance, key)) {
       const snakeKey = toSnakeCase(key);
       if (attendance[key] instanceof Timestamp || (attendance[key] && typeof attendance[key].toDate === 'function')) {
@@ -49,6 +59,14 @@ const convertAttendanceToRow = (attendance: any): any => {
         row[snakeKey] = attendance[key];
       }
     }
+  }
+  if (attendance.checkInLocation) {
+    row.check_in_lat = attendance.checkInLocation.latitude;
+    row.check_in_lng = attendance.checkInLocation.longitude;
+  }
+  if (attendance.checkOutLocation) {
+    row.check_out_lat = attendance.checkOutLocation.latitude;
+    row.check_out_lng = attendance.checkOutLocation.longitude;
   }
   return row;
 };
