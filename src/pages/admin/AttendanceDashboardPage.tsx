@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import {
   Shield, Clock, MapPin, CheckCircle,
   XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, FileSpreadsheet
@@ -186,6 +188,152 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
   );
 };
 
+const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, users }) => {
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMonthRecords = async () => {
+      setLoading(true);
+      try {
+        // Get all days in the month
+        const [year, m] = month.split('-').map(Number);
+        const daysInMonth = new Date(year, m, 0).getDate();
+        
+        const allRecords: any[] = [];
+        // Fetch attendance for each day of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${month}-${String(day).padStart(2, '0')}`;
+          const snap = await getDocs(
+            query(
+              collection(db, 'attendance'),
+              where('date', '==', dateStr)
+            )
+          );
+          snap.forEach(doc => allRecords.push({ id: doc.id, ...doc.data() }));
+        }
+        setRecords(allRecords);
+      } catch (err) {
+        console.error('Failed to fetch overtime data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMonthRecords();
+  }, [month]);
+
+  // Calculate per-user overtime
+  const userOvertimeMap = useMemo(() => {
+    const map = new Map<string, { totalOtMins: number; daysWithOt: number; totalMins: number; daysPresent: number }>();
+    
+    for (const rec of records) {
+      if (!rec.checkInTime || !rec.checkOutTime) continue;
+      const checkIn = rec.checkInTime.toDate ? rec.checkInTime.toDate() : new Date(rec.checkInTime);
+      const checkOut = rec.checkOutTime.toDate ? rec.checkOutTime.toDate() : new Date(rec.checkOutTime);
+      const totalMins = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60000);
+      const otMins = getOvertimeMinutes(checkIn, checkOut);
+      
+      const existing = map.get(rec.userId) || { totalOtMins: 0, daysWithOt: 0, totalMins: 0, daysPresent: 0 };
+      existing.totalMins += totalMins;
+      existing.daysPresent++;
+      if (otMins > 0) {
+        existing.totalOtMins += otMins;
+        existing.daysWithOt++;
+      }
+      map.set(rec.userId, existing);
+    }
+    return map;
+  }, [records]);
+
+  // Sort users by overtime descending, filter to those with OT
+  const sortedUsers = useMemo(() => {
+    return users
+      .filter(u => u.isActive !== false)
+      .map(u => ({
+        ...u,
+        overtime: userOvertimeMap.get(u.uid || u.id) || { totalOtMins: 0, daysWithOt: 0, totalMins: 0, daysPresent: 0 }
+      }))
+      .sort((a, b) => b.overtime.totalOtMins - a.overtime.totalOtMins);
+  }, [users, userOvertimeMap]);
+
+  const totalTeamOt = sortedUsers.reduce((sum, u) => sum + u.overtime.totalOtMins, 0);
+  const staffWithOt = sortedUsers.filter(u => u.overtime.totalOtMins > 0).length;
+
+  if (loading) return <div className="text-center py-12 text-gray-500">Loading overtime data...</div>;
+
+  return (
+    <div>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+          <p className="text-sm text-amber-600 font-medium">Total Team Overtime</p>
+          <p className="text-2xl font-bold text-amber-800">{formatOvertime(totalTeamOt) || '0h'}</p>
+        </div>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+          <p className="text-sm text-blue-600 font-medium">Staff with Overtime</p>
+          <p className="text-2xl font-bold text-blue-800">{staffWithOt} / {sortedUsers.length}</p>
+        </div>
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+          <p className="text-sm text-purple-600 font-medium">Avg Overtime / Person</p>
+          <p className="text-2xl font-bold text-purple-800">{staffWithOt > 0 ? formatOvertime(Math.round(totalTeamOt / staffWithOt)) : '0h'}</p>
+        </div>
+      </div>
+
+      {/* Staff overtime table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Staff Member</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Days Present</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Days with OT</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Total Hours</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Total Overtime</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {sortedUsers.map(user => {
+              const ot = user.overtime;
+              const totalH = Math.floor(ot.totalMins / 60);
+              const totalM = ot.totalMins % 60;
+              return (
+                <tr key={user.uid || user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                        {user.name?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{user.name}</p>
+                        <p className="text-xs text-gray-400">{user.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="text-center px-4 py-3 text-sm text-gray-600">{ot.daysPresent}</td>
+                  <td className="text-center px-4 py-3 text-sm text-gray-600">{ot.daysWithOt}</td>
+                  <td className="text-center px-4 py-3 text-sm text-gray-600">{totalH}h {totalM}m</td>
+                  <td className="text-right px-4 py-3">
+                    {ot.totalOtMins > 0 ? (
+                      <span className="inline-block px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 text-sm font-bold">
+                        {formatOvertime(ot.totalOtMins)}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {sortedUsers.length === 0 && (
+          <div className="text-center py-8 text-gray-400">No staff data available</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AttendanceDashboardPage: React.FC = () => {
   const { can } = usePermissions();
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -198,6 +346,12 @@ const AttendanceDashboardPage: React.FC = () => {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportStart, setExportStart] = useState(format(subDays(new Date(), 29), 'yyyy-MM-dd'));
   const [exportEnd, setExportEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  const [activeTab, setActiveTab] = useState<'daily' | 'overtime'>('daily');
+  const [overtimeMonth, setOvertimeMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   useEffect(() => {
     getAllUsers().then(setUsers);
@@ -570,6 +724,33 @@ const AttendanceDashboardPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
+        <button
+          onClick={() => setActiveTab('daily')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'daily'
+              ? 'bg-white text-blue-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Daily Attendance
+        </button>
+        <button
+          onClick={() => setActiveTab('overtime')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'overtime'
+              ? 'bg-white text-blue-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Overtime Report
+        </button>
+      </div>
+
+      {activeTab === 'daily' && (
+        <>
+
       {/* Summary Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
@@ -696,6 +877,46 @@ const AttendanceDashboardPage: React.FC = () => {
               </button>
             );
           })}
+        </div>
+      )}
+
+        </>
+      )}
+
+      {activeTab === 'overtime' && (
+        <div>
+          {/* Month selector */}
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <button
+              onClick={() => {
+                const [y, m] = overtimeMonth.split('-').map(Number);
+                const prev = new Date(y, m - 2, 1);
+                setOvertimeMonth(`${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`);
+              }}
+              className="p-2 rounded-lg hover:bg-gray-100"
+            >
+              ←
+            </button>
+            <h3 className="text-lg font-bold text-gray-800">
+              {new Date(overtimeMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h3>
+            <button
+              onClick={() => {
+                const [y, m] = overtimeMonth.split('-').map(Number);
+                const next = new Date(y, m, 1);
+                const now = new Date();
+                if (next <= new Date(now.getFullYear(), now.getMonth() + 1, 1)) {
+                  setOvertimeMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`);
+                }
+              }}
+              className="p-2 rounded-lg hover:bg-gray-100"
+            >
+              →
+            </button>
+          </div>
+          
+          {/* Overtime table */}
+          <OvertimeReport month={overtimeMonth} users={users} />
         </div>
       )}
 
