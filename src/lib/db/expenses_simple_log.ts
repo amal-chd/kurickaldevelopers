@@ -65,7 +65,8 @@ const arrayRemove = (...args: any[]) => args;
 export const createExpense = async (
   data: Omit<Expense, 'id' | 'createdAt'>,
 ): Promise<string> => {
-  const insertData = toSnakeCase({ ...data, createdAt: new Date().toISOString() });
+  const insertData = toSnakeCase({ ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
+  //({ ...data, createdAt: new Date().toISOString() });
   const { data: result, error } = await supabase
     .from('expenses')
     .insert(insertData)

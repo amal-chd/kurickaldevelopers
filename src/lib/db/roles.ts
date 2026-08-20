@@ -43,7 +43,7 @@ export const getAllRoles = async (): Promise<Role[]> => {
 };
 
 export const createRole = async (data: Omit<Role, 'id'>): Promise<string> => {
-  const { data: inserted, error } = await supabase.from('roles').insert([{ ...data, created_at: new Date().toISOString() }]).select('id').single();
+  const { data: inserted, error } = await supabase.from('roles').insert([{ ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() }]).select('id').single();
   if (error) throw error;
   return inserted.id;
 };

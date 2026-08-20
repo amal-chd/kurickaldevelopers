@@ -135,6 +135,7 @@ export const markAllNotificationsRead = async (notifIds: string[], userId: strin
 export const createNotification = async (data: Omit<AppNotification, 'id' | 'createdAt'> & { createdAt?: any }): Promise<void> => {
   const insertData = {
     ...data,
+    id: crypto.randomUUID(),
     user_id: data.userId,
     is_read: data.isRead || {},
     created_at: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString()) : new Date().toISOString(),

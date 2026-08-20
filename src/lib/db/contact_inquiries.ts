@@ -51,6 +51,7 @@ export const createContactInquiry = async (
     .from('contact_inquiries')
     .insert({
       ...insertData,
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

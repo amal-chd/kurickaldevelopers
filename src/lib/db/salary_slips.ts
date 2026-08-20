@@ -62,7 +62,8 @@ const serverTimestamp = () => new Date().toISOString();
 export const createSalarySlip = async (
   data: Omit<SalarySlip, 'id' | 'createdAt'>,
 ): Promise<string> => {
-  const insertData = toSnakeCase({ ...data, createdAt: new Date().toISOString() });
+  const insertData = toSnakeCase({ ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
+  //({ ...data, createdAt: new Date().toISOString() });
   const { data: result, error } = await supabase
     .from('salary_slips')
     .insert(insertData)

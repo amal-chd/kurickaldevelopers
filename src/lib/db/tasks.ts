@@ -223,6 +223,7 @@ export const getTask = async (id: string): Promise<Task | null> => {
 
 export const createTask = async (data: Omit<Task, 'id'>): Promise<string> => {
   const rowData = convertTaskToRow(data);
+  rowData.id = crypto.randomUUID();
   rowData.created_at = new Date().toISOString();
   rowData.updated_at = new Date().toISOString();
 
@@ -248,6 +249,7 @@ export const createTask = async (data: Omit<Task, 'id'>): Promise<string> => {
 
 export const updateTask = async (id: string, data: Partial<Task>): Promise<void> => {
   const rowData = convertTaskToRow(data);
+  rowData.id = crypto.randomUUID();
   rowData.updated_at = new Date().toISOString();
 
   const { error } = await supabase

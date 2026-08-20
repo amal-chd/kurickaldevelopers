@@ -50,6 +50,7 @@ export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 
   const payload = {
     ...data,
     task_id: taskId,
+    id: crypto.randomUUID(),
     author_id: effectiveAuthorId,
     // created_at is default in Supabase
   };

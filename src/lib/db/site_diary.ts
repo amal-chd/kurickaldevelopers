@@ -63,6 +63,7 @@ export const getSiteDiary = async (projectId?: string): Promise<SiteDiaryEntry[]
 
 export const createSiteDiary = async (data: Omit<SiteDiaryEntry, 'id'>): Promise<string> => {
   const payload = {
+    id: crypto.randomUUID(),
     project_id: data.projectId,
     date: data.date,
     weather: data.weather,

@@ -126,6 +126,7 @@ export const getDocuments = async (projectId?: string): Promise<TDocument[]> => 
 export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<string> => {
   const payload = {
     ...data,
+    id: crypto.randomUUID(),
     project_id: data.projectId,
     uploaded_by: data.uploadedBy,
     url: data.url || '',

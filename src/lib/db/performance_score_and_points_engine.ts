@@ -34,7 +34,25 @@ export const getPerformanceScore = async (userId: string): Promise<PerformanceSc
   try {
     const { data, error } = await supabase.from('performance_scores').select('*').eq('id', userId).single();
     if (error || !data) return null;
-    return data as PerformanceScore;
+    const d: any = data;
+    return {
+      id: d.id,
+      userId: d.user_id,
+      totalTasksCompleted: d.total_tasks_completed,
+      totalTasksAssigned: d.total_tasks_assigned,
+      tasksCompletedOnTime: d.tasks_completed_on_time,
+      tasksCompletedLate: d.tasks_completed_late,
+      tasksOverdue: d.tasks_overdue,
+      tasksRejected: d.tasks_rejected,
+      averageCompletionTimeHrs: d.average_completion_time_hrs,
+      qualityScore: d.quality_score,
+      communicationScore: d.communication_score,
+      reliabilityScore: d.reliability_score,
+      overallPerformanceIndex: d.overall_performance_index,
+      pointsBalance: d.points_balance,
+      pointsLifetime: d.points_lifetime,
+      badges: typeof d.badges === 'string' ? JSON.parse(d.badges) : (d.badges || []),
+    } as PerformanceScore;
   } catch (err: any) {
     logPermissionError('getPerformanceScore', err, { userId });
     return null;
@@ -61,6 +79,7 @@ export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => 
       overallPerformanceIndex: d.overall_performance_index,
       pointsBalance: d.points_balance,
       pointsLifetime: d.points_lifetime,
+      badges: typeof d.badges === 'string' ? JSON.parse(d.badges) : (d.badges || []),
     })) as unknown as PerformanceScore[];
   } catch (err: any) {
     logPermissionError('getAllPerformanceScores', err);
@@ -71,8 +90,8 @@ export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => 
 export const subscribePerformanceScores = (cb: (scores: PerformanceScore[]) => void) => {
   const channel = supabase.channel('performance_scores')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'performance_scores' }, async () => {
-      const { data } = await supabase.from('performance_scores').select('*');
-      if (data) cb(data as PerformanceScore[]);
+      const scores = await getAllPerformanceScores();
+      cb(scores);
     })
     .subscribe();
   return () => { supabase.removeChannel(channel); };
@@ -137,6 +156,8 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
   const roleId = user.roleId || '';
 
   const taskMap = new Map<string, Task>();
+  // Using getTasks from tasks.ts is better to map the fields properly
+  // Since we cannot import it easily due to circular deps, we map it directly here
   const queries = [
     supabase.from('tasks').select('*').contains('assignee_ids', [userId]),
     supabase.from('tasks').select('*').eq('created_by', userId),
@@ -147,7 +168,33 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
     try {
       const { data } = await q;
       if (data) {
-        data.forEach((d: any) => taskMap.set(d.id, d as Task));
+        data.forEach((d: any) => {
+          const mapped = {
+            ...d,
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            projectId: d.project_id,
+            milestoneId: d.milestone_id,
+            assigneeIds: d.assigned_to ? JSON.parse(d.assigned_to) : (d.assignee_ids || []),
+            assignedRoleId: d.assigned_role_id,
+            assignedRoleIds: d.assigned_role_ids || [],
+            createdBy: d.created_by,
+            status: d.status,
+            priority: d.priority,
+            tags: typeof d.tags === 'string' ? JSON.parse(d.tags) : (d.tags || []),
+            dueDate: d.due_date ? new Date(d.due_date) : null,
+            startDate: d.start_date ? new Date(d.start_date) : null,
+            completedAt: d.completed_at ? new Date(d.completed_at) : null,
+            attachmentUrls: d.attachment_urls || [],
+            followers: d.followers || [],
+            estimatedHours: d.estimated_hours,
+            actualHours: d.actual_hours,
+            costImpact: d.cost_impact,
+            qualityScore: d.quality_score,
+          } as Task;
+          taskMap.set(d.id, mapped);
+        });
       }
     } catch (e) {
       logPermissionError('recalculatePerformanceScore (task query)', e);

@@ -115,6 +115,7 @@ export const getProject = async (id: string): Promise<Project | null> => {
 
 export const createProject = async (data: Omit<Project, 'id'>): Promise<string> => {
   const rowData = convertProjectToRow(data);
+  rowData.id = crypto.randomUUID();
   rowData.created_at = new Date().toISOString();
   
   const { data: insertedData, error } = await supabase

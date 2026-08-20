@@ -48,6 +48,7 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
   const payload = {
     ...data,
     task_id: taskId,
+    id: crypto.randomUUID(),
     is_done: data.isDone || false,
     completed_by: data.completedBy || null,
   };
