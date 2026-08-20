@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
@@ -161,6 +163,7 @@ class TaskRepository {
   Future<String> createTask(TaskModel task) async {
     try {
       final data = _toSnakeCase(task.toFirestore());
+      data['id'] = const Uuid().v4();
       final result = await _supabase.from('tasks').insert(data).select().single();
       final id = result['id'] as String;
       
@@ -179,10 +182,7 @@ class TaskRepository {
       }
       if (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty) {
         try {
-          final usersData = await _supabase.from('users')
-              .select()
-              .eq('role_id', task.assignedRoleId!)
-              .eq('is_active', true);
+          final usersData = (await FirebaseFirestore.instance.collection('users').where('roleId', isEqualTo: task.assignedRoleId!).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
           for (final u in usersData) {
             final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
             if (uid.isEmpty || uid == task.createdBy) continue;
@@ -211,7 +211,8 @@ class TaskRepository {
   }) async {
     if (userId.isEmpty) return;
     try {
-      await _supabase.from('notifications').insert({
+      await _supabase.from('app_notifications').insert({
+        'id': const Uuid().v4(),
         'user_id': userId,
         'type': type,
         'title': title,
@@ -263,10 +264,7 @@ class TaskRepository {
           final taskTitle = (updates['title'] ?? doc['title'] ?? 'Task') as String;
           final createdBy = doc['created_by'] as String? ?? '';
           try {
-            final usersData = await _supabase.from('users')
-                .select()
-                .eq('role_id', newRoleId)
-                .eq('is_active', true);
+            final usersData = (await FirebaseFirestore.instance.collection('users').where('roleId', isEqualTo: newRoleId).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
             for (final u in usersData) {
               final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
               if (uid.isEmpty || uid == createdBy) continue;
@@ -307,7 +305,7 @@ class TaskRepository {
         }
       }
 
-      final userSnap = await _supabase.from('users').select().eq('id', userId).maybeSingle();
+      final userSnap = await FirebaseFirestore.instance.collection('users').doc(userId).get().then((d) => d.exists ? (d.data()!..['id'] = d.id) : null);
       String userName = 'Someone';
       bool isManager = false;
       if (userSnap != null) {
@@ -357,7 +355,7 @@ class TaskRepository {
           final assignedRoleIds = List<String>.from(data['assigned_role_ids'] ??
               (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
           if (assignedRoleIds.isNotEmpty) {
-            final usersSnap = await _supabase.from('users').select().inFilter('role_id', assignedRoleIds);
+            final usersSnap = (await FirebaseFirestore.instance.collection('users').where('roleId', whereIn: assignedRoleIds).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
             for (final uData in usersSnap) {
               if (uData['is_active'] != false) {
                 final uid = uData['id'] as String? ?? uData['uid'] as String? ?? '';
@@ -482,6 +480,7 @@ class TaskRepository {
     try {
       final data = _toSnakeCase(subtask.toFirestore());
       data['task_id'] = taskId;
+      data['id'] = const Uuid().v4();
       await _supabase.from('subtasks').insert(data);
 
       if (addedByUid != null) {
@@ -543,6 +542,7 @@ class TaskRepository {
     try {
       final data = _toSnakeCase(comment.toFirestore());
       data['task_id'] = taskId;
+      data['id'] = const Uuid().v4();
       await _supabase.from('comments').insert(data);
 
       try {
@@ -587,8 +587,8 @@ class TaskRepository {
     try {
       final data = _toSnakeCase(log.toFirestore());
       data['task_id'] = taskId;
-      final result = await _supabase.from('time_logs').insert(data).select().single();
-      return result['id'] as String;
+      final result = await FirebaseFirestore.instance.collection('tasks').doc(data['task_id']).collection('timeLogs').add(data); data['id'] = result.id;
+      return result.id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -601,10 +601,10 @@ class TaskRepository {
     int durationMinutes,
   ) async {
     try {
-      await _supabase.from('time_logs').update({
+      await FirebaseFirestore.instance.collection('tasks').doc(taskId).collection('timeLogs').doc(logId).update({
         'end_time': endTime.toIso8601String(),
         'duration_minutes': durationMinutes,
-      }).eq('id', logId);
+      });
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

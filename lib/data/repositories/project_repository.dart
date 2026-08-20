@@ -1,3 +1,6 @@
+import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/project_model.dart';
 import '../models/milestone_model.dart';
@@ -101,7 +104,7 @@ class ProjectRepository {
 
   Future<String> createProject(ProjectModel project) async {
     try {
-      final data = await _supabase.from(_projects).insert(_toSnakeCase(project.toFirestore())).select('id').single();
+      var map = _toSnakeCase(project.toFirestore()); map['id'] = const Uuid().v4(); final data = await _supabase.from(_projects).insert(map).select('id').single();
       return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -117,17 +120,14 @@ class ProjectRepository {
   }
 
   Stream<List<MilestoneModel>> watchMilestones(String projectId) {
-    return _supabase.from(_milestones).stream(primaryKey: ['id']).eq('project_id', projectId).order('due_date')
-        .map((list) => list.map((data) => MilestoneModel.fromMap(_toCamelCase(data), data['id'])).toList())
-        .handleError((e) => throw ErrorTranslator.translate(e));
+    return FirebaseFirestore.instance.collection('projects').doc(projectId).collection('milestones').orderBy('dueDate').snapshots().map((s) => s.docs.map((d) => MilestoneModel.fromMap(d.data(), d.id)).toList()).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<String> createMilestone(String projectId, MilestoneModel milestone) async {
     try {
       var map = _toSnakeCase(milestone.toFirestore());
       map['project_id'] = projectId;
-      final data = await _supabase.from(_milestones).insert(map).select('id').single();
-      return data['id'];
+      final ref = await FirebaseFirestore.instance.collection('projects').doc(projectId).collection('milestones').add(map); return ref.id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -135,7 +135,7 @@ class ProjectRepository {
 
   Future<void> updateMilestone(String projectId, String milestoneId, Map<String, dynamic> data) async {
     try {
-      await _supabase.from(_milestones).update(_toSnakeCase(data)).eq('id', milestoneId).eq('project_id', projectId);
+      await FirebaseFirestore.instance.collection('projects').doc(projectId).collection('milestones').doc(milestoneId).update(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -143,9 +143,7 @@ class ProjectRepository {
 
   Future<void> deleteProject(String projectId) async {
     try {
-      try {
-        await _supabase.from(_milestones).delete().eq('project_id', projectId);
-      } catch (_) {}
+      
       await _supabase.from(_projects).delete().eq('id', projectId);
     } catch (e) {
       throw ErrorTranslator.translate(e);

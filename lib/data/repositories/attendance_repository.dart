@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/attendance_model.dart';
 import '../../core/utils/date_utils.dart';
@@ -120,9 +121,10 @@ class AttendanceRepository {
         if (existing['check_out_time'] == null) return id;
         await _supabase.from(_table).update({
           'check_out_time': null,
-          'check_out_location': null,
+          'check_out_lat': null,
+          'check_out_lng': null,
           'check_out_address': null,
-          'auto_checkout': null,
+          
         }).eq('id', id);
         return id;
       }
@@ -140,7 +142,7 @@ class AttendanceRepository {
     try {
       await _supabase.from(_table).update({
         'check_out_time': time.toIso8601String(),
-        'check_out_location': {'lat': location.latitude, 'lng': location.longitude},
+        'check_out_lat': location.latitude, 'check_out_lng': location.longitude,
       }).eq('id', attendanceId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -183,7 +185,7 @@ class AttendanceRepository {
         final autoOut = record.checkInTime.add(const Duration(hours: 8));
         _supabase.from(_table).update({
           'check_out_time': autoOut.toIso8601String(),
-          'auto_checkout': true,
+          
         }).eq('id', data['id']).then((_) {});
       }
     }

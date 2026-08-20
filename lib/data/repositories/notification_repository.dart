@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 import '../../core/utils/error_translator.dart';
@@ -40,7 +41,7 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
 
 class NotificationRepository {
   final _supabase = Supabase.instance.client;
-  String get _table => 'notifications';
+  String get _table => 'app_notifications';
 
   Stream<List<NotificationModel>> watchUserNotifications(String userId, [int attempt = 0]) async* {
     try {

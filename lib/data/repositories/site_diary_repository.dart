@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/site_diary_model.dart';
 import '../../core/utils/error_translator.dart';
@@ -68,7 +70,7 @@ class SiteDiaryRepository {
 
   Future<String> createDiary(SiteDiaryModel diary) async {
     try {
-      final data = await _supabase.from(_table).insert(_toSnakeCase(diary.toFirestore())).select('id').single();
+      var map = _toSnakeCase(diary.toFirestore()); map['id'] = const Uuid().v4(); final data = await _supabase.from(_table).insert(map).select('id').single();
       return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);

@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/role_model.dart';
 import '../../core/utils/error_translator.dart';
@@ -77,7 +79,7 @@ class RoleRepository {
       var data = role.toFirestore();
       data = _toSnakeCase(data);
       // Supabase auto-generates uuid usually, but if we need to return it:
-      final result = await _supabase.from(_table).insert(data).select('id').single();
+      data['id'] = const Uuid().v4(); final result = await _supabase.from(_table).insert(data).select('id').single();
       return result['id'] as String;
     } catch (e) {
       throw ErrorTranslator.translate(e);

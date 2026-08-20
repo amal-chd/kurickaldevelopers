@@ -1,6 +1,7 @@
+import 'package:uuid/uuid.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, FieldValue, QuerySnapshot;
+import 'package:cloud_firestore/cloud_firestore.dart' ;
 import '../../core/utils/error_translator.dart';
 import '../../core/utils/date_utils.dart';
 import '../services/audit_service.dart';
@@ -372,7 +373,7 @@ class AdminRepository {
         meta: meta,
         severity: severity,
       );
-      await _supabase.from('audit_logs').insert(_toSnakeCase(doc));
+      await FirebaseFirestore.instance.collection('audit_logs').add(doc);
     } catch (_) {}
   }
 
@@ -405,7 +406,7 @@ class AdminRepository {
 
   Future<void> cancelInvitation(String invId) async {
     try {
-      await _supabase.from('invitations').update({'status': 'cancelled'}).eq('id', invId);
+      await FirebaseFirestore.instance.collection('invitations').doc(invId).update({'status': 'cancelled'});
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -418,7 +419,7 @@ class AdminRepository {
     Map<String, dynamic> data = const {},
   }) async {
     try {
-      await _supabase.from('broadcast_notifications').insert({
+      await FirebaseFirestore.instance.collection('broadcast_notifications').add({
         'title': title,
         'body': body,
         'target_role_id': targetRoleId,
@@ -432,9 +433,7 @@ class AdminRepository {
   }
 
   Stream<List<Map<String, dynamic>>> watchBroadcastHistory({int limit = 30}) {
-    return _supabase.from('broadcast_notifications').stream(primaryKey: ['id']).order('sent_at', ascending: false).limit(limit)
-        .map((list) => list.map((d) => _toCamelCase(d)).toList())
-        .handleError((e) => throw ErrorTranslator.translate(e));
+    return FirebaseFirestore.instance.collection('broadcast_notifications').orderBy('sentAt', descending: true).limit(limit).snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<Map<String, int>> watchAdminStats() {
@@ -446,8 +445,8 @@ class AdminRepository {
       List<Map<String, dynamic>>,
       Map<String, int>
     >(
-      _supabase.from('users').stream(primaryKey: ['id']),
-      _supabase.from('users').stream(primaryKey: ['id']).eq('is_active', true),
+      FirebaseFirestore.instance.collection('users').snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
+      FirebaseFirestore.instance.collection('users').where('isActive', isEqualTo: true).snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
       _supabase.from('projects').stream(primaryKey: ['id']),
       _supabase.from('tasks').stream(primaryKey: ['id']),
       _supabase.from('roles').stream(primaryKey: ['id']),

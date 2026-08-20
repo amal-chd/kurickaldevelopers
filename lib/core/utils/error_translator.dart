@@ -3,6 +3,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class ErrorTranslator {
   static String translate(dynamic error) {
+    print('BACKEND ERROR CAUGHT: $error');
+    if (error is Error) print(error.stackTrace);
     // ── Apple Sign-In specific errors ──────────────────────────────────
     if (error is SignInWithAppleAuthorizationException) {
       switch (error.code) {

@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/document_model.dart';
 import '../../core/utils/error_translator.dart';
@@ -67,7 +69,7 @@ class DocumentRepository {
 
   Future<String> createDocument(DocumentModel document) async {
     try {
-      final data = await _supabase.from(_table).insert(_toSnakeCase(document.toFirestore())).select('id').single();
+      var map = _toSnakeCase(document.toFirestore()); map['id'] = const Uuid().v4(); final data = await _supabase.from(_table).insert(map).select('id').single();
       return data['id'];
     } catch (e) {
       throw ErrorTranslator.translate(e);
