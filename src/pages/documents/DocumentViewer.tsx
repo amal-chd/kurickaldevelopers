@@ -99,9 +99,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
         setBlobUrl(bUrl);
 
         // Determine how to parse based on mimetype / extension
-        const extension = doc.name.split('.').pop()?.toLowerCase();
+        const extension = doc.name ? doc.name.split('.').pop()?.toLowerCase() || '' : '';
+        const mime = (doc.mimeType || '').toLowerCase();
         
-        if (doc.mimeType === 'application/pdf' || extension === 'pdf') {
+        if (mime === 'application/pdf' || extension === 'pdf') {
           // Initialize PDF.js
           const pdfjsLib = await loadPdfJS();
           const pdf = await pdfjsLib.getDocument(bUrl).promise;
@@ -109,9 +110,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           setPdfDoc(pdf);
           setNumPages(pdf.numPages);
           setPageNum(1);
-        } else if (doc.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || extension === 'docx') {
+        } else if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || extension === 'docx') {
           setOfficeType('docx');
-        } else if (doc.mimeType.includes('excel') || doc.mimeType.includes('spreadsheet') || extension === 'xlsx' || extension === 'xls') {
+        } else if (mime.includes('excel') || mime.includes('spreadsheet') || extension === 'xlsx' || extension === 'xls') {
           const XLSX = await loadSheetJS();
           const arrayBuffer = await blob.arrayBuffer();
           const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -120,7 +121,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           setXlsxSheets(workbook.SheetNames);
           setXlsxActiveSheet(workbook.SheetNames[0]);
           setOfficeContent(workbook);
-        } else if (doc.mimeType.includes('presentation') || doc.mimeType.includes('powerpoint') || extension === 'pptx' || extension === 'ppt') {
+        } else if (mime.includes('presentation') || mime.includes('powerpoint') || extension === 'pptx' || extension === 'ppt') {
           // Custom PPTX Text Viewer
           const JSZip = await loadJSZip();
           const zip = await JSZip.loadAsync(blob);
@@ -143,7 +144,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           setOfficeType('pptx');
           setPptxSlides(slidesText);
           setActiveSlide(0);
-        } else if (doc.mimeType.includes('zip') || extension === 'zip') {
+        } else if (mime.includes('zip') || extension === 'zip') {
           const JSZip = await loadJSZip();
           const zip = await JSZip.loadAsync(blob);
           if (!active) return;
@@ -158,7 +159,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           });
           setOfficeType('zip');
           setZipFiles(filesList);
-        } else if (doc.mimeType.includes('csv') || extension === 'csv') {
+        } else if (mime.includes('csv') || extension === 'csv') {
           const text = await blob.text();
           if (!active) return;
           const rows = text.split('\n').map(row => {
@@ -168,7 +169,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           setOfficeType('csv');
           setCsvRows(rows.filter(r => r.length > 0 && r.some(c => c.length > 0)));
           setTextRawContent(text);
-        } else if (doc.mimeType.includes('json') || extension === 'json') {
+        } else if (mime.includes('json') || extension === 'json') {
           const text = await blob.text();
           if (!active) return;
           try {
@@ -176,12 +177,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           } catch (_) {}
           setOfficeType('json');
           setTextRawContent(text);
-        } else if (doc.mimeType.includes('xml') || extension === 'xml') {
+        } else if (mime.includes('xml') || extension === 'xml') {
           const text = await blob.text();
           if (!active) return;
           setOfficeType('xml');
           setTextRawContent(text);
-        } else if (doc.mimeType.startsWith('text/') || ['txt', 'md', 'html', 'css', 'js', 'ts'].includes(extension || '')) {
+        } else if (mime.startsWith('text/') || ['txt', 'md', 'html', 'css', 'js', 'ts'].includes(extension || '')) {
           const text = await blob.text();
           if (!active) return;
           setOfficeType('text');
@@ -879,7 +880,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
               )}
 
               {/* Image Previewer with Pan & Zoom & Rotation */}
-              {doc.mimeType.startsWith('image/') && blobUrl && (
+              {doc.mimeType?.startsWith('image/') && blobUrl && (
                 <div 
                   className="flex-1 w-full overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
                   onMouseDown={handleMouseDown}
@@ -899,10 +900,10 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
               )}
 
               {/* Video Player */}
-              {doc.mimeType.startsWith('video/') && blobUrl && (
+              {doc.mimeType?.startsWith('video/') && blobUrl && (
                 <div className="w-full max-w-4xl aspect-video bg-black rounded-2xl shadow-xl overflow-hidden relative">
                   <video 
-                    ref={videoRef}
+                    ref={videoRef} 
                     src={blobUrl} 
                     controls 
                     className="w-full h-full"
@@ -912,7 +913,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
               )}
 
               {/* Audio Player */}
-              {doc.mimeType.startsWith('audio/') && blobUrl && (
+              {doc.mimeType?.startsWith('audio/') && blobUrl && (
                 <Card className="w-full max-w-md bg-white dark:bg-slate-900 border dark:border-slate-800 p-6 rounded-3xl shadow-xl flex flex-col items-center gap-6">
                   <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl animate-pulse">
                     📻
@@ -922,7 +923,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Audio Recording</p>
                   </div>
                   <audio 
-                    ref={audioRef}
+                    ref={audioRef} 
                     src={blobUrl} 
                     controls 
                     className="w-full"
@@ -940,7 +941,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           {/* Zoom controls */}
           <div className="flex items-center gap-1">
             {/* Show zoom controls only for zoomable formats */}
-            {(doc.mimeType.startsWith('image/') || doc.mimeType === 'application/pdf' || officeType === 'docx' || officeType === 'text') && (
+            {(doc.mimeType?.startsWith('image/') || doc.mimeType === 'application/pdf' || officeType === 'docx' || officeType === 'text') && (
               <>
                 <button 
                   className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
@@ -969,7 +970,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
             )}
 
             {/* Rotator only for image and video */}
-            {(doc.mimeType.startsWith('image/') || doc.mimeType.startsWith('video/')) && (
+            {(doc.mimeType?.startsWith('image/') || doc.mimeType?.startsWith('video/')) && (
               <button 
                 className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl ml-2"
                 onClick={() => setRotation(prev => (prev + 90) % 360)}
@@ -1043,7 +1044,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           )}
 
           {/* Media Playback speed controls (Audio/Video only) */}
-          {(doc.mimeType.startsWith('video/') || doc.mimeType.startsWith('audio/')) && (videoRef.current || audioRef.current) && (
+          {(doc.mimeType?.startsWith('video/') || doc.mimeType?.startsWith('audio/')) && (videoRef.current || audioRef.current) && (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               <span>Speed:</span>
               <select
@@ -1065,7 +1066,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose }) 
           )}
 
           {/* Bottom space filler for alignment if controls don't apply */}
-          {!(doc.mimeType === 'application/pdf' || doc.mimeType.startsWith('image/') || doc.mimeType.startsWith('video/') || doc.mimeType.startsWith('audio/') || officeType === 'docx' || officeType === 'text') && (
+          {!(doc.mimeType === 'application/pdf' || doc.mimeType?.startsWith('image/') || doc.mimeType?.startsWith('video/') || doc.mimeType?.startsWith('audio/') || officeType === 'docx' || officeType === 'text') && (
             <span className="text-xs text-slate-400">Ready to view in-app</span>
           )}
         </div>

@@ -32,7 +32,7 @@ const mapChannelFromDB = (data: any): ChatChannel => {
     lastMessageAt: data.last_message_at ? Timestamp.fromDate(new Date(data.last_message_at)) : undefined as any,
     lastMessageBy: data.last_message_by,
     unreadCounts: data.unread_counts || {},
-    lastReadAt: data.last_read_at || {},
+    lastReadAt: typeof data.last_read_at === 'string' ? JSON.parse(data.last_read_at) : (data.last_read_at || {}),
     isArchived: data.is_archived || false,
   };
 };
@@ -104,7 +104,9 @@ export const getChannel = async (channelId: string): Promise<ChatChannel | null>
 };
 
 export const createChannel = async (data: Omit<ChatChannel, 'id'>): Promise<string> => {
+  const channelId = crypto.randomUUID();
   const payload = {
+    id: channelId,
     type: data.type,
     name: data.name,
     created_by: data.createdBy,
@@ -117,9 +119,9 @@ export const createChannel = async (data: Omit<ChatChannel, 'id'>): Promise<stri
     last_read_at: data.lastReadAt || {},
     is_archived: data.isArchived || false,
   };
-  const { data: res, error } = await supabase.from('chat_channels').insert(payload).select('id').single();
+  const { error } = await supabase.from('chat_channels').insert(payload);
   if (error) throw error;
-  return res.id;
+  return channelId;
 };
 
 export const createChannelWithId = async (id: string, data: Omit<ChatChannel, 'id'>): Promise<void> => {

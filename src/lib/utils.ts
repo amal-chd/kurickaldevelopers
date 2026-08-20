@@ -137,7 +137,8 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function getMimeIcon(mimeType: string): string {
+export function getMimeIcon(mimeType?: string | null): string {
+  if (!mimeType) return '📎';
   if (mimeType.startsWith('image/')) return '🖼️';
   if (mimeType === 'application/pdf') return '📄';
   if (mimeType.includes('word') || mimeType.includes('document')) return '📝';

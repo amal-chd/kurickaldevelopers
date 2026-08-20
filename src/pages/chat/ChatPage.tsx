@@ -656,7 +656,7 @@ const ChatPage: React.FC = () => {
         STORAGE_BUCKETS.chatFiles,
         channelId,
       );
-      const isImage = file.type.startsWith('image/');
+      const isImage = (file.type || '').startsWith('image/');
       await send({
         senderId: appUser.id,
         // Used as the channel-list preview; the bubble renders the image/chip.
