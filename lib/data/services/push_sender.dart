@@ -45,6 +45,14 @@ class PushSender {
   Future<void> task({required String taskId, required String kind}) =>
       _post({'event': 'task', 'taskId': taskId, 'kind': kind});
 
+  /// New document uploaded.
+  Future<void> document({required String docId}) =>
+      _post({'event': 'document', 'docId': docId});
+
+  /// New site diary entry added.
+  Future<void> diaryEntry({required String diaryId}) =>
+      _post({'event': 'diary', 'diaryId': diaryId});
+
   /// Admin broadcast. Pass [userIds] for specific recipients, or leave null to
   /// reach everyone (optionally filtered by [targetRoleId]).
   Future<void> broadcast({

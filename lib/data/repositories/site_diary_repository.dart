@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/site_diary_model.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
+import '../services/push_sender.dart';
 
 class SiteDiaryRepository {
   final _db = FirebaseFirestore.instance;
@@ -50,6 +51,7 @@ class SiteDiaryRepository {
   Future<String> createEntry(SiteDiaryModel entry) async {
     try {
       final doc = await _diaries.add(entry.toFirestore());
+      PushSender.instance.diaryEntry(diaryId: doc.id);
       return doc.id;
     } catch (e) {
       throw ErrorTranslator.translate(e);

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/document_model.dart';
 import '../../core/utils/error_translator.dart';
+import '../services/push_sender.dart';
 
 class DocumentRepository {
   final _db = FirebaseFirestore.instance;
@@ -30,6 +31,7 @@ class DocumentRepository {
   Future<String> createDocument(DocumentModel document) async {
     try {
       final doc = await _docs.add(document.toFirestore());
+      PushSender.instance.document(docId: doc.id);
       return doc.id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
