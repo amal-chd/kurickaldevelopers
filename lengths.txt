@@ -1,0 +1,265 @@
+src/components/layout/Sidebar.tsx:102: const hasAnyPerm = item.anyPerm && item.anyPerm.length > 0 ? item.anyPerm.some((p) => can(p as any)) : false;
+src/components/layout/Sidebar.tsx:149: if (visibleItems.length === 0) return null;
+src/components/layout/TopBar.tsx:74: <span className={i === crumbs.length - 1 ? 'font-semibold text-slate-900 truncate tracking-tight' : 'text-slate-400 hidden sm:inline font-medium'}>
+src/components/ui/Avatar.tsx:28: const colorIndex = safeName.charCodeAt(0) % colors.length;
+src/firebase/config.ts:20: export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+src/hooks/useNotifications.ts:26: const unreadCount = notifications.filter((n) => !n.isRead?.[uid]).length;
+src/lib/db/chat_messages.ts:131: last_message_text: data.isDeleted ? '' : (data.text && data.text.length > 80 ? data.text.slice(0, 80) + '…' : data.text),
+src/lib/db/chat_messages.ts:150: const truncatedBody = bodyText.length > 150 ? bodyText.slice(0, 150) + '…' : bodyText;
+src/lib/db/chat_messages.ts:169: if (notifsToInsert.length > 0) {
+src/lib/db/chat_messages.ts:211: const text = lastVisible.text.length > 80
+src/lib/db/chat_messages.ts:246: if (reactions[emoji].length === 0) delete reactions[emoji];
+src/lib/db/documents.ts:106: if (myProjectIds.length > 0) {
+src/lib/db/tasks.ts:156: if (constraints.length > 0) {
+src/lib/db/tasks.ts:237: if (data.assigneeIds && data.assigneeIds.length > 0) {
+src/lib/documentCache.ts:62: if (recent.length > MAX_RECENT_DOCS) {
+src/lib/performanceEngine.ts:262: if (userTasks.length > 0) {
+src/lib/performanceEngine.ts:297: const avgCompletionHours = completedTasks.length > 0
+src/lib/performanceEngine.ts:298: ? parseFloat((totalActHours / completedTasks.length).toFixed(1))
+src/lib/performanceEngine.ts:309: const avgPeerReviewScore = peerReviews.length > 0
+src/lib/performanceEngine.ts:310: ? parseFloat((peerReviews.reduce((sum, r) => sum + r.score, 0) / peerReviews.length).toFixed(2))
+src/lib/performanceEngine.ts:313: const avgManagerReviewScore = managerReviews.length > 0
+src/lib/performanceEngine.ts:314: ? parseFloat((managerReviews.reduce((sum, r) => sum + r.score, 0) / managerReviews.length).toFixed(2))
+src/lib/performanceEngine.ts:318: const tasksHelpedOnCount = userTasks.filter(t => t.assigneeIds.length > 1 && t.createdBy !== userId).length;
+src/lib/performanceEngine.ts:321: const attendanceDays = attendanceList.length;
+src/lib/performanceEngine.ts:329: const productivityScore = Math.min(Math.round((normalizedPoints / Math.max(assignedTasks.length * 15, 50)) * 100), 100);
+src/lib/performanceEngine.ts:330: const onTimePercentage = completedTasks.length > 0 ? (tasksCompletedOnTime / completedTasks.length) * 100 : 100;
+src/lib/performanceEngine.ts:362: if (inRange.length === 0) return 100;
+src/lib/performanceEngine.ts:367: }).length;
+src/lib/performanceEngine.ts:368: return Math.round((onTime / inRange.length) * 100);
+src/lib/performanceEngine.ts:387: if (completedTasks.length >= 10) {
+src/lib/performanceEngine.ts:390: if (avgPeerReviewScore >= 4.5 && avgManagerReviewScore >= 4.5 && completedTasks.length >= 5) {
+src/lib/performanceEngine.ts:399: if (tasksCompletedLate === 0 && completedTasks.length >= 8) {
+src/lib/performanceEngine.ts:405: if (onTimePercentage === 100 && tasksRejected === 0 && completedTasks.length >= 5) {
+src/lib/performanceEngine.ts:418: totalTasksCompleted: completedTasks.length,
+src/lib/performanceEngine.ts:419: totalTasksAssigned: assignedTasks.length,
+src/pages/admin/AdminPage.tsx:32: .then((list) => setNewInquiries(list.filter((q) => q.status === 'new').length))
+src/pages/admin/AttendanceDashboardPage.tsx:162: <p className="text-xl font-bold text-slate-900">{history.filter((h) => h.checkInTime).length}</p>
+src/pages/admin/AttendanceDashboardPage.tsx:166: <p className="text-xl font-bold text-amber-600">{history.filter((h) => isOutsideGeofence(h)).length}</p>
+src/pages/admin/AttendanceDashboardPage.tsx:170: <p className="text-xl font-bold text-red-600">{history.filter((h) => h.checkInTime && !h.checkOutTime).length}</p>
+src/pages/admin/AttendanceDashboardPage.tsx:179: ) : history.length === 0 ? (
+src/pages/admin/AttendanceDashboardPage.tsx:337: const staffWithOt = sortedUsers.filter(u => u.overtime.totalOtMins > 0).length;
+src/pages/admin/AttendanceDashboardPage.tsx:351: <p className="text-2xl font-bold text-blue-800">{staffWithOt} / {sortedUsers.length}</p>
+src/pages/admin/AttendanceDashboardPage.tsx:406: {sortedUsers.length === 0 && (
+src/pages/admin/AttendanceDashboardPage.tsx:466: const presentCount = records.filter((r) => r.checkInTime).length;
+src/pages/admin/AttendanceDashboardPage.tsx:467: const checkedOutCount = records.filter((r) => r.checkOutTime).length;
+src/pages/admin/AttendanceDashboardPage.tsx:468: const outsideCount = records.filter((r) => isOutsideGeofence(r)).length;
+src/pages/admin/AttendanceDashboardPage.tsx:469: const absentCount = users.filter((u) => !getRecord(u.id)?.checkInTime).length;
+src/pages/admin/AttendanceDashboardPage.tsx:515: totalRecordsFetched += hist.length;
+src/pages/admin/AttendanceDashboardPage.tsx:526: const presentDays = hist.filter((h) => h.checkInTime).length;
+src/pages/admin/AttendanceDashboardPage.tsx:527: const noCheckoutDays = hist.filter((h) => h.checkInTime && !h.checkOutTime).length;
+src/pages/admin/AttendanceDashboardPage.tsx:528: const outsideGeofenceDays = hist.filter((h) => isOutsideGeofence(h)).length;
+src/pages/admin/AttendanceDashboardPage.tsx:677: if (flaggedIncidents.length > 0) {
+src/pages/admin/AuditLogPage.tsx:119: const hasDetails = changes.length > 0 || metaEntries.length > 0 || !!log.targetName;
+src/pages/admin/AuditLogPage.tsx:167: {changes.length > 0 && (
+src/pages/admin/AuditLogPage.tsx:175: {metaEntries.length > 0 && (
+src/pages/admin/AuditLogPage.tsx:251: const last = groups[groups.length - 1];
+src/pages/admin/AuditLogPage.tsx:257: { label: 'Total Entries', value: logs.length, color: 'text-slate-900' },
+src/pages/admin/AuditLogPage.tsx:258: { label: 'Today', value: logs.filter((l) => { const d = toDate(l.createdAt); return d && isToday(d); }).length, color: 'text-primary' },
+src/pages/admin/AuditLogPage.tsx:259: { label: 'This Week', value: logs.filter((l) => { const d = toDate(l.createdAt); return d && (Date.now() - d.getTime()) < 7 * 24 * 3600 * 1000; }).length, color: 'text-blue-600' },
+src/pages/admin/AuditLogPage.tsx:260: { label: 'Filtered', value: filtered.length, color: 'text-slate-700' },
+src/pages/admin/AuditLogPage.tsx:315: {categoriesPresent.length > 0 && (
+src/pages/admin/AuditLogPage.tsx:343: ) : filtered.length === 0 ? (
+src/pages/admin/AuditLogPage.tsx:346: icon={logs.length === 0 ? <ClipboardList className="w-8 h-8" /> : <AlertTriangle className="w-8 h-8" />}
+src/pages/admin/AuditLogPage.tsx:347: title={logs.length === 0 ? 'No activity recorded yet' : 'No entries match your filters'}
+src/pages/admin/AuditLogPage.tsx:348: description={logs.length === 0 ? 'Actions taken across the app will appear here.' : 'Try clearing the search or filters.'}
+src/pages/admin/AuditLogPage.tsx:357: <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">{g.items.length}</span>
+src/pages/admin/AuditLogPage.tsx:361: <LogRow key={l.id} log={l} isLast={i === g.items.length - 1} />
+src/pages/admin/AuditLogPage.tsx:368: {logs.length >= pageLimit && (
+src/pages/admin/AuditLogPage.tsx:377: <p className="text-xs text-slate-400">Showing {filtered.length} of {logs.length} loaded entries</p>
+src/pages/admin/ContactInquiriesPage.tsx:88: new:       inquiries.filter((q) => q.status === 'new').length,
+src/pages/admin/ContactInquiriesPage.tsx:89: contacted: inquiries.filter((q) => q.status === 'contacted').length,
+src/pages/admin/ContactInquiriesPage.tsx:90: closed:    inquiries.filter((q) => q.status === 'closed').length,
+src/pages/admin/ContactInquiriesPage.tsx:140: <p className="text-sm text-slate-500 mt-0.5">{inquiries.length} total · from website &amp; mobile app</p>
+src/pages/admin/ContactInquiriesPage.tsx:190: {filtered.length === 0 ? (
+src/pages/admin/NotificationAdminPage.tsx:79: if (targetMode === 'specific' && selectedUserIds.length === 0) {
+src/pages/admin/NotificationAdminPage.tsx:97: if (targets.length === 0) {
+src/pages/admin/NotificationAdminPage.tsx:131: audience: targetMode === 'broadcast' ? 'All users' : targetMode === 'role' ? `Role: ${targetRoleName}` : `${selectedUserIds.length} user(s)`,
+src/pages/admin/NotificationAdminPage.tsx:132: recipients: targetMode === 'broadcast' ? 'all' : targets.length,
+src/pages/admin/NotificationAdminPage.tsx:140: : `Sent to ${selectedUserIds.length} user(s)!`
+src/pages/admin/NotificationAdminPage.tsx:209: <p className="text-xs text-slate-400 mt-1 text-right">{title.length}/80</p>
+src/pages/admin/NotificationAdminPage.tsx:223: <p className="text-xs text-slate-400 mt-1 text-right">{body.length}/500</p>
+src/pages/admin/NotificationAdminPage.tsx:276: This will notify the {users.filter((u) => u.roleId === selectedRoleId && u.isActive).length} active member(s) of this role.
+src/pages/admin/NotificationAdminPage.tsx:312: {selectedUserIds.length > 0 && (
+src/pages/admin/NotificationAdminPage.tsx:314: <p className="text-xs text-primary font-medium">{selectedUserIds.length} user(s) selected</p>
+src/pages/admin/NotificationAdminPage.tsx:345: : `Send to ${selectedUserIds.length || 0} User(s)`}
+src/pages/admin/NotificationAdminPage.tsx:357: {recentNotifs.length === 0 ? (
+src/pages/admin/RoleManagementPage.tsx:175: {roles.length === 0 ? (
+src/pages/admin/RoleManagementPage.tsx:184: const permCount = Object.values(role.permissions).filter(Boolean).length;
+src/pages/admin/TaskAssignmentSettingsPage.tsx:152: {roles.length === 0 ? (
+src/pages/admin/UserManagementPage.tsx:114: if (createPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+src/pages/admin/UserManagementPage.tsx:201: if (newPassword.length < 6) {
+src/pages/admin/UserManagementPage.tsx:280: <p className="text-sm text-slate-500 mt-0.5">{users.length} total users</p>
+src/pages/admin/UserManagementPage.tsx:364: {filtered.length === 0 && (
+src/pages/auth/SetupPage.tsx:307: for (let i = 0; i < ROLES.length; i++) {
+src/pages/auth/SetupPage.tsx:325: const userOffset = 1 + ROLES.length;
+src/pages/auth/SetupPage.tsx:326: for (let i = 0; i < OTHER_USERS.length; i++) {
+src/pages/auth/SetupPage.tsx:366: const userOffset = 1 + ROLES.length;
+src/pages/auth/SetupPage.tsx:394: {steps.length > 0 && (
+src/pages/auth/SetupPage.tsx:409: {steps.slice(roleOffset, roleOffset + ROLES.length).map((step, i) => (
+src/pages/chat/ChatPage.tsx:191: (e) => reactions[e].length > 0
+src/pages/chat/ChatPage.tsx:330: .filter(([, uids]) => uids.length > 0)
+src/pages/chat/ChatPage.tsx:341: {emoji} {uids.length}
+src/pages/chat/ChatPage.tsx:496: }, [messages.length]);
+src/pages/chat/ChatPage.tsx:867: if (sectionChannels.length === 0) return null;
+src/pages/chat/ChatPage.tsx:900: {filteredChannels.length === 0 && (
+src/pages/chat/ChatPage.tsx:969: {currentChannel.memberIds.length} members
+src/pages/chat/ChatPage.tsx:1005: ) : messages.length === 0 ? (
+src/pages/chat/ChatPage.tsx:1055: {Object.keys(typing).length > 0 && (
+src/pages/chat/ChatPage.tsx:1068: {Object.keys(typing).length === 1 ? 'is' : 'are'} typing…
+src/pages/chat/ChatPage.tsx:1106: {showMention && mentionUsers.length > 0 && (
+src/pages/chat/ChatPage.tsx:1219: disabled={!groupName.trim() || groupMembers.length === 0}
+src/pages/chat/ChatPage.tsx:1313: ).length === 0 && (
+src/pages/chat/ChatPage.tsx:1333: {currentChannel.memberIds.length} members
+src/pages/chat/ChatPage.tsx:1383: {tasks.length === 0 ? (
+src/pages/dashboard/DashboardPage.tsx:111: const totalDone = doneTasks.length;
+src/pages/dashboard/DashboardPage.tsx:133: const onTimeRate = totalDone > 0 ? Math.round((onTimeTasks.length / totalDone) * 100) : 100;
+src/pages/dashboard/DashboardPage.tsx:134: const lateRate = totalDone > 0 ? Math.round((lateTasks.length / totalDone) * 100) : 0;
+src/pages/dashboard/DashboardPage.tsx:155: if (!pts.length) return 0;
+src/pages/dashboard/DashboardPage.tsx:156: return Math.round((pts.filter((t) => t.status === 'done').length / pts.length) * 100);
+src/pages/dashboard/DashboardPage.tsx:165: { label: 'Total Tasks',       value: allTasks.length,         ready: ready.tasks,    icon: CheckSquare, gradient: 'from-slate-500 to-slate-600',     path: '/app/tasks' },
+src/pages/dashboard/DashboardPage.tsx:166: { label: 'Active Tasks',      value: inProgressTasks.length,  ready: ready.tasks,    icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
+src/pages/dashboard/DashboardPage.tsx:167: { label: 'Active Projects',   value: activeProjects.length,   ready: ready.projects, icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
+src/pages/dashboard/DashboardPage.tsx:168: { label: 'Team Members',      value: users.length,            ready: ready.users,    icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
+src/pages/dashboard/DashboardPage.tsx:169: { label: 'Completed Tasks',   value: doneTasks.length,        ready: ready.tasks,    icon: Trophy,      gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
+src/pages/dashboard/DashboardPage.tsx:308: const mOnTimeRate = memberDone.length > 0 ? Math.round((memberOnTime.length / memberDone.length) * 100) : 100;
+src/pages/dashboard/DashboardPage.tsx:309: const mLateRate = memberDone.length > 0 ? Math.round((memberLate.length / memberDone.length) * 100) : 0;
+src/pages/dashboard/DashboardPage.tsx:339: <td className="py-3 px-4 text-center font-medium text-slate-700">{memberDone.length}</td>
+src/pages/dashboard/DashboardPage.tsx:378: {overdueTasks.length > 0 && (
+src/pages/dashboard/DashboardPage.tsx:380: {overdueTasks.length} overdue
+src/pages/dashboard/DashboardPage.tsx:384: {myTasks.length}
+src/pages/dashboard/DashboardPage.tsx:397: ) : myTasks.length === 0 ? (
+src/pages/dashboard/DashboardPage.tsx:445: {myTasks.length > 8 && (
+src/pages/dashboard/DashboardPage.tsx:451: + {myTasks.length - 8} more tasks — view all
+src/pages/dashboard/DashboardPage.tsx:509: {projects.length}
+src/pages/dashboard/DashboardPage.tsx:522: ) : projects.length === 0 ? (
+src/pages/dashboard/DashboardPage.tsx:570: {users.length > 0 && (
+src/pages/dashboard/DashboardPage.tsx:579: {users.length}
+src/pages/dashboard/DashboardPage.tsx:606: {users.length > 12 && (
+src/pages/dashboard/DashboardPage.tsx:608: +{users.length - 12}
+src/pages/documents/DocumentsPage.tsx:188: {filtered.length === 0 ? (
+src/pages/documents/DocumentViewer.tsx:138: const textLines = matches.map(m => m[1]).filter(t => t.trim().length > 0);
+src/pages/documents/DocumentViewer.tsx:170: setCsvRows(rows.filter(r => r.length > 0 && r.some(c => c.length > 0)));
+src/pages/documents/DocumentViewer.tsx:291: const snippet = '...' + textStr.substring(Math.max(0, idx - 30), Math.min(textStr.length, idx + pdfSearchQuery.length + 30)) + '...';
+src/pages/documents/DocumentViewer.tsx:296: if (results.length === 0) {
+src/pages/documents/DocumentViewer.tsx:299: toast.success(`Found ${results.length} matches`);
+src/pages/documents/DocumentViewer.tsx:445: <span className="text-slate-500">{bracketOpen} <span className="text-xs text-slate-400">({keys.length} items)</span></span>
+src/pages/documents/DocumentViewer.tsx:473: if (filteredRows.length === 0) return <div className="text-center py-8 text-slate-500">No matches found</div>;
+src/pages/documents/DocumentViewer.tsx:513: if (json.length === 0) return <div className="text-center py-8 text-slate-500">Empty worksheet</div>;
+src/pages/documents/DocumentViewer.tsx:618: {doc.mimeType === 'application/pdf' && pdfSearchResults.length > 0 && (
+src/pages/documents/DocumentViewer.tsx:640: {officeType === 'zip' && zipFiles.length > 0 && (
+src/pages/documents/DocumentViewer.tsx:755: {officeType === 'pptx' && pptxSlides.length > 0 && (
+src/pages/documents/DocumentViewer.tsx:759: Slide {activeSlide + 1} of {pptxSlides.length}
+src/pages/documents/DocumentViewer.tsx:777: <span className="text-xs font-semibold">Slide {activeSlide + 1} / {pptxSlides.length}</span>
+src/pages/documents/DocumentViewer.tsx:779: disabled={activeSlide === pptxSlides.length - 1}
+src/pages/expenses/ExpensePage.tsx:140: {!loading && expenses.length > 0 && (
+src/pages/expenses/ExpensePage.tsx:149: ) : expenses.length === 0 ? (
+src/pages/leave/LeavePage.tsx:157: ) : leaves.length === 0 ? (
+src/pages/leave/LeavePage.tsx:205: {canViewAll && leaves.length > 0 && (
+src/pages/leave/LeavePage.tsx:207: <Users className="w-3.5 h-3.5" /> Showing {leaves.length} application(s) across all staff.
+src/pages/notifications/NotificationsPage.tsx:51: if (!appUser || unreadList.length === 0) return;
+src/pages/notifications/NotificationsPage.tsx:88: {unreadList.length > 0 ? `${unreadList.length} unread` : 'All caught up!'}
+src/pages/notifications/NotificationsPage.tsx:91: {unreadList.length > 0 && (
+src/pages/notifications/NotificationsPage.tsx:108: {t === 'all' ? `All (${notifications.length})` : `Unread (${unreadList.length})`}
+src/pages/notifications/NotificationsPage.tsx:114: {displayed.length === 0 ? (
+src/pages/performance/PerformancePage.tsx:190: ).length;
+src/pages/performance/PerformancePage.tsx:301: <span className="block text-2xl font-bold text-slate-900 dark:text-white">{myScore.badges.length}</span>
+src/pages/performance/PerformancePage.tsx:346: <h4 className="font-bold text-sm mb-3">Earned Badges ({myScore.badges.length})</h4>
+src/pages/performance/PerformancePage.tsx:491: {score.badges.length > 3 && (
+src/pages/performance/PerformancePage.tsx:492: <span className="text-xs text-slate-400 font-bold self-center">+{score.badges.length - 3}</span>
+src/pages/performance/PerformancePage.tsx:529: <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+src/pages/performance/PerformancePage.tsx:574: name: i === arr.length - 1 ? 'This week' : `${arr.length - 1 - i}w ago`,
+src/pages/performance/PerformancePage.tsx:646: {allScores.filter(s => s.overallPerformanceIndex < 70).length === 0 ? (
+src/pages/profile/ProfilePage.tsx:46: if (newPassword.length < 6) {
+src/pages/profile/ProfilePage.tsx:258: {permissionKeys.length > 0 && (
+src/pages/profile/ProfilePage.tsx:266: <p className="text-xs text-slate-400">{permissionKeys.length} permissions granted</p>
+src/pages/projects/CreateProjectPage.tsx:121: meta: { members: data.memberIds.length },
+src/pages/projects/CreateProjectPage.tsx:134: meta: { client: data.clientName, members: data.memberIds.length },
+src/pages/projects/ProjectDetailPage.tsx:84: in_progress: tasks.filter((t) => getTaskStatus(t) === 'in_progress').length,
+src/pages/projects/ProjectDetailPage.tsx:85: under_review: tasks.filter((t) => getTaskStatus(t) === 'under_review').length,
+src/pages/projects/ProjectDetailPage.tsx:86: done: tasks.filter((t) => getTaskStatus(t) === 'done').length,
+src/pages/projects/ProjectDetailPage.tsx:89: const progress = tasks.length > 0
+src/pages/projects/ProjectDetailPage.tsx:90: ? Math.round((tasksByStatus.done / tasks.length) * 100)
+src/pages/projects/ProjectDetailPage.tsx:101: { id: 'tasks', label: `Tasks (${tasks.length})`, icon: CheckSquare },
+src/pages/projects/ProjectDetailPage.tsx:102: { id: 'documents', label: `Docs (${documents.length})`, icon: FileText },
+src/pages/projects/ProjectDetailPage.tsx:104: { id: 'team', label: `Team (${members.length})`, icon: Users },
+src/pages/projects/ProjectDetailPage.tsx:195: {chartData.length > 0 ? (
+src/pages/projects/ProjectDetailPage.tsx:208: <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+src/pages/projects/ProjectDetailPage.tsx:320: <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> {task.assigneeIds.length} assignees</span>
+src/pages/projects/ProjectDetailPage.tsx:327: {tasks.length === 0 && (
+src/pages/projects/ProjectDetailPage.tsx:361: {documents.length === 0 && (
+src/pages/projects/ProjectDetailPage.tsx:396: {diary.length === 0 && (
+src/pages/projects/ProjectDetailPage.tsx:423: {members.length === 0 && (
+src/pages/projects/ProjectsPage.tsx:62: if (!pts.length) return 0;
+src/pages/projects/ProjectsPage.tsx:63: return Math.round((pts.filter((t) => t.status === 'done').length / pts.length) * 100);
+src/pages/projects/ProjectsPage.tsx:78: acc[s] = s === 'all' ? scopedProjects.length : scopedProjects.filter((p) => p.status === s).length;
+src/pages/projects/ProjectsPage.tsx:88: <p className="text-sm text-slate-500 mt-0.5">{projects.length} total</p>
+src/pages/projects/ProjectsPage.tsx:130: {filtered.length === 0 ? (
+src/pages/projects/ProjectsPage.tsx:149: const taskCount = tasks.filter((t) => t.projectId === project.id).length;
+src/pages/reports/ReportsPage.tsx:21: if (active && payload && payload.length) {
+src/pages/reports/ReportsPage.tsx:89: { name: 'In Progress', value: filteredTasks.filter((t) => t.status === 'in_progress').length, fill: COLORS[0] },
+src/pages/reports/ReportsPage.tsx:90: { name: 'Done', value: filteredTasks.filter((t) => t.status === 'done').length, fill: COLORS[1] },
+src/pages/reports/ReportsPage.tsx:95: { name: 'Active', value: projects.filter((p) => p.status === 'active').length, fill: COLORS[0] },
+src/pages/reports/ReportsPage.tsx:96: { name: 'On Hold', value: projects.filter((p) => p.status === 'on_hold').length, fill: COLORS[2] },
+src/pages/reports/ReportsPage.tsx:97: { name: 'Completed', value: projects.filter((p) => p.status === 'completed').length, fill: COLORS[1] },
+src/pages/reports/ReportsPage.tsx:103: tasks: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id)).length,
+src/pages/reports/ReportsPage.tsx:104: done: filteredTasks.filter((t) => t.assigneeIds?.includes(u.id) && t.status === 'done').length,
+src/pages/reports/ReportsPage.tsx:119: }).length,
+src/pages/reports/ReportsPage.tsx:123: }).length,
+src/pages/reports/ReportsPage.tsx:129: { name: 'Low', value: filteredTasks.filter((t) => t.priority === 'low').length, fill: COLORS[5] },
+src/pages/reports/ReportsPage.tsx:130: { name: 'Medium', value: filteredTasks.filter((t) => t.priority === 'medium').length, fill: COLORS[0] },
+src/pages/reports/ReportsPage.tsx:131: { name: 'High', value: filteredTasks.filter((t) => t.priority === 'high').length, fill: COLORS[2] },
+src/pages/reports/ReportsPage.tsx:132: { name: 'Critical', value: filteredTasks.filter((t) => t.priority === 'critical').length, fill: COLORS[3] },
+src/pages/reports/ReportsPage.tsx:135: const totalTasks = filteredTasks.length;
+src/pages/reports/ReportsPage.tsx:136: const completedTasks = filteredTasks.filter((t) => t.status === 'done').length;
+src/pages/reports/ReportsPage.tsx:233: { label: 'Active Projects', value: projects.filter((p) => p.status === 'active').length, icon: FolderOpen, gradient: 'from-violet-500 to-purple-500' },
+src/pages/reports/ReportsPage.tsx:234: { label: 'Team Members', value: users.length, icon: Users, gradient: 'from-amber-500 to-orange-500' },
+src/pages/reports/ReportsPage.tsx:313: {memberProductivity.length > 0 ? (
+src/pages/reports/ReportsPage.tsx:337: {priorityData.length > 0 ? (
+src/pages/reports/ReportsPage.tsx:370: {projectStatusData.length > 0 ? (
+src/pages/reports/ReportsPage.tsx:406: const done = ptasks.filter((t) => t.status === 'done').length;
+src/pages/reports/ReportsPage.tsx:407: const pct = ptasks.length > 0 ? Math.round((done / ptasks.length) * 100) : 0;
+src/pages/reports/ReportsPage.tsx:412: <span className="text-xs font-bold text-slate-500 flex-shrink-0 ml-2 bg-slate-100 px-2 py-1 rounded-md">{done} / {ptasks.length}</span>
+src/pages/reports/ReportsPage.tsx:423: {projects.length === 0 && (
+src/pages/salary/SalaryPage.tsx:254: ) : slips.length === 0 ? (
+src/pages/site-diary/SiteDiaryPage.tsx:167: {filtered.length === 0 ? (
+src/pages/site-diary/SiteDiaryPage.tsx:254: <Camera className="w-3 h-3" /> Photos ({entry.photoUrls.length})
+src/pages/tasks/CreateTaskPage.tsx:149: if (newAttachments.length > 0) {
+src/pages/tasks/CreateTaskPage.tsx:186: if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId, kind: 'assigned' });
+src/pages/tasks/CreateTaskPage.tsx:194: if (newlyAddedRoles.length > 0) {
+src/pages/tasks/CreateTaskPage.tsx:216: if (form.assigneeIds.length > 0) {
+src/pages/tasks/CreateTaskPage.tsx:231: if (form.assignedRoleIds.length > 0) {
+src/pages/tasks/CreateTaskPage.tsx:354: {form.attachmentUrls.length > 0 && (
+src/pages/tasks/CreateTaskPage.tsx:374: {newAttachments.length > 0 && (
+src/pages/tasks/CreateTaskPage.tsx:443: {assignableUsers.length === 0 ? (
+src/pages/tasks/TaskDetailPage.tsx:125: const completedSubtasks = subtasks.filter((s) => s.isDone).length;
+src/pages/tasks/TaskDetailPage.tsx:126: const subtaskProgress = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
+src/pages/tasks/TaskDetailPage.tsx:168: if (assignedRolesList.length > 0) {
+src/pages/tasks/TaskDetailPage.tsx:184: nextGlobalStatus = allSubmitted && allAssigneeIds.length > 0 ? 'under_review' : 'in_progress';
+src/pages/tasks/TaskDetailPage.tsx:192: if (assignedRolesList.length > 0) {
+src/pages/tasks/TaskDetailPage.tsx:329: if (!taskId || (!newComment.trim() && commentFiles.length === 0) || !appUser) return;
+src/pages/tasks/TaskDetailPage.tsx:337: if (commentFiles.length > 0) {
+src/pages/tasks/TaskDetailPage.tsx:496: {task.attachmentUrls && task.attachmentUrls.length > 0 && (
+src/pages/tasks/TaskDetailPage.tsx:532: Subtasks ({completedSubtasks}/{subtasks.length})
+src/pages/tasks/TaskDetailPage.tsx:537: {subtasks.length > 0 && (
+src/pages/tasks/TaskDetailPage.tsx:603: Comments ({comments.length})
+src/pages/tasks/TaskDetailPage.tsx:648: {comment.attachmentUrls && comment.attachmentUrls.length > 0 && (
+src/pages/tasks/TaskDetailPage.tsx:677: {comments.length === 0 && (
+src/pages/tasks/TaskDetailPage.tsx:686: {commentFiles.length > 0 && (
+src/pages/tasks/TaskDetailPage.tsx:719: if (picked.length) setCommentFiles((prev) => [...prev, ...picked]);
+src/pages/tasks/TaskDetailPage.tsx:850: if (rolesList.length === 0) return null;
+src/pages/tasks/TaskDetailPage.tsx:881: if (assignedRolesList.length > 0) {
+src/pages/tasks/TaskDetailPage.tsx:887: if (allAssigneeIds.length === 0) {
+src/pages/tasks/TasksPage.tsx:222: const count = t === 'all' ? filteredTasks.length
+src/pages/tasks/TasksPage.tsx:223: : t === 'overdue' ? filteredTasks.filter(isOverdue).length
+src/pages/tasks/TasksPage.tsx:224: : filteredTasks.filter((x) => x.status === t).length;
+src/pages/tasks/TasksPage.tsx:255: <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-white shadow-sm ${cfg.color}`}>{colTasks.length}</span>
+src/pages/tasks/TasksPage.tsx:259: {colTasks.length === 0 && (
+src/pages/tasks/TasksPage.tsx:274: {filteredTasks.length === 0 ? (
+src/pages/team/MemberDetailPage.tsx:179: <p className="text-xl font-bold text-slate-800">{performance.badges.length}</p>
+src/pages/team/MemberDetailPage.tsx:198: { id: 'tasks', label: `Active Tasks (${tasks.length})` },
+src/pages/team/MemberDetailPage.tsx:267: {tasks.length === 0 && (
+src/pages/team/MemberDetailPage.tsx:314: {attendance.length === 0 && (
+src/pages/team/TeamPage.tsx:54: const activeCount = users.filter((u) => u.isActive).length;
+src/pages/team/TeamPage.tsx:62: <p className="text-sm text-slate-500 mt-0.5">{users.length} members · {activeCount} active</p>
+src/pages/team/TeamPage.tsx:94: {filtered.length === 0 ? (

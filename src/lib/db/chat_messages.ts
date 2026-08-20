@@ -77,18 +77,32 @@ export const subscribeMessages = (
 };
 
 export const sendMessage = async (channelId: string, data: Partial<ChatMessage> & { attachmentUrl?: string, attachmentName?: string }): Promise<string> => {
-  const msgPayload = {
+  const msgPayload: Record<string, any> = {
+    id: crypto.randomUUID(),
     channel_id: channelId,
     sender_id: data.senderId,
-    type: data.type,
-    text: data.text,
-    file_url: data.attachmentUrl || data.attachmentUrl,
-    file_name: data.attachmentName || data.attachmentName,
-    file_size: 0 || 0,
-    is_deleted: data.isDeleted || false,
+    type: data.type || 'text',
+    text: data.text || '',
+    reply_to_id: data.replyToId || null,
+    reply_to_text: data.replyToText || null,
+    reply_to_sender_name: data.replyToSenderName || null,
     reactions: data.reactions || {},
+    mentioned_user_ids: data.mentionedUserIds || [],
+    is_deleted: data.isDeleted || false,
     created_at: new Date().toISOString(),
   };
+
+  // Attachment columns (use the actual DB column names)
+  if (data.attachmentUrl) msgPayload.attachment_url = data.attachmentUrl;
+  if (data.attachmentName) msgPayload.attachment_name = data.attachmentName;
+  if (data.attachmentSize) msgPayload.attachment_size = data.attachmentSize;
+  if (data.attachmentBucket) msgPayload.attachment_bucket = data.attachmentBucket;
+  if (data.attachmentPath) msgPayload.attachment_path = data.attachmentPath;
+
+  // Task reference columns
+  if (data.taskId) msgPayload.task_id = data.taskId;
+  if (data.taskTitle) msgPayload.task_title = data.taskTitle;
+  if (data.taskStatus) msgPayload.task_status = data.taskStatus;
 
   const { data: msgRes, error: msgError } = await supabase.from('chat_messages').insert(msgPayload).select('id').single();
   if (msgError) {
@@ -142,6 +156,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
         if (userData?.preferences?.announcements === false) continue;
         
         notifsToInsert.push({
+          id: crypto.randomUUID(),
           user_id: uid,
           type: 'announcement',
           title: `Announcement in ${channelName}`,

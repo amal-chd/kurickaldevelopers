@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { Document as TDocument } from '../../types';
 import { notifyPush } from '../push';
+import { getProjects } from './projects';
 import { Timestamp } from 'firebase/firestore'; // imported just for types or Timestamp mappings if still needed elsewhere
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
