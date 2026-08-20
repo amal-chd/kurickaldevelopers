@@ -20,11 +20,18 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   if (data['check_in_time'] != null) map['checkInTime'] = Timestamp.fromDate(DateTime.parse(data['check_in_time']));
   if (data['check_out_time'] != null) map['checkOutTime'] = Timestamp.fromDate(DateTime.parse(data['check_out_time']));
   
-  // If location is returned as json, convert it to GeoPoint
-  if (data['check_in_location'] is Map) {
+  // Reconstruct GeoPoint from lat/lng columns
+  if (data['check_in_lat'] != null && data['check_in_lng'] != null) {
+    map['checkInLocation'] = GeoPoint((data['check_in_lat'] as num).toDouble(), (data['check_in_lng'] as num).toDouble());
+  } else if (data['check_in_location'] is Map) {
     map['checkInLocation'] = GeoPoint((data['check_in_location']['lat'] as num).toDouble(), (data['check_in_location']['lng'] as num).toDouble());
+  } else {
+    map['checkInLocation'] = const GeoPoint(0, 0); // Safe fallback
   }
-  if (data['check_out_location'] is Map) {
+
+  if (data['check_out_lat'] != null && data['check_out_lng'] != null) {
+    map['checkOutLocation'] = GeoPoint((data['check_out_lat'] as num).toDouble(), (data['check_out_lng'] as num).toDouble());
+  } else if (data['check_out_location'] is Map) {
     map['checkOutLocation'] = GeoPoint((data['check_out_location']['lat'] as num).toDouble(), (data['check_out_location']['lng'] as num).toDouble());
   }
 
@@ -34,6 +41,19 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
+    if (value == null) return;
+    
+    if (key == 'checkInLocation') {
+      map['check_in_lat'] = (value as dynamic).latitude;
+      map['check_in_lng'] = (value as dynamic).longitude;
+      return;
+    }
+    if (key == 'checkOutLocation') {
+      map['check_out_lat'] = (value as dynamic).latitude;
+      map['check_out_lng'] = (value as dynamic).longitude;
+      return;
+    }
+
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
@@ -41,7 +61,9 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
     } else if (value is DateTime) {
       map[snakeKey] = value.toIso8601String();
     } else if (value is GeoPoint) {
-      map[snakeKey] = {'lat': value.latitude, 'lng': value.longitude};
+      // Should not hit here if we intercepted checkInLocation above, but just in case
+      map[snakeKey + '_lat'] = value.latitude;
+      map[snakeKey + '_lng'] = value.longitude;
     } else {
       map[snakeKey] = value;
     }
