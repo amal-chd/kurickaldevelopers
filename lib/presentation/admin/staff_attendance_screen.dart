@@ -28,9 +28,25 @@ class StaffAttendanceScreen extends ConsumerStatefulWidget {
       _StaffAttendanceScreenState();
 }
 
-class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
+class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen>
+    with TickerProviderStateMixin {
   DateTime _selectedDate = DateTime.now();
   String? _selectedRoleId;
+
+  late TabController _tabController;
+  DateTime _overtimeMonth = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   String get _dateKey => AppDateUtils.toYMD(_selectedDate);
   bool get _isToday {
@@ -90,53 +106,79 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       appBar: AppBar(
         title: const Text('Staff Attendance'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download_rounded),
-            tooltip: 'Export CSV',
-            onPressed: () => _exportCsv(context, ref),
-          ),
-          // Date chip
-          GestureDetector(
-            onTap: _pickDate,
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-              ),
-              child: Row(
+          ListenableBuilder(
+            listenable: _tabController,
+            builder: (context, _) {
+              if (_tabController.index != 0) return const SizedBox.shrink();
+              return Row(
                 children: [
-                  const Icon(
-                    Icons.calendar_today_rounded,
-                    size: 14,
-                    color: AppTheme.primary,
+                  IconButton(
+                    icon: const Icon(Icons.download_rounded),
+                    tooltip: 'Export CSV',
+                    onPressed: () => _exportCsv(context, ref),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _isToday
-                        ? 'Today'
-                        : DateFormat('d MMM').format(_selectedDate),
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  // Date chip
+                  GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 14,
+                            color: AppTheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isToday
+                                ? 'Today'
+                                : DateFormat('d MMM').format(_selectedDate),
+                            style: const TextStyle(
+                              color: AppTheme.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ],
-      ),
-      body: usersAsync.when(
-        loading: () => const LoadingWidget(),
-        error: (e, _) => Center(child: Text('Failed to load staff: $e')),
-        data: (users) => attendanceAsync.when(
-          loading: () => const LoadingWidget(),
-          error: (e, _) => Center(child: Text('Failed to load attendance: $e')),
-          data: (records) => _buildBody(context, users, records),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppTheme.primary,
+          unselectedLabelColor: AppTheme.textMuted,
+          indicatorColor: AppTheme.primary,
+          tabs: const [
+            Tab(text: 'Daily'),
+            Tab(text: 'Overtime'),
+          ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          usersAsync.when(
+            loading: () => const LoadingWidget(),
+            error: (e, _) => Center(child: Text('Failed to load staff: $e')),
+            data: (users) => attendanceAsync.when(
+              loading: () => const LoadingWidget(),
+              error: (e, _) => Center(child: Text('Failed to load attendance: $e')),
+              data: (records) => _buildBody(context, users, records),
+            ),
+          ),
+          _buildOvertimeTab(),
+        ],
       ),
     );
   }
@@ -434,6 +476,80 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
         );
       }
     }
+  }
+
+  Widget _buildOvertimeTab() {
+    final usersAsync = ref.watch(allUsersProvider);
+    final month = DateFormat('yyyy-MM').format(_overtimeMonth);
+    
+    return usersAsync.when(
+      loading: () => const LoadingWidget(),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (users) {
+        var activeUsers = users.where((u) => u.isActive).toList();
+        if (_selectedRoleId != null) {
+          activeUsers = activeUsers.where((u) => u.roleId == _selectedRoleId).toList();
+        }
+        
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Month selector
+            _buildMonthSelector(),
+            const SizedBox(height: 12),
+            // Role filter
+            _RoleFilterDropdown(
+              selectedRoleId: _selectedRoleId,
+              onChanged: (val) => setState(() => _selectedRoleId = val),
+            ),
+            const SizedBox(height: 16),
+            // Staff overtime cards
+            ...activeUsers.map((user) => _OvertimeStaffRow(
+              user: user,
+              month: month,
+            )),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded),
+          onPressed: () => setState(() {
+            _overtimeMonth = DateTime(_overtimeMonth.year, _overtimeMonth.month - 1);
+          }),
+        ),
+        GestureDetector(
+          onTap: () async {
+            // Could add a month picker here
+          },
+          child: Text(
+            DateFormat('MMMM yyyy').format(_overtimeMonth),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primary,
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded),
+          onPressed: () {
+            final now = DateTime.now();
+            if (_overtimeMonth.year < now.year || (_overtimeMonth.year == now.year && _overtimeMonth.month < now.month)) {
+              setState(() {
+                _overtimeMonth = DateTime(_overtimeMonth.year, _overtimeMonth.month + 1);
+              });
+            }
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -1791,6 +1907,106 @@ class _LocationRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _OvertimeStaffRow extends ConsumerWidget {
+  final UserModel user;
+  final String month;
+  
+  const _OvertimeStaffRow({required this.user, required this.month});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attendanceAsync = ref.watch(
+      userMonthAttendanceProvider((userId: user.uid, month: month)),
+    );
+    
+    return attendanceAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (records) {
+        int totalOvertimeMins = 0;
+        int daysWithOt = 0;
+        for (final r in records) {
+          if (r.overtimeMinutes > 0) {
+            totalOvertimeMins += r.overtimeMinutes;
+            daysWithOt++;
+          }
+        }
+        
+        // Don't show staff with zero overtime
+        if (totalOvertimeMins == 0) return const SizedBox.shrink();
+        
+        final oH = totalOvertimeMins ~/ 60;
+        final oM = totalOvertimeMins % 60;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            border: Border.all(color: AppTheme.divider),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              AvatarWidget(
+                name: user.name,
+                imageUrl: user.avatarUrl,
+                size: 40,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppTheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$daysWithOt day${daysWithOt == 1 ? '' : 's'} with overtime',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                ),
+                child: Text(
+                  '${oH}h ${oM}m',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -375,6 +375,8 @@ class _AttendanceBody extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
+            const _MyOvertimeSection(),
+
             // ── Month Summary ──
             if (currentUser != null)
               _MonthSummarySection(userId: currentUser.uid),
@@ -1064,6 +1066,239 @@ class _CountBadge extends StatelessWidget {
           color: color,
         ),
       ),
+    );
+  }
+}
+
+// ── My Overtime Section ───────────────────────────────────────────────────────
+
+class _MyOvertimeSection extends ConsumerWidget {
+  const _MyOvertimeSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).value;
+    if (user == null) return const SizedBox.shrink();
+    
+    final month = DateFormat('yyyy-MM').format(DateTime.now());
+    final attendanceAsync = ref.watch(
+      userMonthAttendanceProvider((userId: user.uid, month: month)),
+    );
+    
+    return attendanceAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (records) {
+        // Filter records with overtime
+        final otRecords = records.where((r) => r.overtimeMinutes > 0).toList()
+          ..sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+        
+        int totalOtMins = 0;
+        for (final r in otRecords) {
+          totalOtMins += r.overtimeMinutes;
+        }
+        
+        if (totalOtMins == 0) return const SizedBox.shrink(); // Hide if no overtime
+        
+        final oH = totalOtMins ~/ 60;
+        final oM = totalOtMins % 60;
+        final avgOt = otRecords.isNotEmpty ? totalOtMins ~/ otRecords.length : 0;
+        final avgH = avgOt ~/ 60;
+        final avgM = avgOt % 60;
+        
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                    ),
+                    child: const Icon(Icons.more_time_rounded, size: 16, color: AppTheme.warning),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'My Overtime',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('MMMM').format(DateTime.now()),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Summary card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.warning.withValues(alpha: 0.08),
+                      AppTheme.warning.withValues(alpha: 0.03),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  border: Border.all(color: AppTheme.warning.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Text('Total OT', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${oH}h ${oM}m',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.warning),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 36, color: AppTheme.warning.withValues(alpha: 0.2)),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Text('OT Days', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${otRecords.length}',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.warning),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(width: 1, height: 36, color: AppTheme.warning.withValues(alpha: 0.2)),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Text('Avg / Day', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${avgH}h ${avgM}m',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.warning),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Recent overtime days (up to 5)
+              ...otRecords.take(5).map((r) {
+                final dayStr = DateFormat('EEE, d MMM').format(r.checkInTime);
+                final totalH = r.durationMinutes ~/ 60;
+                final totalM = r.durationMinutes % 60;
+                final otH = r.overtimeMinutes ~/ 60;
+                final otM = r.overtimeMinutes % 60;
+                // Progress: actual hours / 12 hours max for visualization
+                final progress = (r.durationMinutes / 720).clamp(0.0, 1.0);
+                final standardProgress = 480.0 / 720.0;
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            dayStr,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${totalH}h ${totalM}m total',
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warning.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                            ),
+                            child: Text(
+                              'OT: ${otH}h ${otM}m',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.warning),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Timeline bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: SizedBox(
+                          height: 6,
+                          child: Stack(
+                            children: [
+                              // Background
+                              Container(color: AppTheme.divider),
+                              // Standard 8h mark
+                              FractionallySizedBox(
+                                widthFactor: standardProgress,
+                                child: Container(color: AppTheme.success.withValues(alpha: 0.3)),
+                              ),
+                              // Actual hours
+                              FractionallySizedBox(
+                                widthFactor: progress,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppTheme.success,
+                                        progress > standardProgress ? AppTheme.warning : AppTheme.success,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Text('0h', style: TextStyle(fontSize: 9, color: AppTheme.textLight)),
+                          const Spacer(),
+                          const Text('8h standard', style: TextStyle(fontSize: 9, color: AppTheme.textLight)),
+                          const Spacer(),
+                          const Text('12h', style: TextStyle(fontSize: 9, color: AppTheme.textLight)),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 }
