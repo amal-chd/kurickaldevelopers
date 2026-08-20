@@ -196,22 +196,20 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
     const fetchMonthRecords = async () => {
       setLoading(true);
       try {
-        // Get all days in the month
         const [year, m] = month.split('-').map(Number);
         const daysInMonth = new Date(year, m, 0).getDate();
+        const startDate = `${month}-01`;
+        const endDate = `${month}-${String(daysInMonth).padStart(2, '0')}`;
         
+        const snap = await getDocs(
+          query(
+            collection(db, 'attendance'),
+            where('date', '>=', startDate),
+            where('date', '<=', endDate)
+          )
+        );
         const allRecords: any[] = [];
-        // Fetch attendance for each day of the month
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${month}-${String(day).padStart(2, '0')}`;
-          const snap = await getDocs(
-            query(
-              collection(db, 'attendance'),
-              where('date', '==', dateStr)
-            )
-          );
-          snap.forEach(doc => allRecords.push({ id: doc.id, ...doc.data() }));
-        }
+        snap.forEach(doc => allRecords.push({ id: doc.id, ...doc.data() }));
         setRecords(allRecords);
       } catch (err) {
         console.error('Failed to fetch overtime data:', err);
