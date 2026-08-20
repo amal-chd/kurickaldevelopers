@@ -127,8 +127,8 @@ export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<strin
     ...data,
     project_id: data.projectId,
     uploaded_by: data.uploadedBy,
-    file_url: data.url || '',
-    file_size: data.size || 0,
+    url: data.url || '',
+    size: data.size || 0,
     type: 'other' // default type for mobile compatibility
   };
   delete (payload as any).projectId;
@@ -148,11 +148,11 @@ export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<strin
 export const updateDocument = async (id: string, data: Partial<TDocument>): Promise<void> => {
   const updates: Record<string, any> = { ...data };
   if (data.url !== undefined) {
-    updates.file_url = data.url;
+    updates.url = data.url;
     delete updates.url;
   }
   if (data.size !== undefined) {
-    updates.file_size = data.size;
+    updates.size = data.size;
     delete updates.size;
   }
   if (data.projectId !== undefined) {

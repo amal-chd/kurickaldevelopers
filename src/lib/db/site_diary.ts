@@ -66,7 +66,7 @@ export const createSiteDiary = async (data: Omit<SiteDiaryEntry, 'id'>): Promise
     project_id: data.projectId,
     date: data.date,
     weather: data.weather,
-    created_by: (data as any).createdBy,
+    author_id: data.authorId || (data as any).createdBy || '',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     progress_notes: data.progressNotes || '',
