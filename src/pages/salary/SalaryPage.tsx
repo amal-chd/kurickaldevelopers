@@ -221,13 +221,13 @@ const SalaryPage: React.FC = () => {
       {list.map((row, i) => (
         <div key={i} className="flex gap-2 items-center">
           <input
-            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             placeholder="Label"
             value={row.label}
             onChange={(e) => updateRow(list, setList, i, 'label', e.target.value)}
           />
           <input
-            className="w-28 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-24 shrink-0 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             type="number" placeholder="0" value={row.amount || ''}
             onChange={(e) => updateRow(list, setList, i, 'amount', e.target.value)}
           />
