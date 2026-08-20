@@ -373,7 +373,10 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.memberIds)
       );
       allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-      allow update: if isAuthenticated() && isOwner(resource.data.userId);
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.userId) ||
+        hasPermission('team_manage')
+      );
       allow delete: if false;
     }
 

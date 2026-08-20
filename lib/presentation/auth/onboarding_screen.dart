@@ -5,8 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-
+import '../../data/services/fcm_service.dart';
 import '../../app/theme.dart';
 import '../../core/constants/app_strings.dart';
 import '../../data/models/user_model.dart';
@@ -75,7 +74,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final fbUser = ref.read(authRepositoryProvider).currentUser!;
       String? fcmToken;
       if (_notificationsEnabled) {
-        fcmToken = await FirebaseMessaging.instance.getToken();
+        fcmToken = await FcmService().getToken();
       }
 
       final user = UserModel(

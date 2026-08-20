@@ -50,7 +50,20 @@ class FcmService {
     await _messaging.requestPermission(alert: true, badge: true, sound: true);
   }
 
-  Future<String?> getToken() => _messaging.getToken();
+  Future<String?> getToken() async {
+    if (Platform.isIOS) {
+      String? apnsToken;
+      int attempts = 0;
+      while (apnsToken == null && attempts < 10) {
+        apnsToken = await _messaging.getAPNSToken();
+        if (apnsToken == null) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          attempts++;
+        }
+      }
+    }
+    return _messaging.getToken();
+  }
 
   /// Fetch the current FCM token and store it on the signed-in user's doc.
   /// On iOS the APNs token must be available before getToken() returns, so we
@@ -59,10 +72,7 @@ class FcmService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      if (Platform.isIOS) {
-        await _messaging.getAPNSToken();
-      }
-      final token = await _messaging.getToken();
+      final token = await getToken();
       if (token == null) return;
       await FirebaseFirestore.instance
           .collection('users')
