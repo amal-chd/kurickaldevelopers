@@ -45,7 +45,23 @@ export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => 
   try {
     const { data, error } = await supabase.from('performance_scores').select('*');
     if (error) throw error;
-    return data as PerformanceScore[];
+    return (data || []).map((d: any) => ({
+      id: d.id,
+      userId: d.user_id,
+      totalTasksCompleted: d.total_tasks_completed,
+      totalTasksAssigned: d.total_tasks_assigned,
+      tasksCompletedOnTime: d.tasks_completed_on_time,
+      tasksCompletedLate: d.tasks_completed_late,
+      tasksOverdue: d.tasks_overdue,
+      tasksRejected: d.tasks_rejected,
+      averageCompletionTimeHrs: d.average_completion_time_hrs,
+      qualityScore: d.quality_score,
+      communicationScore: d.communication_score,
+      reliabilityScore: d.reliability_score,
+      overallPerformanceIndex: d.overall_performance_index,
+      pointsBalance: d.points_balance,
+      pointsLifetime: d.points_lifetime,
+    })) as unknown as PerformanceScore[];
   } catch (err: any) {
     logPermissionError('getAllPerformanceScores', err);
     return [];
@@ -66,7 +82,16 @@ export const getPerformanceReviews = async (taskId: string): Promise<Performance
   try {
     const { data, error } = await supabase.from('performance_reviews').select('*').eq('task_id', taskId);
     if (error) throw error;
-    return data as PerformanceReview[];
+    return (data || []).map((d: any) => ({
+      id: d.id,
+      taskId: d.task_id,
+      reviewerId: d.reviewer_id,
+      revieweeId: d.reviewee_id,
+      type: d.type,
+      score: d.score,
+      comment: d.comment,
+      createdAt: d.created_at,
+    })) as unknown as PerformanceReview[];
   } catch (err: any) {
     console.warn('Gracefully handled getPerformanceReviews error:', err);
     return [];

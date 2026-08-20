@@ -24,7 +24,16 @@ export const getOrgSettings = async (): Promise<OrgSettings | null> => {
   try {
     const { data, error } = await supabase.from('settings').select('*').eq('id', 'org').single();
     if (error || !data) return null;
-    return data as OrgSettings;
+    return {
+      companyName: data.company_name,
+      companyLogo: data.company_logo,
+      timezone: data.timezone,
+      workStartTime: data.work_start_time,
+      workEndTime: data.work_end_time,
+      geofenceRadius: data.geofence_radius,
+      geofenceLat: data.geofence_lat,
+      geofenceLng: data.geofence_lng,
+                                        } as OrgSettings;
   } catch (err: any) {
     console.warn('Gracefully handled getOrgSettings error:', err);
     return null;
@@ -32,7 +41,17 @@ export const getOrgSettings = async (): Promise<OrgSettings | null> => {
 };
 
 export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<void> => {
-  const { error } = await supabase.from('settings').upsert({ id: 'org', ...data });
+  const payload: any = { id: 'org' };
+  if (data.companyName !== undefined) payload.company_name = data.companyName;
+  if (data.companyLogo !== undefined) payload.company_logo = data.companyLogo;
+  if (data.timezone !== undefined) payload.timezone = data.timezone;
+  if (data.workStartTime !== undefined) payload.work_start_time = data.workStartTime;
+  if (data.workEndTime !== undefined) payload.work_end_time = data.workEndTime;
+  if (data.geofenceRadius !== undefined) payload.geofence_radius = data.geofenceRadius;
+  if (data.geofenceLat !== undefined) payload.geofence_lat = data.geofenceLat;
+  if (data.geofenceLng !== undefined) payload.geofence_lng = data.geofenceLng;
+            
+  const { error } = await supabase.from('settings').upsert(payload);
   if (error) {
     logPermissionError('updateOrgSettings', error);
   }

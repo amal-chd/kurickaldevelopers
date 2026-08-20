@@ -1,15 +1,15 @@
 -- Create Enum Types
-CREATE TYPE channel_type AS ENUM ('announcement', 'project', 'group', 'direct');
-CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'review', 'completed');
-CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'critical');
-CREATE TYPE inquiry_status AS ENUM ('new', 'contacted', 'closed');
-CREATE TYPE inquiry_source AS ENUM ('website', 'mobile_app');
-CREATE TYPE leave_type AS ENUM ('casual', 'sick', 'earned', 'unpaid', 'other');
-CREATE TYPE expense_category AS ENUM ('materials', 'labour', 'transport', 'equipment', 'food', 'office', 'other');
-CREATE TYPE review_type AS ENUM ('peer', 'manager');
+CREATE TYPE IF NOT EXISTS channel_type AS ENUM ('announcement', 'project', 'group', 'direct');
+CREATE TYPE IF NOT EXISTS task_status AS ENUM ('todo', 'in_progress', 'review', 'completed');
+CREATE TYPE IF NOT EXISTS task_priority AS ENUM ('low', 'medium', 'high', 'critical');
+CREATE TYPE IF NOT EXISTS inquiry_status AS ENUM ('new', 'contacted', 'closed');
+CREATE TYPE IF NOT EXISTS inquiry_source AS ENUM ('website', 'mobile_app');
+CREATE TYPE IF NOT EXISTS leave_type AS ENUM ('casual', 'sick', 'earned', 'unpaid', 'other');
+CREATE TYPE IF NOT EXISTS expense_category AS ENUM ('materials', 'labour', 'transport', 'equipment', 'food', 'office', 'other');
+CREATE TYPE IF NOT EXISTS review_type AS ENUM ('peer', 'manager');
 
 -- Roles (we might keep roles in Supabase too for RLS joins)
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     permissions TEXT[] DEFAULT '{}',
@@ -18,7 +18,7 @@ CREATE TABLE roles (
 );
 
 -- Projects
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -34,7 +34,7 @@ CREATE TABLE projects (
 );
 
 -- Tasks
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -61,7 +61,7 @@ CREATE TABLE tasks (
 );
 
 -- Attendance
-CREATE TABLE attendance (
+CREATE TABLE IF NOT EXISTS attendance (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     date TEXT NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE attendance (
 );
 
 -- Chats
-CREATE TABLE chat_channels (
+CREATE TABLE IF NOT EXISTS chat_channels (
     id TEXT PRIMARY KEY,
     type channel_type NOT NULL,
     name TEXT,
@@ -97,7 +97,7 @@ CREATE TABLE chat_channels (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE chat_messages (
+CREATE TABLE IF NOT EXISTS chat_messages (
     id TEXT PRIMARY KEY,
     channel_id TEXT REFERENCES chat_channels(id) ON DELETE CASCADE,
     sender_id TEXT NOT NULL,
@@ -108,7 +108,7 @@ CREATE TABLE chat_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE chat_attachments (
+CREATE TABLE IF NOT EXISTS chat_attachments (
     id TEXT PRIMARY KEY,
     message_id TEXT REFERENCES chat_messages(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE chat_attachments (
 );
 
 -- Documents
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
@@ -134,7 +134,7 @@ CREATE TABLE documents (
 );
 
 -- Site Diaries
-CREATE TABLE site_diaries (
+CREATE TABLE IF NOT EXISTS site_diaries (
     id TEXT PRIMARY KEY,
     project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
     date TEXT NOT NULL,
@@ -154,7 +154,7 @@ CREATE TABLE site_diaries (
 );
 
 -- Leave Requests
-CREATE TABLE leave_requests (
+CREATE TABLE IF NOT EXISTS leave_requests (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
@@ -169,7 +169,7 @@ CREATE TABLE leave_requests (
 );
 
 -- Salary Slips
-CREATE TABLE salary_slips (
+CREATE TABLE IF NOT EXISTS salary_slips (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
@@ -187,7 +187,7 @@ CREATE TABLE salary_slips (
 );
 
 -- Expenses
-CREATE TABLE expenses (
+CREATE TABLE IF NOT EXISTS expenses (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     user_name TEXT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE expenses (
 );
 
 -- Contact Inquiries
-CREATE TABLE contact_inquiries (
+CREATE TABLE IF NOT EXISTS contact_inquiries (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
@@ -219,7 +219,7 @@ CREATE TABLE contact_inquiries (
 );
 
 -- Notifications
-CREATE TABLE app_notifications (
+CREATE TABLE IF NOT EXISTS app_notifications (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     body TEXT NOT NULL,
@@ -232,7 +232,7 @@ CREATE TABLE app_notifications (
 );
 
 -- Audit Logs
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id TEXT PRIMARY KEY,
     action TEXT NOT NULL,
     actor_id TEXT NOT NULL,
@@ -250,7 +250,7 @@ CREATE TABLE audit_logs (
 );
 
 -- Performance Reviews
-CREATE TABLE performance_reviews (
+CREATE TABLE IF NOT EXISTS performance_reviews (
     id TEXT PRIMARY KEY,
     task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,
     reviewer_id TEXT NOT NULL,

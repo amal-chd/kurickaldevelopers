@@ -34,7 +34,8 @@ export const getSubtasks = async (taskId: string): Promise<Subtask[]> => {
       ...d,
       id: d.id,
       taskId: d.task_id,
-      assignedTo: d.assigned_to,
+      isDone: d.is_done,
+      completedBy: d.completed_by,
       createdAt: d.created_at,
     })) as unknown as Subtask[];
   } catch (err: any) {
@@ -47,9 +48,11 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
   const payload = {
     ...data,
     task_id: taskId,
-    assigned_to: (data as any).assignedTo,
+    is_done: data.isDone || false,
+    completed_by: data.completedBy || null,
   };
-  delete (payload as any).assignedTo;
+  delete (payload as any).isDone;
+  delete (payload as any).completedBy;
   delete (payload as any).taskId;
 
   const { data: inserted, error } = await supabase
@@ -102,9 +105,13 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
 
 export const updateSubtask = async (taskId: string, subtaskId: string, data: Partial<Subtask>): Promise<void> => {
   const payload: any = { ...data };
-  if (payload.assignedTo !== undefined) {
-    payload.assigned_to = payload.assignedTo;
-    delete payload.assignedTo;
+  if (payload.isDone !== undefined) {
+    payload.is_done = payload.isDone;
+    delete payload.isDone;
+  }
+  if (payload.completedBy !== undefined) {
+    payload.completed_by = payload.completedBy;
+    delete payload.completedBy;
   }
   
   const { error } = await supabase

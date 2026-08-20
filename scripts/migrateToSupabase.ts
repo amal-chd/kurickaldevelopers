@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import admin from 'firebase-admin';
 import fs from 'fs';
 
-const serviceAccountPath = '/Users/amalchand/Desktop/Kurical TMS/kurikal-tms-app-firebase-adminsdk-fbsvc-50a1948b26.json';
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './serviceAccountKey.json';
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
 admin.initializeApp({

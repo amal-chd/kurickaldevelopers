@@ -1,4 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
+import { getUser } from "./users";
+
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { ChatMessage } from '../../types';
@@ -88,7 +90,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
   const msgId = msgRes.id;
 
   // Get channel details
-  const { data: channelData } = await supabase.from('chats').select('*').eq('id', channelId).single();
+  const { data: channelData } = await supabase.from('chat_channels').select('*').eq('id', channelId).single();
   
   if (channelData) {
     const channelType = channelData.type ?? '';
@@ -102,7 +104,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
       }
     });
 
-    await supabase.from('chats').update({
+    await supabase.from('chat_channels').update({
       last_message_text: data.isDeleted ? '' : (data.text && data.text.length > 80 ? data.text.slice(0, 80) + '…' : data.text),
       last_message_at: new Date().toISOString(),
       last_message_by: data.senderId,
@@ -112,7 +114,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
     // Notifications
     if (channelType === 'announcement') {
       let senderName = 'Someone';
-      const { data: senderData } = await supabase.from('users').select('name, email').eq('id', data.senderId).single();
+      const senderData = await getUser(data.senderId || '');
       if (senderData) {
         senderName = senderData.name || senderData.email || 'Someone';
       }
@@ -127,7 +129,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
       const notifsToInsert = [];
       for (const uid of memberIds) {
         if (uid === data.senderId) continue;
-        const { data: userData } = await supabase.from('users').select('preferences').eq('id', uid).single();
+        const userData = await getUser(uid);
         if (userData?.preferences?.announcements === false) continue;
         
         notifsToInsert.push({
@@ -142,7 +144,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
         });
       }
       if (notifsToInsert.length > 0) {
-        await supabase.from('notifications').insert(notifsToInsert);
+        await supabase.from('app_notifications').insert(notifsToInsert);
       }
     }
   }
@@ -176,7 +178,7 @@ export const syncChannelPreview = async (channelId: string): Promise<void> => {
   const lastVisible = data?.find((m) => !m.is_deleted);
 
   if (!lastVisible) {
-    await supabase.from('chats').update({
+    await supabase.from('chat_channels').update({
       last_message_text: '',
       last_message_by: '',
     }).eq('id', channelId);
@@ -187,7 +189,7 @@ export const syncChannelPreview = async (channelId: string): Promise<void> => {
     ? lastVisible.text.slice(0, 80) + '…'
     : lastVisible.text;
     
-  await supabase.from('chats').update({
+  await supabase.from('chat_channels').update({
     last_message_text: text,
     last_message_by: lastVisible.sender_id,
   }).eq('id', channelId);
@@ -224,14 +226,14 @@ export const removeReaction = async (
 };
 
 export const markChannelAsRead = async (channelId: string, userId: string): Promise<void> => {
-  const { data: channelData } = await supabase.from('chats').select('unread_counts, last_read_at').eq('id', channelId).single();
+  const { data: channelData } = await supabase.from('chat_channels').select('unread_counts, last_read_at').eq('id', channelId).single();
   if (channelData) {
     const unread_counts = { ...(channelData.unread_counts || {}) };
     const last_read_at = { ...(channelData.last_read_at || {}) };
     unread_counts[userId] = 0;
     last_read_at[userId] = new Date().toISOString();
     
-    await supabase.from('chats').update({
+    await supabase.from('chat_channels').update({
       unread_counts,
       last_read_at,
     }).eq('id', channelId);

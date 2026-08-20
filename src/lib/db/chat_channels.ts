@@ -53,7 +53,7 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
 
   const fetchMine = async () => {
     const { data, error } = await supabase
-      .from('chats')
+      .from('chat_channels')
       .select('*')
       .contains('member_ids', [userId]);
     if (error) {
@@ -67,7 +67,7 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
 
   const fetchAnnounce = async () => {
     const { data, error } = await supabase
-      .from('chats')
+      .from('chat_channels')
       .select('*')
       .eq('type', 'announcement');
     if (error) {
@@ -83,7 +83,7 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
   fetchAnnounce();
 
   const channel = supabase.channel('chats_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_channels' }, () => {
       fetchMine();
       fetchAnnounce();
     })
@@ -94,7 +94,7 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
 
 export const getChannel = async (channelId: string): Promise<ChatChannel | null> => {
   try {
-    const { data, error } = await supabase.from('chats').select('*').eq('id', channelId).single();
+    const { data, error } = await supabase.from('chat_channels').select('*').eq('id', channelId).single();
     if (error || !data) return null;
     return mapChannelFromDB(data);
   } catch (err: any) {
@@ -117,7 +117,7 @@ export const createChannel = async (data: Omit<ChatChannel, 'id'>): Promise<stri
     last_read_at: data.lastReadAt || {},
     is_archived: data.isArchived || false,
   };
-  const { data: res, error } = await supabase.from('chats').insert(payload).select('id').single();
+  const { data: res, error } = await supabase.from('chat_channels').insert(payload).select('id').single();
   if (error) throw error;
   return res.id;
 };
@@ -137,7 +137,7 @@ export const createChannelWithId = async (id: string, data: Omit<ChatChannel, 'i
     last_read_at: data.lastReadAt || {},
     is_archived: data.isArchived || false,
   };
-  const { error } = await supabase.from('chats').upsert(payload);
+  const { error } = await supabase.from('chat_channels').upsert(payload);
   if (error) throw error;
 };
 
@@ -155,7 +155,7 @@ export const updateChannel = async (id: string, data: Partial<ChatChannel>): Pro
   if (data.lastReadAt !== undefined) payload.last_read_at = data.lastReadAt;
   if (data.isArchived !== undefined) payload.is_archived = data.isArchived;
 
-  const { error } = await supabase.from('chats').update(payload).eq('id', id);
+  const { error } = await supabase.from('chat_channels').update(payload).eq('id', id);
   if (error) throw error;
 };
 
