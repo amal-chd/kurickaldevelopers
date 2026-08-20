@@ -24,33 +24,45 @@ const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUppe
 const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
 const convertRowToProject = (row: any): Project => {
-  const project: any = {};
-  for (const key in row) {
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      const camelKey = toCamelCase(key);
-      if (row[key] !== null && (key === 'created_at' || key === 'updated_at' || key === 'start_date' || key === 'end_date' || (typeof row[key] === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(row[key])))) {
-        project[camelKey] = Timestamp.fromDate(new Date(row[key]));
-      } else {
-        project[camelKey] = row[key];
-      }
-    }
-  }
-  return project as Project;
+  return {
+    ...row,
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    siteAddress: row.location || row.site_address,
+    clientName: row.client_name,
+    status: row.status,
+    startDate: row.start_date ? Timestamp.fromDate(new Date(row.start_date)) : null,
+    expectedEndDate: row.end_date ? Timestamp.fromDate(new Date(row.end_date)) : null,
+    actualEndDate: row.actual_end_date ? Timestamp.fromDate(new Date(row.actual_end_date)) : undefined,
+    memberIds: row.member_ids || [],
+    projectManagerId: row.manager_id,
+    progressPercent: row.progress_percent || 0,
+    healthStatus: row.health_status || 'on_track',
+    budget: row.budget,
+    createdAt: row.created_at ? Timestamp.fromDate(new Date(row.created_at)) : null,
+    siteCoordinates: row.site_coordinates,
+  } as unknown as Project;
 };
 
 const convertProjectToRow = (project: any): any => {
-  const row: any = {};
-  for (const key in project) {
-    if (Object.prototype.hasOwnProperty.call(project, key)) {
-      const snakeKey = toSnakeCase(key);
-      if (project[key] instanceof Timestamp || (project[key] && typeof project[key].toDate === 'function')) {
-        row[snakeKey] = project[key].toDate().toISOString();
-      } else {
-        row[snakeKey] = project[key];
-      }
-    }
-  }
-  return row;
+  return {
+    ...project,
+    name: project.name,
+    description: project.description,
+    location: project.siteAddress,
+    client_name: project.clientName,
+    status: project.status,
+    start_date: project.startDate?.toDate ? project.startDate.toDate().toISOString() : project.startDate,
+    end_date: project.expectedEndDate?.toDate ? project.expectedEndDate.toDate().toISOString() : project.expectedEndDate,
+    actual_end_date: project.actualEndDate?.toDate ? project.actualEndDate.toDate().toISOString() : project.actualEndDate,
+    member_ids: project.memberIds || [],
+    manager_id: project.projectManagerId,
+    progress_percent: project.progressPercent || 0,
+    health_status: project.healthStatus || 'on_track',
+    budget: project.budget,
+    site_coordinates: project.siteCoordinates,
+  };
 };
 
 // ─── Projects ─────────────────────────────────────────────────────────────────

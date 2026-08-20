@@ -27,33 +27,74 @@ const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUppe
 const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
 const convertRowToTask = (row: any): Task => {
-  const task: any = {};
-  for (const key in row) {
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      const camelKey = toCamelCase(key);
-      if (row[key] !== null && (key === 'created_at' || key === 'updated_at' || key === 'due_date' || key === 'start_date' || (typeof row[key] === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(row[key])))) {
-        task[camelKey] = Timestamp.fromDate(new Date(row[key]));
-      } else {
-        task[camelKey] = row[key];
-      }
-    }
-  }
-  return task as Task;
+  return {
+    ...row,
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    projectId: row.project_id,
+    milestoneId: row.milestone_id,
+    assigneeIds: row.assigned_to ? JSON.parse(row.assigned_to) : (row.assignee_ids || []),
+    assignedRoleId: row.assigned_role_id,
+    assignedRoleIds: row.assigned_role_ids || [],
+    createdBy: row.created_by,
+    status: row.status,
+    priority: row.priority,
+    dueDate: row.due_date ? Timestamp.fromDate(new Date(row.due_date)) : null,
+    estimatedHours: row.estimated_hours || 0,
+    actualHours: row.actual_hours || 0,
+    tags: row.labels || row.tags || [],
+    dependsOn: row.depends_on || [],
+    isRecurring: row.is_recurring || false,
+    recurrenceRule: row.recurrence_rule,
+    isTemplate: row.is_template || false,
+    attachmentUrls: row.attachments || row.attachment_urls || [],
+    createdAt: row.created_at ? Timestamp.fromDate(new Date(row.created_at)) : null,
+    updatedAt: row.updated_at ? Timestamp.fromDate(new Date(row.updated_at)) : null,
+    
+    isArchived: row.is_archived || false,
+    rejectionReason: row.rejection_reason,
+    rejectionCount: row.rejection_count || 0,
+    reopenCount: row.reopen_count || 0,
+    extensionCount: row.extension_count || 0,
+    originalDueDate: row.original_due_date ? Timestamp.fromDate(new Date(row.original_due_date)) : null,
+    peerReviewStatus: row.peer_review_status,
+    managerReviewStatus: row.manager_review_status,
+  } as unknown as Task;
 };
 
 const convertTaskToRow = (task: any): any => {
-  const row: any = {};
-  for (const key in task) {
-    if (Object.prototype.hasOwnProperty.call(task, key)) {
-      const snakeKey = toSnakeCase(key);
-      if (task[key] instanceof Timestamp || (task[key] && typeof task[key].toDate === 'function')) {
-        row[snakeKey] = task[key].toDate().toISOString();
-      } else {
-        row[snakeKey] = task[key];
-      }
-    }
-  }
-  return row;
+  return {
+    ...task,
+    title: task.title,
+    description: task.description,
+    project_id: task.projectId,
+    milestone_id: task.milestoneId,
+    assignee_ids: task.assigneeIds || [],
+    assigned_role_id: task.assignedRoleId,
+    assigned_role_ids: task.assignedRoleIds || [],
+    created_by: task.createdBy,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.dueDate?.toDate ? task.dueDate.toDate().toISOString() : task.dueDate,
+    estimated_hours: task.estimatedHours || 0,
+    actual_hours: task.actualHours || 0,
+    labels: task.tags || [],
+    depends_on: task.dependsOn || [],
+    is_recurring: task.isRecurring || false,
+    recurrence_rule: task.recurrenceRule,
+    is_template: task.isTemplate || false,
+    attachments: task.attachmentUrls || [],
+    
+    is_archived: task.isArchived || false,
+    rejection_reason: task.rejectionReason,
+    rejection_count: task.rejectionCount || 0,
+    reopen_count: task.reopenCount || 0,
+    extension_count: task.extensionCount || 0,
+    original_due_date: task.originalDueDate?.toDate ? task.originalDueDate.toDate().toISOString() : task.originalDueDate,
+    peer_review_status: task.peerReviewStatus,
+    manager_review_status: task.managerReviewStatus,
+  };
 };
 
 const applyConstraints = (queryObj: any, constraints: QueryConstraint[]) => {
