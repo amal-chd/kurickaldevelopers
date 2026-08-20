@@ -229,7 +229,7 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
       const checkIn = rec.checkInTime.toDate ? rec.checkInTime.toDate() : new Date(rec.checkInTime);
       const checkOut = rec.checkOutTime.toDate ? rec.checkOutTime.toDate() : new Date(rec.checkOutTime);
       const totalMins = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60000);
-      const otMins = getOvertimeMinutes(checkIn, checkOut);
+      const otMins = getOvertimeMinutes(checkIn, checkOut, rec.overtimeOverrideMinutes);
       
       const existing = map.get(rec.userId) || { totalOtMins: 0, daysWithOt: 0, totalMins: 0, daysPresent: 0 };
       existing.totalMins += totalMins;
@@ -456,7 +456,7 @@ const AttendanceDashboardPage: React.FC = () => {
               const inT = rec.checkInTime.toDate();
               const outT = rec.checkOutTime.toDate();
               totalMins += differenceInMinutes(outT, inT);
-              totalOvertimeMins += getOvertimeMinutes(inT, outT);
+              totalOvertimeMins += getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes);
             } catch {
               // Ignore invalid dates
             }
@@ -528,7 +528,7 @@ const AttendanceDashboardPage: React.FC = () => {
             'Check Out': outT ? format(outT, 'HH:mm') : '—',
             'Check Out Address': rec.checkOutAddress || '—',
             'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '—',
-            'Overtime (hrs)': (inT && outT) ? Math.round((getOvertimeMinutes(inT, outT) / 60) * 100) / 100 : '—',
+            'Overtime (hrs)': (inT && outT) ? Math.round((getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes) / 60) * 100) / 100 : '—',
             'Geofence Compliance': isOutsideGeofence(rec) ? 'Outside Geofence' : 'Compliant',
           });
         }
@@ -855,7 +855,7 @@ const AttendanceDashboardPage: React.FC = () => {
                           <span className="font-medium text-blue-600">{getDur()}</span>
                           {(() => {
                             if (!rec?.checkInTime || !rec?.checkOutTime) return null;
-                            const otMins = getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate());
+                            const otMins = getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate(), rec.overtimeOverrideMinutes);
                             if (otMins > 0) {
                               return <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-bold">OT: {formatOvertime(otMins)}</span>;
                             }

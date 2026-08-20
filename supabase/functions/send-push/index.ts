@@ -316,6 +316,77 @@ serve(async (req) => {
       });
     }
 
+    // ── Document Event ──
+    if (event === "document") {
+      const { docId } = body;
+      if (!docId) {
+        return new Response(JSON.stringify({ error: "docId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const docSnap = await db.collection("documents").doc(docId).get();
+      if (!docSnap.exists) {
+        return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const docData = docSnap.data()!;
+      
+      const projectSnap = await db.collection("projects").doc(docData.projectId).get();
+      const projectData = projectSnap.exists ? projectSnap.data()! : null;
+      let recipients: string[] = [];
+      if (projectData && projectData.memberIds) {
+        recipients = projectData.memberIds.filter((id: string) => id !== caller.uid);
+      }
+      
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const uploaderSnap = await db.collection("users").doc(caller.uid).get();
+      const uploaderName = uploaderSnap.exists ? (uploaderSnap.data()?.name ?? "Someone") : "Someone";
+      
+      const tokens = await tokensFor(db, recipients);
+      const sent = await sendToTokens(messaging, tokens, "New Document", `${uploaderName} uploaded "${docData.name}"`, {
+        type: "document_uploaded",
+        relatedId: docId,
+      });
+
+      return new Response(JSON.stringify({ ok: true, sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── Site Diary Event ──
+    if (event === "diary") {
+      const { diaryId } = body;
+      if (!diaryId) {
+        return new Response(JSON.stringify({ error: "diaryId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const diarySnap = await db.collection("site_diaries").doc(diaryId).get();
+      if (!diarySnap.exists) {
+        return new Response(JSON.stringify({ error: "Diary entry not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const diaryData = diarySnap.data()!;
+
+      const projectSnap = await db.collection("projects").doc(diaryData.projectId).get();
+      const projectData = projectSnap.exists ? projectSnap.data()! : null;
+      let recipients: string[] = [];
+      if (projectData && projectData.memberIds) {
+        recipients = projectData.memberIds.filter((id: string) => id !== caller.uid);
+      }
+
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const authorSnap = await db.collection("users").doc(caller.uid).get();
+      const authorName = authorSnap.exists ? (authorSnap.data()?.name ?? "Someone") : "Someone";
+
+      const tokens = await tokensFor(db, recipients);
+      const sent = await sendToTokens(messaging, tokens, "Site Diary Updated", `${authorName} added a site diary entry`, {
+        type: "diary_entry",
+        relatedId: diaryId,
+      });
+
+      return new Response(JSON.stringify({ ok: true, sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ── Broadcast Event ──
     if (event === "broadcast") {
       const { title, body: bodyText, targetRoleId, userIds } = body;

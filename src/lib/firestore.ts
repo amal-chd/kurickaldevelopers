@@ -684,6 +684,10 @@ export const subscribeAttendance = (date: string, cb: (records: Attendance[]) =>
   );
 };
 
+export const updateAttendance = async (id: string, data: Partial<Attendance>): Promise<void> => {
+  await updateDoc(doc(db, 'attendance', id), { ...data });
+};
+
 export const getUserAttendanceHistory = async (userId: string, limit2 = 30): Promise<Attendance[]> => {
   try {
     const snap = await getDocs(

@@ -197,6 +197,7 @@ export interface Attendance {
   checkOutAddress?: string;
   isWithinGeofence?: boolean;
   projectId?: string;
+  overtimeOverrideMinutes?: number;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────

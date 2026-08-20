@@ -208,7 +208,8 @@ export function formatDelay(delaySeconds: number | undefined | null): string {
 /**
  * Calculate overtime minutes beyond 8 hours (480 minutes).
  */
-export function getOvertimeMinutes(checkInTime: Date, checkOutTime: Date): number {
+export function getOvertimeMinutes(checkInTime: Date, checkOutTime: Date, overrideMinutes?: number): number {
+  if (overrideMinutes !== undefined && overrideMinutes !== null) return overrideMinutes;
   const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 60000);
   const standardMinutes = 480; // 8 hours
   return totalMinutes > standardMinutes ? totalMinutes - standardMinutes : 0;

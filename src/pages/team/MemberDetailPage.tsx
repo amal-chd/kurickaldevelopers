@@ -295,7 +295,7 @@ const MemberDetailPage: React.FC = () => {
                               <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">{getDuration(a.checkInTime, a.checkOutTime)}</span>
                               {(() => {
                                 if (!a.checkInTime || !a.checkOutTime) return null;
-                                const ot = getOvertimeMinutes(a.checkInTime.toDate(), a.checkOutTime.toDate());
+                                const ot = getOvertimeMinutes(a.checkInTime.toDate(), a.checkOutTime.toDate(), a.overtimeOverrideMinutes);
                                 if (ot > 0) return <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">OT: {formatOvertime(ot)}</span>;
                                 return null;
                               })()}
