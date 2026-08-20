@@ -8,9 +8,9 @@ import {
   deleteMessage,
   addReaction,
   removeReaction,
-  markChannelRead,
-  setTyping,
-  clearTyping,
+  markChannelAsRead,
+  setTypingStatus,
+  clearTypingStatus,
 } from '../lib/firestore';
 import { ChatChannel, ChatMessage } from '../types';
 import { useAuthStore } from '../store/authStore';
@@ -111,9 +111,9 @@ export function useMessages(channelId: string | null) {
   // Mark channel as read once on channel-switch and again when the tab regains focus.
   useEffect(() => {
     if (!channelId || !firebaseUser) return;
-    markChannelRead(channelId, firebaseUser.uid).catch(console.error);
+    markChannelAsRead(channelId, firebaseUser.uid).catch(console.error);
     const onFocus = () => {
-      markChannelRead(channelId, firebaseUser.uid).catch(console.error);
+      markChannelAsRead(channelId, firebaseUser.uid).catch(console.error);
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
@@ -123,7 +123,7 @@ export function useMessages(channelId: string | null) {
 }
 
 export function useTypingIndicators(channelId: string | null) {
-  const [typing, setTyping2] = useState<Record<string, string>>({});
+  const [typing, setTypingStatus2] = useState<Record<string, string>>({});
   const { firebaseUser } = useAuthStore();
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export function useTypingIndicators(channelId: string | null) {
     const unsub = subscribeTyping(channelId, (t) => {
       const filtered = { ...t };
       if (firebaseUser) delete filtered[firebaseUser.uid];
-      setTyping2(filtered);
+      setTypingStatus2(filtered);
     });
     return unsub;
   }, [channelId, firebaseUser]);
@@ -155,7 +155,7 @@ export function useChatActions(channelId: string | null) {
   const edit = useCallback(
     async (messageId: string, text: string) => {
       if (!channelId) return;
-      await editMessage(channelId, messageId, text);
+      await editMessage(messageId, text);
     },
     [channelId]
   );
@@ -172,9 +172,9 @@ export function useChatActions(channelId: string | null) {
     async (messageId: string, emoji: string, hasReacted: boolean) => {
       if (!channelId || !firebaseUser) return;
       if (hasReacted) {
-        await removeReaction(channelId, messageId, emoji, firebaseUser.uid);
+        await removeReaction(messageId, emoji, firebaseUser.uid);
       } else {
-        await addReaction(channelId, messageId, emoji, firebaseUser.uid);
+        await addReaction(messageId, emoji, firebaseUser.uid);
       }
     },
     [channelId, firebaseUser]
@@ -182,12 +182,12 @@ export function useChatActions(channelId: string | null) {
 
   const startTyping = useCallback(async () => {
     if (!channelId || !firebaseUser || !appUser) return;
-    await setTyping(channelId, firebaseUser.uid, appUser.name);
+    await setTypingStatus(channelId, firebaseUser.uid, appUser.name);
   }, [channelId, firebaseUser, appUser]);
 
   const stopTyping = useCallback(async () => {
     if (!channelId || !firebaseUser) return;
-    await clearTyping(channelId, firebaseUser.uid);
+    await clearTypingStatus(channelId, firebaseUser.uid);
   }, [channelId, firebaseUser]);
 
   return { send, edit, del, react, startTyping, stopTyping };
