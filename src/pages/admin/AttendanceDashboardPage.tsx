@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import {
   Shield, Clock, MapPin, CheckCircle,
-  XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, FileSpreadsheet
+  XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, FileSpreadsheet, Edit2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -14,7 +14,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import Spinner from '../../components/ui/Spinner';
 import Modal from '../../components/ui/Modal';
 import { usePermissions } from '../../hooks/usePermissions';
-import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings, getProjects, getAllRoles } from '../../lib/firestore';
+import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings, getProjects, getAllRoles, updateAttendance } from '../../lib/firestore';
 import { Attendance, AppUser, OrgSettings, Project, Role } from '../../types';
 import { format, addDays, subDays, differenceInMinutes, differenceInSeconds, differenceInDays } from 'date-fns';
 import { getOvertimeMinutes, formatOvertime } from '../../lib/utils';
@@ -68,6 +68,10 @@ interface StaffHistoryModalProps {
 const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, orgSettings }) => {
   const [history, setHistory] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editIn, setEditIn] = useState('');
+  const [editOut, setEditOut] = useState('');
+  const [editOtOverride, setEditOtOverride] = useState('');
 
   useEffect(() => {
     getUserAttendanceHistory(user.id, 30).then((h) => {
@@ -98,10 +102,49 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
     return dist > orgSettings.geofenceRadius;
   };
 
+  const handleEdit = (rec: Attendance) => {
+    setEditingId(rec.id);
+    setEditIn(rec.checkInTime ? format(rec.checkInTime.toDate(), 'HH:mm') : '');
+    setEditOut(rec.checkOutTime ? format(rec.checkOutTime.toDate(), 'HH:mm') : '');
+    setEditOtOverride(rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null ? rec.overtimeOverrideMinutes.toString() : '');
+  };
+
+  const handleSave = async (rec: Attendance) => {
+    try {
+      const updates: Partial<Attendance> = {};
+      const recDate = rec.date;
+      
+      if (editIn) {
+        updates.checkInTime = Timestamp.fromDate(new Date(`${recDate}T${editIn}:00`));
+      } else {
+        updates.checkInTime = null as any;
+      }
+      
+      if (editOut) {
+        updates.checkOutTime = Timestamp.fromDate(new Date(`${recDate}T${editOut}:00`));
+      } else {
+        updates.checkOutTime = null as any;
+      }
+
+      if (editOtOverride) {
+        updates.overtimeOverrideMinutes = parseInt(editOtOverride, 10);
+      } else {
+        updates.overtimeOverrideMinutes = null as any;
+      }
+
+      await updateAttendance(rec.id, updates);
+      toast.success('Attendance updated');
+      
+      setHistory(prev => prev.map(h => h.id === rec.id ? { ...h, ...updates } : h));
+      setEditingId(null);
+    } catch (err) {
+      toast.error('Failed to update');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center gap-3 p-5 border-b border-slate-100">
           <Avatar name={user.name} src={user.avatarUrl} size="md" />
           <div className="flex-1">
@@ -113,7 +156,6 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
           </button>
         </div>
 
-        {/* Stats */}
         {!loading && (
           <div className="grid grid-cols-3 gap-3 p-4 border-b border-slate-100">
             <div className="text-center">
@@ -131,7 +173,6 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
           </div>
         )}
 
-        {/* History list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
             <div className="flex justify-center py-8"><Spinner size="md" /></div>
@@ -141,6 +182,38 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
             history.map((rec) => {
               const outside = isOutsideGeofence(rec);
               const duration = getDuration(rec);
+              const isEditing = editingId === rec.id;
+              
+              if (isEditing) {
+                return (
+                  <div key={rec.id} className="p-3 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {rec.date ? format(new Date(rec.date), 'EEE, dd MMM yyyy') : '—'}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-xs text-slate-500 block mb-1">Check-in</label>
+                        <input type="time" value={editIn} onChange={e => setEditIn(e.target.value)} className="w-full text-sm p-1.5 border rounded" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 block mb-1">Check-out</label>
+                        <input type="time" value={editOut} onChange={e => setEditOut(e.target.value)} className="w-full text-sm p-1.5 border rounded" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 block mb-1">OT Mins (Override)</label>
+                        <input type="number" value={editOtOverride} onChange={e => setEditOtOverride(e.target.value)} className="w-full text-sm p-1.5 border rounded" placeholder="Auto" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                      <Button size="sm" onClick={() => handleSave(rec)}>Save</Button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={rec.id} className={`p-3 rounded-xl border ${outside ? 'border-amber-200 bg-amber-50' : 'border-slate-100 bg-slate-50'}`}>
                   <div className="flex items-center justify-between">
@@ -158,6 +231,9 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                         {duration && (
                           <span className="text-xs text-slate-500">{duration}</span>
                         )}
+                        {rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null && (
+                          <span className="text-xs font-semibold text-purple-600">OT: {rec.overtimeOverrideMinutes}m</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -170,6 +246,9 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                       {!rec.checkOutTime && rec.checkInTime && (
                         <span className="text-xs text-red-600 font-medium">No checkout</span>
                       )}
+                      <button onClick={() => handleEdit(rec)} className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
+                        <Edit2 className="w-3 h-3" /> Edit
+                      </button>
                     </div>
                   </div>
                   {rec.checkInAddress && (
