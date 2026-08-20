@@ -46,6 +46,27 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
+    
+    if (key == 'tags') {
+      map['labels'] = value;
+      return;
+    }
+    if (key == 'attachmentUrls') {
+      map['attachments'] = value;
+      return;
+    }
+    // Drop fields not in Supabase schema
+    if (['photoUrls', 'approvalStatus', 'approvedBy', 'approvedAt', 'slaDeadline', 'slaBreached', 'memberProgress', 'completionStatus', 'delaySeconds'].contains(key)) {
+      return;
+    }
+
+    
+    if (key == 'doneAt') return;
+    if (key == 'doneBy') {
+      map['completed_by'] = value;
+      return;
+    }
+
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {

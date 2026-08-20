@@ -131,15 +131,15 @@ class ChatMessageModel {
     'type': type.value,
     'attachmentUrl': attachmentUrl,
     'attachmentName': attachmentName,
-    'attachmentMimeType': attachmentMimeType,
+    
     'attachmentSize': attachmentSize,
     'taskId': taskId,
     'taskTitle': taskTitle,
-    'taskProjectId': taskProjectId,
+    
     'taskStatus': taskStatus,
     'replyToId': replyToId,
     'replyToText': replyToText,
-    'replyToSenderId': replyToSenderId,
+    
     'replyToSenderName': replyToSenderName,
     'reactions': reactions.map((k, v) => MapEntry(k, v)),
     'mentionedUserIds': mentionedUserIds,

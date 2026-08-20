@@ -31,6 +31,20 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
+    
+    if (key == 'siteAddress') {
+      map['location'] = value;
+      return;
+    }
+    if (key == 'projectManagerId') {
+      map['manager_id'] = value;
+      return;
+    }
+    if (key == 'expectedEndDate') {
+      map['end_date'] = value is Timestamp ? value.toDate().toIso8601String() : value;
+      return;
+    }
+
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
