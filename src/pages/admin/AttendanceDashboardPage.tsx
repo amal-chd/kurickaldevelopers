@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import {
   Shield, Clock, MapPin, CheckCircle,
@@ -280,15 +280,26 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
         const startDate = `${month}-01`;
         const endDate = `${month}-${String(daysInMonth).padStart(2, '0')}`;
         
-        const snap = await getDocs(
-          query(
-            collection(db, 'attendance'),
-            where('date', '>=', startDate),
-            where('date', '<=', endDate)
-          )
-        );
-        const allRecords: any[] = [];
-        snap.forEach(doc => allRecords.push({ id: doc.id, ...doc.data() }));
+        const { supabase } = await import('../../lib/supabaseClient');
+        const { data, error } = await supabase
+          .from('attendance')
+          .select('*')
+          .gte('date', startDate)
+          .lte('date', endDate);
+        
+        if (error) throw error;
+        
+        const allRecords: any[] = (data || []).map(row => ({
+          id: row.id,
+          userId: row.user_id,
+          date: row.date,
+          status: row.status,
+          checkInTime: row.check_in_time,
+          checkOutTime: row.check_out_time,
+          location: row.location,
+          notes: row.notes,
+          projectId: row.project_id
+        }));
         setRecords(allRecords);
       } catch (err) {
         console.error('Failed to fetch overtime data:', err);

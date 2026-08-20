@@ -315,7 +315,7 @@ export function calculatePerformanceScore(
     : 4.0;
 
   // 6. Collaboration
-  const tasksHelpedOnCount = userTasks.filter(t => t.assigneeIds.length > 1 && t.createdBy !== userId).length;
+  const tasksHelpedOnCount = userTasks.filter(t => t.assigneeIds?.length > 1 && t.createdBy !== userId).length;
 
   // 7. Attendance
   const attendanceDays = attendanceList.length;
