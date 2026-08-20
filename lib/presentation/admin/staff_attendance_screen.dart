@@ -349,6 +349,92 @@ class _StaffAttendanceScreenState extends ConsumerState<StaffAttendanceScreen> {
       builder: (_) => _UserHistorySheet(user: user),
     );
   }
+
+  Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
+    final usersAsync = ref.read(allUsersProvider);
+    final recordsAsync = ref.read(allAttendanceDateProvider(_dateKey));
+
+    if (usersAsync.value == null || recordsAsync.value == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data is still loading, please wait.')),
+      );
+      return;
+    }
+
+    final users = usersAsync.value!;
+    final records = recordsAsync.value!;
+
+    final Map<String, AttendanceModel> recordByUser = {};
+    for (final r in records) {
+      final existing = recordByUser[r.userId];
+      if (existing == null || r.checkInTime.isAfter(existing.checkInTime)) {
+        recordByUser[r.userId] = r;
+      }
+    }
+
+    Iterable<UserModel> filteredUsers = users.where((u) => u.isActive);
+    if (_selectedRoleId != null) {
+      filteredUsers = filteredUsers.where((u) => u.roleId == _selectedRoleId);
+    }
+
+    final rows = <List<String>>[
+      ['Name', 'Status', 'Check In', 'Check Out', 'Total Hours', 'Overtime Hours']
+    ];
+
+    for (final u in filteredUsers) {
+      final r = recordByUser[u.uid];
+      String status = 'Absent';
+      String checkIn = '-';
+      String checkOut = '-';
+      String totalH = '0';
+      String overH = '0';
+
+      if (r != null) {
+        status = r.isOnSite ? 'On Site' : 'Checked Out';
+        checkIn = DateFormat('hh:mm a').format(r.checkInTime);
+        if (r.checkOutTime != null) {
+          checkOut = DateFormat('hh:mm a').format(r.checkOutTime!);
+        }
+
+        final tH = r.durationMinutes ~/ 60;
+        final tM = r.durationMinutes % 60;
+        totalH = '${tH}h ${tM}m';
+
+        final oH = r.overtimeMinutes ~/ 60;
+        final oM = r.overtimeMinutes % 60;
+        overH = '${oH}h ${oM}m';
+      }
+
+      rows.add([
+        u.name,
+        status,
+        checkIn,
+        checkOut,
+        totalH,
+        overH,
+      ]);
+    }
+
+    try {
+      final csv = const ListToCsvConverter().convert(rows);
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName = 'attendance_${_dateKey}.csv';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(csv);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exported to ${file.path}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to export CSV: $e')),
+        );
+      }
+    }
+  }
 }
 
 // ─── Summary Strip ────────────────────────────────────────────────────────────
@@ -1183,6 +1269,12 @@ class _UserHistorySheetState extends ConsumerState<_UserHistorySheet> {
     );
     final avgMinutes = presentDays == 0 ? 0 : totalMinutes ~/ presentDays;
     final totalHours = totalMinutes / 60;
+    final totalOvertimeMins = records.fold<int>(
+      0,
+      (acc, r) => acc + r.overtimeMinutes,
+    );
+    final oH = totalOvertimeMins ~/ 60;
+    final oM = totalOvertimeMins % 60;
 
     String formatMinutes(int minutes) {
       final h = minutes ~/ 60;
@@ -1218,6 +1310,13 @@ class _UserHistorySheetState extends ConsumerState<_UserHistorySheet> {
               value: '${totalHours.toStringAsFixed(1)}h',
               icon: Icons.timer_rounded,
               color: AppTheme.accent,
+            ),
+            const SizedBox(width: 8),
+            _MonthStat(
+              label: 'Total Overtime',
+              value: '${oH}h ${oM}m',
+              icon: Icons.more_time_rounded,
+              color: totalOvertimeMins > 0 ? AppTheme.warning : AppTheme.textMuted,
             ),
           ],
         ),
@@ -1400,15 +1499,39 @@ class _AttendanceCalendar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppTheme.radiusXs),
                 border: border,
               ),
-              child: Center(
-                child: Text(
-                  '$day',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-                    color: textColor,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Text(
+                      '$day',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                        color: textColor,
+                      ),
+                    ),
                   ),
-                ),
+                  if (record != null && record.overtimeMinutes > 0)
+                    Positioned(
+                      bottom: 2,
+                      right: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warning,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: const Text(
+                          'OT',
+                          style: TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             );
           },
@@ -1529,25 +1652,48 @@ class _AttendanceDayTile extends StatelessWidget {
                 ),
               ),
               // Duration badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isComplete
-                      ? AppTheme.success.withValues(alpha: 0.08)
-                      : AppTheme.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXs),
-                ),
-                child: Text(
-                  isComplete ? record.durationFormatted : 'On Site',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isComplete ? AppTheme.success : AppTheme.accent,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isComplete
+                          ? AppTheme.success.withValues(alpha: 0.08)
+                          : AppTheme.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                    ),
+                    child: Text(
+                      isComplete ? record.durationFormatted : 'On Site',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isComplete ? AppTheme.success : AppTheme.accent,
+                      ),
+                    ),
                   ),
-                ),
+                  if (record.overtimeMinutes > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+                      ),
+                      child: Text(
+                        'OT: ${record.overtimeFormatted}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -1606,92 +1752,6 @@ class _AttendanceDayTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
-    final usersAsync = ref.read(allUsersProvider);
-    final recordsAsync = ref.read(allAttendanceDateProvider(_dateKey));
-
-    if (usersAsync.value == null || recordsAsync.value == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data is still loading, please wait.')),
-      );
-      return;
-    }
-
-    final users = usersAsync.value!;
-    final records = recordsAsync.value!;
-
-    final Map<String, AttendanceModel> recordByUser = {};
-    for (final r in records) {
-      final existing = recordByUser[r.userId];
-      if (existing == null || r.checkInTime.isAfter(existing.checkInTime)) {
-        recordByUser[r.userId] = r;
-      }
-    }
-
-    Iterable<UserModel> filteredUsers = users.where((u) => u.isActive);
-    if (_selectedRoleId != null) {
-      filteredUsers = filteredUsers.where((u) => u.roleId == _selectedRoleId);
-    }
-
-    final rows = <List<String>>[
-      ['Name', 'Status', 'Check In', 'Check Out', 'Total Hours', 'Overtime Hours']
-    ];
-
-    for (final u in filteredUsers) {
-      final r = recordByUser[u.uid];
-      String status = 'Absent';
-      String checkIn = '-';
-      String checkOut = '-';
-      String totalH = '0';
-      String overH = '0';
-
-      if (r != null) {
-        status = r.isOnSite ? 'On Site' : 'Checked Out';
-        checkIn = DateFormat('hh:mm a').format(r.checkInTime);
-        if (r.checkOutTime != null) {
-          checkOut = DateFormat('hh:mm a').format(r.checkOutTime!);
-        }
-
-        final tH = r.durationMinutes ~/ 60;
-        final tM = r.durationMinutes % 60;
-        totalH = '${tH}h ${tM}m';
-
-        final oH = r.overtimeMinutes ~/ 60;
-        final oM = r.overtimeMinutes % 60;
-        overH = '${oH}h ${oM}m';
-      }
-
-      rows.add([
-        u.name,
-        status,
-        checkIn,
-        checkOut,
-        totalH,
-        overH,
-      ]);
-    }
-
-    try {
-      final csv = const ListToCsvConverter().convert(rows);
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName = 'attendance_${_dateKey}.csv';
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsString(csv);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported to ${file.path}')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to export CSV: $e')),
-        );
-      }
-    }
   }
 }
 
