@@ -15,7 +15,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { subscribeAttendance, getAllUsers, getUserAttendanceHistory, getOrgSettings, getProjects, getAllRoles } from '../../lib/firestore';
 import { Attendance, AppUser, OrgSettings, Project, Role } from '../../types';
 import { format, addDays, subDays, differenceInMinutes, differenceInSeconds, differenceInDays } from 'date-fns';
-
+import { getOvertimeMinutes, formatOvertime } from '../../lib/utils';
 const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -297,10 +297,14 @@ const AttendanceDashboardPage: React.FC = () => {
         const outsideGeofenceDays = hist.filter((h) => isOutsideGeofence(h)).length;
 
         let totalMins = 0;
+        let totalOvertimeMins = 0;
         hist.forEach((rec) => {
           if (rec.checkInTime && rec.checkOutTime) {
             try {
-              totalMins += differenceInMinutes(rec.checkOutTime.toDate(), rec.checkInTime.toDate());
+              const inT = rec.checkInTime.toDate();
+              const outT = rec.checkOutTime.toDate();
+              totalMins += differenceInMinutes(outT, inT);
+              totalOvertimeMins += getOvertimeMinutes(inT, outT);
             } catch {
               // Ignore invalid dates
             }
@@ -308,6 +312,7 @@ const AttendanceDashboardPage: React.FC = () => {
         });
 
         const totalHours = Math.round((totalMins / 60) * 100) / 100;
+        const totalOvertimeHours = Math.round((totalOvertimeMins / 60) * 100) / 100;
         const avgHours = presentDays > 0 ? Math.round((totalHours / presentDays) * 100) / 100 : 0;
         const complianceRate = presentDays > 0
           ? Math.round(((presentDays - outsideGeofenceDays) / presentDays) * 100)
@@ -319,6 +324,7 @@ const AttendanceDashboardPage: React.FC = () => {
           'Role': u.roleId ? (roleMap.get(u.roleId) ?? 'No Role') : 'No Role',
           'Days Present': presentDays,
           'Total Hours Worked': totalHours,
+          'Total Overtime Hours': totalOvertimeHours,
           'Avg Hours / Day': avgHours,
           'Outside Geofence Incidents': outsideGeofenceDays,
           'Missing Checkouts': noCheckoutDays,
@@ -327,11 +333,11 @@ const AttendanceDashboardPage: React.FC = () => {
       });
 
       const overviewData = [
-        { A: 'ATTENDANCE MANAGEMENT SUMMARY REPORT', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
-        { A: 'Report Date:', B: format(new Date(), 'yyyy-MM-dd HH:mm'), C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
-        { A: 'Period:', B: `${exportStart} to ${exportEnd}`, C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
-        { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
-        { A: 'TEAM PERFORMANCE COMPLIANCE OVERVIEW', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '' },
+        { A: 'ATTENDANCE MANAGEMENT SUMMARY REPORT', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '', J: '' },
+        { A: 'Report Date:', B: format(new Date(), 'yyyy-MM-dd HH:mm'), C: '', D: '', E: '', F: '', G: '', H: '', I: '', J: '' },
+        { A: 'Period:', B: `${exportStart} to ${exportEnd}`, C: '', D: '', E: '', F: '', G: '', H: '', I: '', J: '' },
+        { A: '', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '', J: '' },
+        { A: 'TEAM PERFORMANCE COMPLIANCE OVERVIEW', B: '', C: '', D: '', E: '', F: '', G: '', H: '', I: '', J: '' },
       ];
 
       const overviewSheet = XLSX.utils.json_to_sheet(overviewData, { skipHeader: true });
@@ -344,6 +350,7 @@ const AttendanceDashboardPage: React.FC = () => {
         { wch: 16 }, // Role
         { wch: 14 }, // Days Present
         { wch: 18 }, // Total Hours Worked
+        { wch: 20 }, // Total Overtime Hours
         { wch: 16 }, // Avg Hours / Day
         { wch: 24 }, // Outside Geofence Incidents
         { wch: 18 }, // Missing Checkouts
@@ -369,6 +376,7 @@ const AttendanceDashboardPage: React.FC = () => {
             'Check Out': outT ? format(outT, 'HH:mm') : '—',
             'Check Out Address': rec.checkOutAddress || '—',
             'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '—',
+            'Overtime (hrs)': (inT && outT) ? Math.round((getOvertimeMinutes(inT, outT) / 60) * 100) / 100 : '—',
             'Geofence Compliance': isOutsideGeofence(rec) ? 'Outside Geofence' : 'Compliant',
           });
         }
@@ -386,6 +394,7 @@ const AttendanceDashboardPage: React.FC = () => {
         { wch: 10 }, // Check Out
         { wch: 32 }, // Check Out Address
         { wch: 14 }, // Duration (hrs)
+        { wch: 14 }, // Overtime (hrs)
         { wch: 20 }, // Geofence Compliance
       ];
 
@@ -663,7 +672,17 @@ const AttendanceDashboardPage: React.FC = () => {
                     {getDur() && checkedOut && (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-slate-500">Total</span>
-                        <span className="font-medium text-blue-600">{getDur()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-blue-600">{getDur()}</span>
+                          {(() => {
+                            if (!rec?.checkInTime || !rec?.checkOutTime) return null;
+                            const otMins = getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate());
+                            if (otMins > 0) {
+                              return <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-bold">OT: {formatOvertime(otMins)}</span>;
+                            }
+                            return null;
+                          })()}
+                        </div>
                       </div>
                     )}
                     {outside && (

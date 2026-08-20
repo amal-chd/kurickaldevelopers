@@ -204,3 +204,24 @@ export function formatDelay(delaySeconds: number | undefined | null): string {
   const days = Math.ceil(delaySeconds / (24 * 3600));
   return `${days} day${days === 1 ? '' : 's'} late`;
 }
+
+/**
+ * Calculate overtime minutes beyond 8 hours (480 minutes).
+ */
+export function getOvertimeMinutes(checkInTime: Date, checkOutTime: Date): number {
+  const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 60000);
+  const standardMinutes = 480; // 8 hours
+  return totalMinutes > standardMinutes ? totalMinutes - standardMinutes : 0;
+}
+
+/**
+ * Format overtime minutes into a readable string like '1h 30m'.
+ */
+export function formatOvertime(minutes: number): string {
+  if (minutes <= 0) return '';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}

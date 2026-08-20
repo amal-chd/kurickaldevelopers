@@ -10,7 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import { TaskStatusChip } from '../../components/ui/StatusChip';
 import { getUser, getAllRoles, getTasks, getUserAttendanceHistory, getPerformanceScore } from '../../lib/firestore';
 import { AppUser, Role, Task, Attendance, PerformanceScore } from '../../types';
-import { formatDate, formatTime, getDuration } from '../../lib/utils';
+import { formatDate, formatTime, getDuration, getOvertimeMinutes, formatOvertime } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { getDmChannelId } from '../../lib/utils';
 
@@ -293,6 +293,12 @@ const MemberDetailPage: React.FC = () => {
                             <>
                               <span>Out: <strong className="text-slate-700">{formatTime(a.checkOutTime)}</strong></span>
                               <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">{getDuration(a.checkInTime, a.checkOutTime)}</span>
+                              {(() => {
+                                if (!a.checkInTime || !a.checkOutTime) return null;
+                                const ot = getOvertimeMinutes(a.checkInTime.toDate(), a.checkOutTime.toDate());
+                                if (ot > 0) return <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">OT: {formatOvertime(ot)}</span>;
+                                return null;
+                              })()}
                             </>
                           )}
                         </div>
