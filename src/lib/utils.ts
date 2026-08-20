@@ -6,11 +6,16 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
-export function toDate(ts: Timestamp | Date | string | undefined | null): Date | null {
+export function toDate(ts: any): Date | null {
   if (!ts) return null;
-  if (ts instanceof Date) return ts;
-  if (typeof ts === 'string') return new Date(ts);
-  if (ts instanceof Timestamp) return ts.toDate();
+  let d: Date | null = null;
+  if (ts instanceof Date) d = ts;
+  else if (typeof ts === 'string') d = new Date(ts);
+  else if (ts && typeof ts.toDate === 'function') d = ts.toDate();
+  else if (ts && ts._seconds !== undefined) d = new Date(ts._seconds * 1000);
+  else if (typeof ts === 'number') d = new Date(ts);
+  
+  if (d && !isNaN(d.getTime())) return d;
   return null;
 }
 
