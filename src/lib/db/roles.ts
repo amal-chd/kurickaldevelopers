@@ -22,7 +22,7 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 // ─── Roles ────────────────────────────────────────────────────────────────────
 export const getRole = async (roleId: string): Promise<Role | null> => {
   try {
-    const { data, error } = await supabase.from('roles').select('*').eq('id', roleId).single();
+    const { data, error } = await supabase.from('roles').select('*').eq('id', roleId).maybeSingle();
     if (error || !data) return null;
     return data as Role;
   } catch (err: any) {

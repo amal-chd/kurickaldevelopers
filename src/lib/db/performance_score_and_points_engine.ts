@@ -11,6 +11,7 @@ import {
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from '../performanceEngine';
 import { notifyPush } from '../push';
 import { createNotification } from './notifications';
+import { getUser } from './users';
 
 const logPermissionError = (actionName: string, error: any, context?: any) => {
   const isPermissionError = error?.code === 'PGRST301' || error?.message?.includes('permission') || error?.message?.includes('denied');
@@ -76,7 +77,7 @@ const mapScore = (d: any): PerformanceScore => {
 
 export const getPerformanceScore = async (userId: string): Promise<PerformanceScore | null> => {
   try {
-    const { data, error } = await supabase.from('performance_scores').select('*').eq('id', userId).single();
+    const { data, error } = await supabase.from('performance_scores').select('*').eq('id', userId).maybeSingle();
     if (error || !data) return null;
     return mapScore(data);
   } catch (err: any) {
@@ -137,7 +138,7 @@ export const submitPerformanceReview = async (review: Omit<PerformanceReview, 'i
 
 export const getPerformanceConfig = async (): Promise<PerformanceConfig> => {
   try {
-    const { data, error } = await supabase.from('settings').select('*').eq('id', 'performance_config').single();
+    const { data, error } = await supabase.from('settings').select('*').eq('id', 'performance_config').maybeSingle();
     if (error || !data) return DEFAULT_PERFORMANCE_CONFIG;
     return data as PerformanceConfig;
   } catch (err: any) {
@@ -157,11 +158,11 @@ export const updatePerformanceConfig = async (data: Partial<PerformanceConfig>):
 };
 
 export const recalculatePerformanceScore = async (userId: string): Promise<PerformanceScore> => {
-  const { data: userDoc, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
-  if (userError || !userDoc) {
+  // Users live in Firestore (identity layer), not Supabase — read from there.
+  const user = await getUser(userId);
+  if (!user) {
     throw new Error('User not found');
   }
-  const user = userDoc as AppUser;
   const roleId = user.roleId || '';
 
   const taskMap = new Map<string, Task>();
@@ -224,7 +225,7 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
   const config = await getPerformanceConfig();
   const score = calculatePerformanceScore(userId, userTasks, userReviews, userAttendance, config, roleId);
 
-  const { data: oldScoreDoc } = await supabase.from('performance_scores').select('*').eq('id', userId).single();
+  const { data: oldScoreDoc } = await supabase.from('performance_scores').select('*').eq('id', userId).maybeSingle();
   const oldScore = oldScoreDoc ? (oldScoreDoc as PerformanceScore) : null;
 
   const allScores = await getAllPerformanceScores();

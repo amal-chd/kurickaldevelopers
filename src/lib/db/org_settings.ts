@@ -22,7 +22,7 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 // ─── Org Settings ─────────────────────────────────────────────────────────────
 export const getOrgSettings = async (): Promise<OrgSettings | null> => {
   try {
-    const { data, error } = await supabase.from('settings').select('*').eq('id', 'org').single();
+    const { data, error } = await supabase.from('settings').select('*').eq('id', 'org').maybeSingle();
     if (error || !data) return null;
     return {
       companyName: data.company_name,

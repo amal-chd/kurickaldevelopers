@@ -211,7 +211,7 @@ export const getTasks = async (constraints: QueryConstraint[] = []): Promise<Tas
 
 export const getTask = async (id: string): Promise<Task | null> => {
   try {
-    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).maybeSingle();
     if (error) throw error;
     if (!data) return null;
     return convertRowToTask(data);
@@ -249,7 +249,12 @@ export const createTask = async (data: Omit<Task, 'id'>): Promise<string> => {
 
 export const updateTask = async (id: string, data: Partial<Task>): Promise<void> => {
   const rowData = convertTaskToRow(data);
-  rowData.id = crypto.randomUUID();
+  // NEVER mutate the primary key on update. Previously this assigned a fresh
+  // random UUID, which either violated the tasks.id foreign keys from
+  // comments/subtasks/performance_reviews (update_rule NO ACTION → the whole
+  // update threw) or silently re-keyed the row and orphaned it. This broke
+  // every task edit — including assigning a role to an existing task.
+  delete rowData.id;
   rowData.updated_at = new Date().toISOString();
 
   const { error } = await supabase
@@ -260,7 +265,7 @@ export const updateTask = async (id: string, data: Partial<Task>): Promise<void>
   if (error) throw error;
 
   try {
-    const { data: taskData } = await supabase.from('tasks').select('*').eq('id', id).single();
+    const { data: taskData } = await supabase.from('tasks').select('*').eq('id', id).maybeSingle();
     if (taskData) {
       const task = convertRowToTask(taskData);
       if (task.assigneeIds) {

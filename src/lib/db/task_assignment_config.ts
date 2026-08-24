@@ -21,7 +21,7 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 
 // ─── Task Assignment Config ─────────────────────────────────────────────────
 export const getTaskAssignmentConfig = async (): Promise<TaskAssignmentConfig | null> => {
-  const { data, error } = await supabase.from('settings').select('*').eq('id', 'task_assignment').single();
+  const { data, error } = await supabase.from('settings').select('*').eq('id', 'task_assignment').maybeSingle();
   if (error || !data) return null;
   return data as TaskAssignmentConfig;
 };

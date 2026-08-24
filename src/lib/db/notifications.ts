@@ -63,7 +63,7 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
   const fetchInitial = async () => {
     try {
       const { data: broadcastData } = await supabase
-        .from('notifications')
+        .from('app_notifications')
         .select('*')
         .eq('user_id', '')
         .order('created_at', { ascending: false })
@@ -79,7 +79,7 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
       }
 
       const { data: targetedData } = await supabase
-        .from('notifications')
+        .from('app_notifications')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -103,7 +103,7 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
   fetchInitial();
 
   const channel = supabase.channel('notifications_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_notifications' }, () => {
       fetchInitial();
     })
     .subscribe();
@@ -114,12 +114,12 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
 };
 
 export const markNotificationRead = async (notifId: string, userId: string): Promise<void> => {
-  const { data } = await supabase.from('notifications').select('is_read').eq('id', notifId).single();
+  const { data } = await supabase.from('app_notifications').select('is_read').eq('id', notifId).maybeSingle();
   const isRead = data?.is_read || {};
   isRead[userId] = true;
 
   const { error } = await supabase
-    .from('notifications')
+    .from('app_notifications')
     .update({ is_read: isRead })
     .eq('id', notifId);
     
@@ -144,6 +144,13 @@ export const createNotification = async (data: Omit<AppNotification, 'id' | 'cre
   delete (insertData as any).isRead;
   delete (insertData as any).createdAt;
 
-  const { error } = await supabase.from('notifications').insert(insertData);
+  // Map the remaining camelCase fields to their snake_case columns so the
+  // insert doesn't carry unknown columns.
+  (insertData as any).related_id = (data as any).relatedId ?? null;
+  (insertData as any).related_type = (data as any).relatedType ?? null;
+  delete (insertData as any).relatedId;
+  delete (insertData as any).relatedType;
+
+  const { error } = await supabase.from('app_notifications').insert(insertData);
   if (error) logPermissionError('createNotification', error, { data });
 };
