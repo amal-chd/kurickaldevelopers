@@ -16,8 +16,9 @@ import { formatDate, projectStatusColor, projectStatusLabel, formatDelay } from 
 import { isAfter } from 'date-fns';
 
 const DashboardPage: React.FC = () => {
-  const { appUser, firebaseUser } = useAuthStore();
+  const { appUser, firebaseUser, role } = useAuthStore();
   const { can } = usePermissions();
+  const isOwner = (role?.level ?? 0) >= 100; // Director/Owner only
   const navigate = useNavigate();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -214,7 +215,8 @@ const DashboardPage: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Completion Analytics ── */}
+      {/* ── Completion Analytics + Team Member Statistics (Owner only) ── */}
+      {isOwner && (
       <Card padding={false} className="overflow-hidden border border-slate-200/60 shadow-sm bg-white rounded-xl">
         <button 
           onClick={() => setAnalyticsOpen(!analyticsOpen)} 
@@ -360,6 +362,7 @@ const DashboardPage: React.FC = () => {
         </div>
         )}
       </Card>
+      )}
 
       {/* ── Main grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
