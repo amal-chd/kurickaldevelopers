@@ -162,12 +162,12 @@ class NotificationsScreen extends ConsumerWidget {
                       ),
                       onDismissed: (direction) {
                         if (direction == DismissDirection.startToEnd) {
-                          repo.markAsRead(n.id);
+                          repo.markAsRead(n.id, currentUid);
                         } else if (n.userId.isEmpty) {
                           // Broadcast: a shared doc — dismiss for THIS user only
                           // (mark read). Deleting it would remove it for everyone
                           // and is blocked by the security rules anyway.
-                          repo.markAsRead(n.id);
+                          repo.markAsRead(n.id, currentUid);
                         } else {
                           // Targeted notification (their own) — safe to delete.
                           repo.deleteNotification(n.id);
@@ -176,7 +176,7 @@ class NotificationsScreen extends ConsumerWidget {
                       child: _NotificationTile(
                         notification: n,
                         onTap: () {
-                          repo.markAsRead(n.id);
+                          repo.markAsRead(n.id, currentUid);
                           _navigate(context, n);
                         },
                       ),

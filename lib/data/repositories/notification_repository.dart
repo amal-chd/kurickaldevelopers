@@ -53,17 +53,28 @@ class NotificationRepository {
   }
 
   Stream<int> watchUnreadCount(String userId) {
+    // `is_read` is a jsonb per-user map ({uid: true}); a notification is unread
+    // for this user unless their entry is true.
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId)
-        .map((list) => list.where((data) => data['is_read'] == false).length)
+        .map((list) => list.where((data) {
+              final ir = data['is_read'];
+              return !(ir is Map && ir[userId] == true);
+            }).length)
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
-  Future<void> markAsRead(String notificationId) async {
+  Future<void> markAsRead(String notificationId, String userId) async {
     try {
-      await _supabase.from(_table).update({
-        'is_read': true,
-        'read_at': DateTime.now().toIso8601String(),
-      }).eq('id', notificationId);
+      final row = await _supabase
+          .from(_table)
+          .select('is_read')
+          .eq('id', notificationId)
+          .maybeSingle();
+      final isRead = (row != null && row['is_read'] is Map)
+          ? Map<String, dynamic>.from(row['is_read'] as Map)
+          : <String, dynamic>{};
+      isRead[userId] = true;
+      await _supabase.from(_table).update({'is_read': isRead}).eq('id', notificationId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -71,10 +82,15 @@ class NotificationRepository {
 
   Future<void> markAllAsRead(String userId) async {
     try {
-      await _supabase.from(_table).update({
-        'is_read': true,
-        'read_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId).eq('is_read', false);
+      final rows = await _supabase.from(_table).select('id, is_read').eq('user_id', userId);
+      for (final row in (rows as List)) {
+        final isRead = (row['is_read'] is Map)
+            ? Map<String, dynamic>.from(row['is_read'] as Map)
+            : <String, dynamic>{};
+        if (isRead[userId] == true) continue;
+        isRead[userId] = true;
+        await _supabase.from(_table).update({'is_read': isRead}).eq('id', row['id']);
+      }
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

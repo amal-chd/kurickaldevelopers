@@ -42,8 +42,15 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    if (value == null) { map[key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase())] = null; return; }
-    
+    if (value == null) {
+      // Location fields map to lat/lng columns — never emit the non-existent
+      // check_in_location / check_out_location columns (caused PGRST204).
+      if (key == 'checkInLocation') { map['check_in_lat'] = null; map['check_in_lng'] = null; return; }
+      if (key == 'checkOutLocation') { map['check_out_lat'] = null; map['check_out_lng'] = null; return; }
+      map[key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase())] = null;
+      return;
+    }
+
     if (key == 'checkInLocation') {
       map['check_in_lat'] = (value as dynamic).latitude;
       map['check_in_lng'] = (value as dynamic).longitude;
