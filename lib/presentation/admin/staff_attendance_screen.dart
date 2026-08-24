@@ -2099,7 +2099,9 @@ Future<void> _showEditAttendanceSheet(
                               updates['overtimeOverrideMinutes'] = ot;
                             }
                           } else {
-                            updates['overtimeOverrideMinutes'] = FieldValue.delete();
+                            // Supabase clears a column with null (FieldValue is
+                            // a Firestore-only construct and can't be encoded).
+                            updates['overtimeOverrideMinutes'] = null;
                           }
 
                           try {

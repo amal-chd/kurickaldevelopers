@@ -18,7 +18,10 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
       map[key] = value;
     }
   });
-  if (data['timestamp'] != null && data['timestamp'] is String) map['timestamp'] = Timestamp.fromDate(DateTime.parse(data['timestamp']));
+  // Supabase stores the audit time in `created_at`; expose it as `timestamp`
+  // so AuditLogEntry.fromMap (which reads d['timestamp']) resolves correctly.
+  final auditTs = data['created_at'] ?? data['timestamp'];
+  if (auditTs != null && auditTs is String) map['timestamp'] = Timestamp.fromDate(DateTime.parse(auditTs));
   if (data['invited_at'] != null && data['invited_at'] is String) map['invitedAt'] = Timestamp.fromDate(DateTime.parse(data['invited_at']));
   if (data['sent_at'] != null && data['sent_at'] is String) map['sentAt'] = Timestamp.fromDate(DateTime.parse(data['sent_at']));
   return map;
@@ -378,13 +381,13 @@ class AdminRepository {
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogs({int limit = 100}) {
-    return _supabase.from('audit_logs').stream(primaryKey: ['id']).order('timestamp', ascending: false).limit(limit)
+    return _supabase.from('audit_logs').stream(primaryKey: ['id']).order('created_at', ascending: false).limit(limit)
         .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogsByType(String targetType) {
-    return _supabase.from('audit_logs').stream(primaryKey: ['id']).eq('target_type', targetType).order('timestamp', ascending: false).limit(50)
+    return _supabase.from('audit_logs').stream(primaryKey: ['id']).eq('target_type', targetType).order('created_at', ascending: false).limit(50)
         .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }

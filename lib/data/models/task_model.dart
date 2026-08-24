@@ -91,8 +91,9 @@ class TaskModel {
       status: TaskStatusX.fromString(data['status'] ?? 'created'),
       priority: TaskPriorityX.fromString(data['priority'] ?? 'medium'),
       dueDate: AppDateUtils.fromTimestamp(data['dueDate']) ?? DateTime.now(),
-      estimatedHours: data['estimatedHours'] ?? 0,
-      actualHours: data['actualHours'] ?? 0,
+      // Supabase numeric columns arrive as double — coerce to int.
+      estimatedHours: (data['estimatedHours'] as num?)?.toInt() ?? 0,
+      actualHours: (data['actualHours'] as num?)?.toInt() ?? 0,
       tags: List<String>.from(data['tags'] ?? []),
       dependsOn: List<String>.from(data['dependsOn'] ?? []),
       isRecurring: data['isRecurring'] ?? false,

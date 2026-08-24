@@ -65,9 +65,12 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      // Store the real UTC instant. `toDate()` is local and toIso8601String()
+      // drops the offset, so writing it naively made Supabase treat local time
+      // as UTC — check-in/out times then displayed shifted by the tz offset.
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else if (value is GeoPoint) {
       // Should not hit here if we intercepted checkInLocation above, but just in case
       map[snakeKey + '_lat'] = value.latitude;

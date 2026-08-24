@@ -561,10 +561,18 @@ class TaskRepository {
 
   Future<void> addComment(String taskId, CommentModel comment) async {
     try {
-      final data = _toSnakeCase(comment.toFirestore());
-      data['task_id'] = taskId;
-      data['id'] = const Uuid().v4();
-      await _supabase.from('comments').insert(data);
+      // Build the row explicitly — the task `_toSnakeCase` maps attachmentUrls
+      // to `attachments`, but the comments table uses `attachment_urls`.
+      await _supabase.from('comments').insert({
+        'id': const Uuid().v4(),
+        'task_id': taskId,
+        'author_id': comment.authorId,
+        'text': comment.text,
+        'mentions': comment.mentions,
+        'attachment_urls': comment.attachmentUrls,
+        'created_at': comment.createdAt.toUtc().toIso8601String(),
+        'edited_at': comment.editedAt?.toUtc().toIso8601String(),
+      });
 
       try {
         final taskData = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
