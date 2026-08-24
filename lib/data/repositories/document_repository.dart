@@ -18,7 +18,8 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
     }
   });
   
-  if (data['uploaded_at'] != null && data['uploaded_at'] is String) map['uploadedAt'] = Timestamp.fromDate(DateTime.parse(data['uploaded_at']));
+  final uploadedTs = data['created_at'] ?? data['uploaded_at'];
+  if (uploadedTs != null && uploadedTs is String) map['uploadedAt'] = Timestamp.fromDate(DateTime.parse(uploadedTs));
   if (data['created_at'] != null && data['created_at'] is String) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
   
   return map;
@@ -60,7 +61,7 @@ class DocumentRepository {
   String get _table => 'documents';
 
   Stream<List<DocumentModel>> watchProjectDocuments(String projectId) {
-    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('uploaded_at', ascending: false)
+    return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('created_at', ascending: false)
         .map((list) => list.map((data) => DocumentModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }

@@ -401,9 +401,9 @@ class _DmTile extends ConsumerWidget {
 
     return peerAsync.when(
       loading: () => const SizedBox(height: 72),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, __) => _dmFallbackTile(context, channel, currentUid, unread),
       data: (peer) {
-        if (peer == null) return const SizedBox.shrink();
+        if (peer == null) return _dmFallbackTile(context, channel, currentUid, unread);
         // Some user docs have a blank name — fall back to email so the DM never
         // renders with an empty title / icon-only row.
         final displayName = peer.name.trim().isNotEmpty
@@ -462,6 +462,40 @@ class _DmTile extends ConsumerWidget {
       },
     );
   }
+}
+
+// A DM row that renders even when the peer's user doc can't be resolved
+// (missing/deleted user or a slow/failed lookup) — a conversation must never
+// silently disappear from the list.
+Widget _dmFallbackTile(
+  BuildContext context,
+  ChatChannelModel channel,
+  String currentUid,
+  int unread,
+) {
+  return ListTile(
+    onTap: () => context.push('/chat/${channel.id}'),
+    leading: const AvatarWidget(name: 'Direct message', size: 46),
+    title: Text(
+      'Direct message',
+      style: TextStyle(
+        fontWeight: unread > 0 ? FontWeight.bold : FontWeight.w500,
+      ),
+    ),
+    subtitle: channel.lastMessageText.isEmpty
+        ? const Text('Say hello 👋',
+            style: TextStyle(color: AppTheme.textLight, fontSize: 12))
+        : Text(
+            channel.lastMessageText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+          ),
+    trailing: _TrailingTimeBadge(
+      lastMessageAt: channel.lastMessageAt,
+      unread: unread,
+    ),
+  );
 }
 
 // ── Channel Avatar ────────────────────────────────────────────────────────────

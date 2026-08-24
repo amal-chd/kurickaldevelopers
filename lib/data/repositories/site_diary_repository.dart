@@ -18,7 +18,8 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
     }
   });
   
-  if (data['date'] != null && data['date'] is String) map['date'] = Timestamp.fromDate(DateTime.parse(data['date']));
+  // `date` is a plain 'YYYY-MM-DD' string on the model — do NOT convert it to a
+  // Timestamp (that caused "type 'Timestamp' is not a subtype of type 'String'").
   if (data['created_at'] != null && data['created_at'] is String) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
   if (data['updated_at'] != null && data['updated_at'] is String) map['updatedAt'] = Timestamp.fromDate(DateTime.parse(data['updated_at']));
   

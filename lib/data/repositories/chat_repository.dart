@@ -162,7 +162,7 @@ class ChatRepository {
   }) async {
     try {
       final sortedIds = [myUid, peerUid]..sort();
-      final dmId = 'dm_\${sortedIds[0]}_\${sortedIds[1]}';
+      final dmId = 'dm_${sortedIds[0]}_${sortedIds[1]}';
 
       final snap = await _supabase.from('chat_channels').select().eq('id', dmId).maybeSingle();
       if (snap != null) return dmId;

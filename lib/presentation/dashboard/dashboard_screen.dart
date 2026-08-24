@@ -197,6 +197,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final canViewTeam = ref.watch(
                         hasPermissionProvider('team_view'),
                       );
+                      // Owner = Director/Owner role (level 100). Completion
+                      // Analytics + Team Member Statistics are owner-only.
+                      final isOwner =
+                          (ref.watch(currentRoleProvider).value?.level ?? 0) >= 100;
 
                       return tasksAsync.when(
                         loading: () => const ShimmerList(count: 4),
@@ -360,8 +364,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                         child: _QuickActionsRow(),
                                       ),
 
-                                      // ── Completion Analytics ────────────────────
-                                      if (canViewTasks)
+                                      // ── Completion Analytics + Team Member
+                                      // Statistics (Owner/Director only) ─────────
+                                      if (isOwner)
                                         _buildCompletionAnalyticsSection(
                                           context,
                                           ref,
