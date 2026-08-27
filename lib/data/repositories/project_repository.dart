@@ -11,7 +11,13 @@ import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, Sna
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    if (key.contains('_')) {
+    if (key == 'location') {
+      map['siteAddress'] = value;
+    } else if (key == 'manager_id') {
+      map['projectManagerId'] = value;
+    } else if (key == 'end_date') {
+      map['expectedEndDate'] = value;
+    } else if (key.contains('_')) {
       final parts = key.split('_');
       final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
       map[camelKey] = value;
@@ -20,10 +26,13 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
     }
   });
   
-  // Specific date conversions
-  if (data['created_at'] != null) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at']));
-  if (data['updated_at'] != null) map['updatedAt'] = Timestamp.fromDate(DateTime.parse(data['updated_at']));
-  if (data['due_date'] != null) map['dueDate'] = Timestamp.fromDate(DateTime.parse(data['due_date']));
+  // Specific date conversions (for AppDateUtils.fromTimestamp)
+  if (data['created_at'] != null) map['createdAt'] = Timestamp.fromDate(DateTime.parse(data['created_at'].toString()));
+  if (data['updated_at'] != null) map['updatedAt'] = Timestamp.fromDate(DateTime.parse(data['updated_at'].toString()));
+  if (data['due_date'] != null) map['dueDate'] = Timestamp.fromDate(DateTime.parse(data['due_date'].toString()));
+  if (data['start_date'] != null) map['startDate'] = Timestamp.fromDate(DateTime.parse(data['start_date'].toString()));
+  if (data['end_date'] != null) map['expectedEndDate'] = Timestamp.fromDate(DateTime.parse(data['end_date'].toString()));
+  if (data['actual_end_date'] != null) map['actualEndDate'] = Timestamp.fromDate(DateTime.parse(data['actual_end_date'].toString()));
   
   return map;
 }

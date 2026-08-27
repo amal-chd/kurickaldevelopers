@@ -18,7 +18,13 @@ import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, Sna
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    if (key.contains('_')) {
+    if (key == 'labels') {
+      map['tags'] = value;
+    } else if (key == 'attachments') {
+      map['attachmentUrls'] = value;
+    } else if (key == 'completed_by') {
+      map['doneBy'] = value;
+    } else if (key.contains('_')) {
       final parts = key.split('_');
       final camelKey = parts.first + parts.skip(1).map((w) => w.substring(0, 1).toUpperCase() + w.substring(1)).join('');
       map[camelKey] = value;
