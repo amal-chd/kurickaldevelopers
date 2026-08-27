@@ -151,7 +151,9 @@ class AttendanceRepository {
   Future<void> checkOut(String attendanceId, GeoPoint location, DateTime time) async {
     try {
       await _supabase.from(_table).update({
-        'check_out_time': time.toIso8601String(),
+        // Store the real UTC instant (matches check-in). A naive local ISO string
+        // is read back as UTC and shows the check-out time shifted by the offset.
+        'check_out_time': time.toUtc().toIso8601String(),
         'check_out_lat': location.latitude, 'check_out_lng': location.longitude,
       }).eq('id', attendanceId);
     } catch (e) {
@@ -194,8 +196,7 @@ class AttendanceRepository {
       if (record.checkInTime.isBefore(startOfToday)) {
         final autoOut = record.checkInTime.add(const Duration(hours: 8));
         _supabase.from(_table).update({
-          'check_out_time': autoOut.toIso8601String(),
-          
+          'check_out_time': autoOut.toUtc().toIso8601String(),
         }).eq('id', data['id']).then((_) {});
       }
     }

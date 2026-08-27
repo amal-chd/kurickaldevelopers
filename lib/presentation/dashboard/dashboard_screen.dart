@@ -865,7 +865,7 @@ class _WideGreetingBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final greetingIcon = _getGreetingIcon();
-    final name = user.name.split(' ').first;
+    final name = user.name.trim().split(' ').first;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
@@ -954,7 +954,7 @@ class _HeroGreeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final greetingIcon = _getGreetingIcon();
-    final greetingText = AppStrings.greeting(user.name.split(' ').first);
+    final greetingText = AppStrings.greeting(user.name.trim().split(' ').first);
     final commaIndex = greetingText.indexOf(',');
     final greetingPhrase = commaIndex != -1 ? greetingText.substring(0, commaIndex) : greetingText;
 
@@ -1025,7 +1025,7 @@ class _HeroGreeting extends StatelessWidget {
             ],
           ),
           Text(
-            '${user.name.split(' ').first}!',
+            '${user.name.trim().split(' ').first}!',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 32,
               fontWeight: FontWeight.w800,

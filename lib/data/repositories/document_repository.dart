@@ -41,14 +41,23 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
       map['labels'] = value;
       return;
     }
-    if (['taskId', 'mimeType', 'version', 'previousVersionIds'].contains(key)) return;
+    if (key == 'folder') {
+      map['folder_id'] = value;
+      return;
+    }
+    // documents columns: id, name, type, url, size, uploaded_by, project_id,
+    // folder_id, task_id, labels, created_at, updated_at. Everything else must be
+    // dropped or it 400s the insert (created_at defaults, so uploadedAt goes).
+    // taskId is kept (→ task_id) so task-linked documents persist.
+    if (['mimeType', 'version', 'previousVersionIds',
+         'approvalStatus', 'approvedBy', 'uploadedAt'].contains(key)) return;
 
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else {
       map[snakeKey] = value;
     }

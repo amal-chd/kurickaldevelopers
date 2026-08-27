@@ -1,5 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../providers/user_provider.dart';
 
@@ -151,12 +153,48 @@ Map<String, dynamic> buildAuditDoc({
   };
 }
 
+/// Builds a Supabase `audit_logs` row (snake_case columns). audit_logs lives in
+/// Supabase now — category is stored as `target_type` (no category/timestamp
+/// columns), and there are no legacy aliases.
+Map<String, dynamic> buildSupabaseAuditRow({
+  required String action,
+  required String category,
+  String actorId = '',
+  String actorName = '',
+  String actorRole = '',
+  String actorAvatar = '',
+  String targetId = '',
+  String targetName = '',
+  required String description,
+  List<AuditChange> changes = const [],
+  Map<String, dynamic> meta = const {},
+  String severity = 'info',
+}) {
+  final safeActorName = actorName.trim().isEmpty ? 'System' : actorName.trim();
+  return {
+    'id': const Uuid().v4(),
+    'action': action,
+    'actor_id': actorId,
+    'actor_name': safeActorName,
+    'actor_role': actorRole,
+    'actor_avatar': actorAvatar,
+    'target_id': targetId,
+    'target_type': category,
+    'target_name': targetName,
+    'description': description,
+    'changes': changes.map((c) => c.toMap()).toList(),
+    'meta': meta,
+    'severity': severity,
+    'created_at': DateTime.now().toUtc().toIso8601String(),
+  };
+}
+
 class AuditService {
-  final FirebaseFirestore _db;
+  final SupabaseClient _sb;
   final AuditActor? actor;
 
-  AuditService({required this.actor, FirebaseFirestore? db})
-    : _db = db ?? FirebaseFirestore.instance;
+  AuditService({required this.actor, SupabaseClient? client})
+    : _sb = client ?? Supabase.instance.client;
 
   /// Records an audit entry. Never throws — logging must not break the caller.
   Future<void> log({
@@ -170,8 +208,8 @@ class AuditService {
     String severity = 'info',
   }) async {
     try {
-      await _db.collection('audit_logs').add(
-        buildAuditDoc(
+      await _sb.from('audit_logs').insert(
+        buildSupabaseAuditRow(
           action: action,
           category: category,
           actorId: actor?.id ?? '',

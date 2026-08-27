@@ -96,7 +96,16 @@ class ProjectModel {
       healthStatus: HealthStatusX.fromString(data['healthStatus'] ?? 'green'),
       createdAt:
           AppDateUtils.fromTimestamp(data['createdAt']) ?? DateTime.now(),
-      siteCoordinates: data['siteCoordinates'] as GeoPoint?,
+      // site_coordinates is jsonb {lat,lng} from Supabase (or a GeoPoint from
+      // legacy Firestore). Never cast a Map straight to GeoPoint — it crashes.
+      siteCoordinates: data['siteCoordinates'] is GeoPoint
+          ? data['siteCoordinates'] as GeoPoint
+          : (data['siteCoordinates'] is Map
+              ? GeoPoint(
+                  ((data['siteCoordinates']['lat'] ?? 0) as num).toDouble(),
+                  ((data['siteCoordinates']['lng'] ?? 0) as num).toDouble(),
+                )
+              : null),
     );
   }
 
@@ -116,6 +125,10 @@ class ProjectModel {
     'progressPercent': progressPercent,
     'healthStatus': healthStatus.name,
     'createdAt': AppDateUtils.toTimestamp(createdAt),
-    'siteCoordinates': siteCoordinates,
+    // Serialize GeoPoint as jsonb {lat,lng} — a raw GeoPoint is not
+    // JSON-encodable and makes the Supabase write throw.
+    'siteCoordinates': siteCoordinates != null
+        ? {'lat': siteCoordinates!.latitude, 'lng': siteCoordinates!.longitude}
+        : null,
   };
 }

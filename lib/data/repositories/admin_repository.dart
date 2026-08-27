@@ -33,9 +33,9 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else {
       map[snakeKey] = value;
     }
@@ -340,7 +340,7 @@ class AdminRepository {
       var data = _toSnakeCase(config.toMap());
       data['id'] = 'task_assignment';
       data['updated_by'] = updatedBy;
-      data['updated_at'] = DateTime.now().toIso8601String();
+      data['updated_at'] = DateTime.now().toUtc().toIso8601String();
       await _supabase.from('settings').upsert(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -362,7 +362,9 @@ class AdminRepository {
     String severity = 'info',
   }) async {
     try {
-      final doc = buildAuditDoc(
+      // audit_logs lives in Supabase now (this used to write to Firestore, which
+      // the audit-log screen — reading Supabase — never showed).
+      final row = buildSupabaseAuditRow(
         action: action,
         category: targetType,
         actorId: actorId,
@@ -376,7 +378,7 @@ class AdminRepository {
         meta: meta,
         severity: severity,
       );
-      await FirebaseFirestore.instance.collection('audit_logs').add(doc);
+      await _supabase.from('audit_logs').insert(row);
     } catch (_) {}
   }
 
@@ -427,7 +429,7 @@ class AdminRepository {
         'body': body,
         'target_role_id': targetRoleId,
         'data': data,
-        'sent_at': DateTime.now().toIso8601String(),
+        'sent_at': DateTime.now().toUtc().toIso8601String(),
         'status': 'queued',
       });
     } catch (e) {

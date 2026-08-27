@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/site_diary_model.dart';
 import '../../core/utils/error_translator.dart';
+import '../../core/utils/date_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
 
 
@@ -29,15 +30,13 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    
-    if (key == 'weather') return;
-
+    // `weather` now has a column (text) — persist it instead of dropping it.
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else {
       map[snakeKey] = value;
     }
@@ -57,13 +56,13 @@ class SiteDiaryRepository {
 
   Future<SiteDiaryModel?> getDiaryForDate(String projectId, DateTime date) async {
     try {
-      final startOfDay = DateTime(date.year, date.month, date.day).toIso8601String();
-      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59).toIso8601String();
-
+      // `date` is stored as a 'YYYY-MM-DD' string, so match it directly.
+      // (Comparing against full ISO timestamps never matched → always null,
+      // which broke the "diary already exists for today" check.)
+      final ymd = AppDateUtils.toYMD(date);
       final data = await _supabase.from(_table).select()
           .eq('project_id', projectId)
-          .gte('date', startOfDay)
-          .lte('date', endOfDay)
+          .eq('date', ymd)
           .maybeSingle();
       if (data == null) return null;
       return SiteDiaryModel.fromMap(_toCamelCase(data), data['id']);

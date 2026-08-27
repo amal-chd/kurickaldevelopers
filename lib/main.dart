@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -54,10 +55,20 @@ void main() async {
   // Skipped silently until real credentials are configured in SupabaseConfig.
   if (SupabaseConfig.isConfigured) {
     try {
+      // Firebase → Supabase auth bridge (OFF by default). When built with
+      // --dart-define=SUPABASE_FIREBASE_AUTH=true, every Supabase request carries
+      // the Firebase ID token so RLS can read the uid via auth.jwt()->>'sub'.
+      // Enable ONLY after Firebase is registered as a Supabase Third-Party Auth
+      // provider, otherwise Supabase rejects the token and all requests 401.
+      const useFirebaseAuth =
+          bool.fromEnvironment('SUPABASE_FIREBASE_AUTH', defaultValue: false);
       await Supabase.initialize(
         url: SupabaseConfig.url,
         // ignore: deprecated_member_use
         anonKey: SupabaseConfig.anonKey,
+        accessToken: useFirebaseAuth
+            ? () async => await FirebaseAuth.instance.currentUser?.getIdToken()
+            : null,
       );
     } catch (e) {
       debugPrint('Supabase init failed (uploads will be unavailable): $e');

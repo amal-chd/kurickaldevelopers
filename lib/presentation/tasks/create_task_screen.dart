@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,7 +52,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   bool _isLoadingEdit = false;
   bool _isRecurring = false;
   final List<String> _tags = [];
-  final List<File> _selectedFiles = [];
+  final List<PlatformFile> _selectedFiles = [];
   final List<String> _existingAttachmentUrls = [];
   bool get _isEditMode => widget.taskId != null;
 
@@ -165,12 +166,48 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    // withData loads the bytes up front — the reliable way to read iOS files.
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true, withData: true);
     if (result != null && mounted) {
       setState(() {
-        _selectedFiles.addAll(result.paths.where((p) => p != null).map((p) => File(p!)));
+        _selectedFiles.addAll(result.files);
       });
     }
+  }
+
+  /// Uploads the picked files, returning their URLs. Names any files that fail
+  /// (upload is best-effort, but failures are surfaced, never swallowed).
+  Future<List<String>> _uploadSelectedFiles(String taskId) async {
+    final uploadedUrls = <String>[];
+    final failed = <String>[];
+    for (final pf in _selectedFiles) {
+      try {
+        Uint8List? bytes = pf.bytes;
+        if (bytes == null && pf.path != null) {
+          bytes = await File(pf.path!).readAsBytes();
+        }
+        if (bytes == null) {
+          failed.add(pf.name);
+          continue;
+        }
+        final url = await StorageService().uploadTaskAttachmentData(
+          taskId: taskId,
+          fileName: pf.name,
+          bytes: bytes,
+        );
+        uploadedUrls.add(url);
+      } catch (e) {
+        failed.add(pf.name);
+        debugPrint('Attachment upload failed for ${pf.name}: $e');
+      }
+    }
+    if (failed.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not upload: ${failed.join(', ')}'),
+        backgroundColor: Colors.red,
+      ));
+    }
+    return uploadedUrls;
   }
 
   Future<void> _submit() async {
@@ -187,16 +224,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       final repo = ref.read(taskRepositoryProvider);
 
       if (_isEditMode) {
-        final uploadedUrls = <String>[];
-        for (final file in _selectedFiles) {
-          try {
-            final url = await StorageService().uploadTaskAttachment(taskId: widget.taskId!, file: file);
-            uploadedUrls.add(url);
-          } catch (e) {
-            // best effort
-          }
-        }
-        
+        final uploadedUrls = await _uploadSelectedFiles(widget.taskId!);
+
         // When editing, if assignees are added and status is still 'created',
         // automatically advance it to 'assigned'.
         final Map<String, dynamic> updates = {
@@ -226,15 +255,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       } else {
         // Create a temporary task ID to use for storage prefix
         final tempTaskId = DateTime.now().millisecondsSinceEpoch.toString();
-        final uploadedUrls = <String>[];
-        for (final file in _selectedFiles) {
-          try {
-            final url = await StorageService().uploadTaskAttachment(taskId: tempTaskId, file: file);
-            uploadedUrls.add(url);
-          } catch (e) {
-            // best effort
-          }
-        }
+        final uploadedUrls = await _uploadSelectedFiles(tempTaskId);
 
         // New tasks start as 'In Progress' once assigned
         final task = TaskModel(
@@ -834,7 +855,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     ..._selectedFiles.asMap().entries.map((entry) {
                       final i = entry.key;
                       final file = entry.value;
-                      final filename = file.path.split('/').last;
+                      final filename = file.name;
                       return Chip(
                         avatar: const Icon(Icons.file_upload_outlined, size: 16, color: Colors.green),
                         label: Text(

@@ -70,13 +70,13 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else if (value is GeoPoint) {
       map[snakeKey] = {'lat': value.latitude, 'lng': value.longitude};
     } else if (value != null && value.runtimeType.toString().contains('FieldValue')) {
-      map[snakeKey] = DateTime.now().toIso8601String();
+      map[snakeKey] = DateTime.now().toUtc().toIso8601String();
     } else {
       map[snakeKey] = value;
     }
@@ -241,7 +241,7 @@ class TaskRepository {
         'related_id': relatedId,
         'related_type': 'task',
         'is_read': {},
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       });
     } catch (_) {}
   }
@@ -351,15 +351,15 @@ class TaskRepository {
         final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
         memberProgress[userId] = {
           'status': actualStatus.value,
-          'updatedAt': DateTime.now().toIso8601String(),
-          'completedAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          'completedAt': DateTime.now().toUtc().toIso8601String(),
           'completionStatus': details.completionStatus,
           'delaySeconds': details.delaySeconds,
         };
       } else {
         memberProgress[userId] = {
           'status': actualStatus.value,
-          'updatedAt': DateTime.now().toIso8601String(),
+          'updatedAt': DateTime.now().toUtc().toIso8601String(),
         };
       }
 
@@ -388,14 +388,14 @@ class TaskRepository {
           for (final uid in allAssigneeUids) {
             memberProgress[uid] = {
               'status': TaskStatus.done.value,
-              'updatedAt': DateTime.now().toIso8601String(),
-              'completedAt': DateTime.now().toIso8601String(),
+              'updatedAt': DateTime.now().toUtc().toIso8601String(),
+              'completedAt': DateTime.now().toUtc().toIso8601String(),
               'completionStatus': details.completionStatus,
               'delaySeconds': details.delaySeconds,
             };
           }
           updates['memberProgress'] = memberProgress;
-          updates['completedAt'] = DateTime.now().toIso8601String();
+          updates['completedAt'] = DateTime.now().toUtc().toIso8601String();
           updates['completionStatus'] = details.completionStatus;
           updates['delaySeconds'] = details.delaySeconds;
         } else if (actualStatus == TaskStatus.underReview) {
@@ -538,10 +538,11 @@ class TaskRepository {
     String userId,
   ) async {
     try {
+      // subtasks columns: id, task_id, title, is_done, completed_by
+      // (no done_at / done_by — those caused the PATCH 400).
       await _supabase.from('subtasks').update({
         'is_done': isDone,
-        'done_at': isDone ? DateTime.now().toIso8601String() : null,
-        'done_by': isDone ? userId : null,
+        'completed_by': isDone ? userId : null,
       }).eq('id', subtaskId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -616,8 +617,9 @@ class TaskRepository {
     try {
       final data = _toSnakeCase(log.toFirestore());
       data['task_id'] = taskId;
-      final result = await FirebaseFirestore.instance.collection('tasks').doc(data['task_id']).collection('timeLogs').add(data); data['id'] = result.id;
-      return result.id;
+      data['id'] = const Uuid().v4();
+      final result = await _supabase.from('time_logs').insert(data).select('id').single();
+      return result['id'] as String;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -630,10 +632,10 @@ class TaskRepository {
     int durationMinutes,
   ) async {
     try {
-      await FirebaseFirestore.instance.collection('tasks').doc(taskId).collection('timeLogs').doc(logId).update({
-        'end_time': endTime.toIso8601String(),
+      await _supabase.from('time_logs').update({
+        'end_time': endTime.toUtc().toIso8601String(),
         'duration_minutes': durationMinutes,
-      });
+      }).eq('id', logId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

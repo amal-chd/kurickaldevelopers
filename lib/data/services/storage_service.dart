@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -109,6 +110,26 @@ class StorageService {
           path,
           file,
           fileOptions: const FileOptions(upsert: false),
+        );
+    return _client.storage
+        .from(SupabaseConfig.documentsBucket)
+        .getPublicUrl(path);
+  }
+
+  /// Uploads a task attachment from raw bytes (the reliable path on iOS, where a
+  /// picked file's on-disk path can be an unreadable iCloud/sandbox reference).
+  Future<String> uploadTaskAttachmentData({
+    required String taskId,
+    required String fileName,
+    required Uint8List bytes,
+    String? mimeType,
+  }) async {
+    if (!isReady) throw const _StorageUnavailableException(_unavailableMsg);
+    final path = _key('tasks/$taskId', fileName);
+    await _client.storage.from(SupabaseConfig.documentsBucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeType, upsert: false),
         );
     return _client.storage
         .from(SupabaseConfig.documentsBucket)

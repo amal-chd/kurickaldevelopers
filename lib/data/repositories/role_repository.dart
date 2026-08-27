@@ -30,9 +30,9 @@ class RoleRepository {
       else if (key == 'createdBy') map['created_by'] = value;
       else if (key == 'createdAt') {
         if (value is Timestamp) {
-          map['created_at'] = value.toDate().toIso8601String();
+          map['created_at'] = value.toDate().toUtc().toIso8601String();
         } else if (value is DateTime) {
-          map['created_at'] = value.toIso8601String();
+          map['created_at'] = value.toUtc().toIso8601String();
         }
       }
       else map[key] = value;

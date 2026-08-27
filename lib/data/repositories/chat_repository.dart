@@ -40,16 +40,16 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
-    
-    if (['description', 'projectId', 'iconEmoji', 'adminIds', 'createdBy'].contains(key)) return;
-
+    // NOTE: these are all real chat_channels columns (description, project_id,
+    // icon_emoji, admin_ids, created_by). They were being dropped, which stripped
+    // the project link, admins and creator from every created channel.
     final snakeKey = key.replaceAllMapped(RegExp(r'[A-Z]'), (match) => '_' + match.group(0)!.toLowerCase());
     if (value is Timestamp) {
-      map[snakeKey] = value.toDate().toIso8601String();
+      map[snakeKey] = value.toDate().toUtc().toIso8601String();
     } else if (value is DateTime) {
-      map[snakeKey] = value.toIso8601String();
+      map[snakeKey] = value.toUtc().toIso8601String();
     } else if (value != null && value.runtimeType.toString().contains('FieldValue')) {
-      map[snakeKey] = DateTime.now().toIso8601String();
+      map[snakeKey] = DateTime.now().toUtc().toIso8601String();
     } else {
       map[snakeKey] = value;
     }
@@ -177,7 +177,7 @@ class ChatRepository {
         'member_ids': sortedIds,
         'admin_ids': [],
         'created_by': myUid,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
         'last_message_text': '',
         'last_message_at': null,
         'last_message_by': null,
@@ -272,14 +272,14 @@ class ChatRepository {
 
       final msgData = _toSnakeCase(message.toFirestore());
       msgData['channel_id'] = channelId;
-      msgData['created_at'] = DateTime.now().toIso8601String();
+      msgData['created_at'] = DateTime.now().toUtc().toIso8601String();
       msgData['id'] = const Uuid().v4();
       final msgRef = await _supabase.from('chat_messages').insert(msgData).select().single();
       final msgId = msgRef['id'] as String;
 
       final channelUpdate = <String, dynamic>{
         'last_message_text': message.isDeleted ? '' : _previewText(message),
-        'last_message_at': DateTime.now().toIso8601String(),
+        'last_message_at': DateTime.now().toUtc().toIso8601String(),
         'last_message_by': message.senderId,
         'unread_counts': unreadCounts,
       };
@@ -320,7 +320,7 @@ class ChatRepository {
     try {
       await _supabase.from('chat_messages').update({
         'text': newText,
-        'edited_at': DateTime.now().toIso8601String(),
+        'edited_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', messageId);
       await _syncChannelPreview(channelId);
     } catch (e) {
@@ -393,8 +393,8 @@ class ChatRepository {
           'channel_id': channelId,
           'user_id': uid,
           'name': displayName,
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'channel_id,user_id');
       } else {
         await _supabase.from('chat_typing').delete().eq('channel_id', channelId).eq('user_id', uid);
       }
@@ -415,7 +415,7 @@ class ChatRepository {
       final lastReadAt = Map<String, dynamic>.from(doc['last_read_at'] ?? {});
       
       unreadCounts[uid] = 0;
-      lastReadAt[uid] = DateTime.now().toIso8601String();
+      lastReadAt[uid] = DateTime.now().toUtc().toIso8601String();
       
       await _supabase.from('chat_channels').update({
         'unread_counts': unreadCounts,
@@ -518,7 +518,7 @@ class ChatRepository {
     await _supabase.from('chat_channels').update({
       'last_message_text': _previewText(lastVisible),
       'last_message_by': lastVisible.senderId,
-      'last_message_at': lastVisible.createdAt.toIso8601String(),
+      'last_message_at': lastVisible.createdAt.toUtc().toIso8601String(),
     }).eq('id', channelId);
   }
 
@@ -579,7 +579,7 @@ class ChatRepository {
           'related_id': channelId,
           'related_type': 'chat',
           'is_read': {},
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         });
       }
     } catch (_) {}
