@@ -100,7 +100,7 @@ class AttendanceModel {
       checkOutAddress: data['checkOutAddress'] as String?,
       isWithinGeofence: data['isWithinGeofence'] ?? true,
       date: data['date'] ?? '',
-      overtimeOverrideMinutes: data['overtimeOverrideMinutes'] as int?,
+      overtimeOverrideMinutes: (data['overtimeOverrideMinutes'] as num?)?.toInt(),
     );
   }
 

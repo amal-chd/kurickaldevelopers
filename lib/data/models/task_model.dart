@@ -115,7 +115,7 @@ class TaskModel {
           AppDateUtils.fromTimestamp(data['updatedAt']) ?? DateTime.now(),
       completedAt: AppDateUtils.fromTimestamp(data['completedAt']),
       completionStatus: data['completionStatus'],
-      delaySeconds: data['delaySeconds'],
+      delaySeconds: (data['delaySeconds'] as num?)?.toInt(),
     );
   }
 

@@ -92,7 +92,7 @@ class ProjectModel {
       expectedEndDate:
           AppDateUtils.fromTimestamp(data['expectedEndDate']) ?? DateTime.now(),
       actualEndDate: AppDateUtils.fromTimestamp(data['actualEndDate']),
-      progressPercent: data['progressPercent'] ?? 0,
+      progressPercent: (data['progressPercent'] as num?)?.toInt() ?? 0,
       healthStatus: HealthStatusX.fromString(data['healthStatus'] ?? 'green'),
       createdAt:
           AppDateUtils.fromTimestamp(data['createdAt']) ?? DateTime.now(),

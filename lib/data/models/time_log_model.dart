@@ -28,7 +28,7 @@ class TimeLogModel {
       startTime:
           AppDateUtils.fromTimestamp(data['startTime']) ?? DateTime.now(),
       endTime: AppDateUtils.fromTimestamp(data['endTime']),
-      durationMinutes: data['durationMinutes'] ?? 0,
+      durationMinutes: (data['durationMinutes'] as num?)?.toInt() ?? 0,
       isBillable: data['isBillable'] ?? true,
       notes: data['notes'] ?? '',
     );
