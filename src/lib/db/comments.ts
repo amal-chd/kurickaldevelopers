@@ -47,15 +47,18 @@ export const getComments = async (taskId: string): Promise<TaskComment[]> => {
 
 export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 'createdAt'>, authorId?: string): Promise<string> => {
   const effectiveAuthorId = authorId || data.authorId || '';
+  const d = data as any;
+  // Map explicitly to real columns. Spreading `...data` leaked camelCase keys
+  // (attachmentUrls, editedAt) that are not columns and 400'd the insert.
   const payload = {
-    ...data,
-    task_id: taskId,
     id: crypto.randomUUID(),
+    task_id: taskId,
     author_id: effectiveAuthorId,
+    text: d.text ?? '',
+    mentions: d.mentions ?? [],
+    attachment_urls: d.attachmentUrls ?? [],
     // created_at is default in Supabase
   };
-  delete (payload as any).authorId;
-  delete (payload as any).taskId;
 
   const { data: inserted, error } = await supabase
     .from('comments')
@@ -106,7 +109,7 @@ export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 
 };
 
 export const subscribeComments = (taskId: string, cb: (comments: TaskComment[]) => void) => {
-  const channel = supabase.channel(`comments:task_id=eq.${taskId}`)
+  const channel = supabase.channel(`comments_${taskId}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter: `task_id=eq.${taskId}` }, async () => {
       const data = await getComments(taskId);
       cb(data);

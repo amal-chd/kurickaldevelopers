@@ -32,12 +32,42 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 
 // ─── Performance Score & Points Engine ────────────────────────────────────────
 const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+
+// Numeric/sortable columns that physically exist on performance_scores. Used to
+// keep those columns populated alongside the full jsonb snapshot.
+const SCORE_NUMERIC_COLUMNS: Record<string, string> = {
+  overallPerformanceIndex: 'overall_performance_index',
+  pointsBalance: 'points_balance',
+  pointsLifetime: 'points_lifetime',
+  totalTasksCompleted: 'total_tasks_completed',
+  totalTasksAssigned: 'total_tasks_assigned',
+  tasksCompletedOnTime: 'tasks_completed_on_time',
+  tasksCompletedLate: 'tasks_completed_late',
+  tasksOverdue: 'tasks_overdue',
+  tasksRejected: 'tasks_rejected',
+  averageCompletionTimeHrs: 'average_completion_time_hrs',
+  qualityScore: 'quality_score',
+  communicationScore: 'communication_score',
+  reliabilityScore: 'reliability_score',
+};
+
+// Build the row to persist: existing numeric columns + the full score snapshot
+// in `data` (the table can't hold all of PerformanceScore's rich fields).
+const scoreToRow = (userId: string, score: any): any => {
+  const row: any = { id: userId, user_id: userId, data: score, updated_at: new Date().toISOString() };
+  for (const [camel, snake] of Object.entries(SCORE_NUMERIC_COLUMNS)) {
+    if (score[camel] !== undefined && score[camel] !== null) row[snake] = score[camel];
+  }
+  return row;
+};
+
 const mapScore = (d: any): PerformanceScore => {
   const result: any = {};
   for (const key of Object.keys(d)) {
+    if (key === 'data') continue;
     result[toCamelCase(key)] = d[key];
   }
-  
+
   // Provide safe defaults for ALL missing columns and nested objects
   const safeParseJSON = (val: any, defaultVal: any) => {
     if (!val) return defaultVal;
@@ -71,7 +101,12 @@ const mapScore = (d: any): PerformanceScore => {
   result.efficiencyScore = d.efficiency_score || 0;
   result.totalPenaltyPoints = d.total_penalty_points || 0;
   result.departmentNormalizationFactor = d.department_normalization_factor || 1;
-  
+
+  // If a full snapshot was persisted as jsonb, overlay it — it carries every
+  // rich field the individual columns can't (badges, streaks, breakdowns, …).
+  if (d.data && typeof d.data === 'object') {
+    return { ...result, ...d.data } as PerformanceScore;
+  }
   return result as PerformanceScore;
 };
 
@@ -98,7 +133,7 @@ export const getAllPerformanceScores = async (): Promise<PerformanceScore[]> => 
 };
 
 export const subscribePerformanceScores = (cb: (scores: PerformanceScore[]) => void) => {
-  const channel = supabase.channel('performance_scores')
+  const channel = supabase.channel(`performance_scores_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'performance_scores' }, async () => {
       const scores = await getAllPerformanceScores();
       cb(scores);
@@ -128,8 +163,18 @@ export const getPerformanceReviews = async (taskId: string): Promise<Performance
 };
 
 export const submitPerformanceReview = async (review: Omit<PerformanceReview, 'id' | 'createdAt'>): Promise<string> => {
+  // performance_reviews columns are snake_case — map explicitly (spreading the
+  // camelCase review sent taskId/reviewerId/revieweeId which are not columns).
   const { data, error } = await supabase.from('performance_reviews')
-    .insert([{ ...review, created_at: new Date().toISOString() }])
+    .insert([{
+      task_id: review.taskId,
+      reviewer_id: review.reviewerId,
+      reviewee_id: review.revieweeId,
+      type: review.type,
+      score: review.score,
+      comment: review.comment,
+      created_at: new Date().toISOString(),
+    }])
     .select('id').single();
   if (error) throw error;
   recalculatePerformanceScore(review.revieweeId).catch(err => console.warn('Error recalculating score on review submit:', err));
@@ -138,9 +183,11 @@ export const submitPerformanceReview = async (review: Omit<PerformanceReview, 'i
 
 export const getPerformanceConfig = async (): Promise<PerformanceConfig> => {
   try {
-    const { data, error } = await supabase.from('settings').select('*').eq('id', 'performance_config').maybeSingle();
-    if (error || !data) return DEFAULT_PERFORMANCE_CONFIG;
-    return data as PerformanceConfig;
+    const { data, error } = await supabase.from('settings').select('config').eq('id', 'performance_config').maybeSingle();
+    if (error || !data || !(data as any).config) return DEFAULT_PERFORMANCE_CONFIG;
+    // Stored in the generic `config` jsonb column (settings has no per-config
+    // columns); merge over defaults so new keys are always present.
+    return { ...DEFAULT_PERFORMANCE_CONFIG, ...((data as any).config) } as PerformanceConfig;
   } catch (err: any) {
     console.warn('getPerformanceConfig error:', err);
     return DEFAULT_PERFORMANCE_CONFIG;
@@ -148,12 +195,12 @@ export const getPerformanceConfig = async (): Promise<PerformanceConfig> => {
 };
 
 export const updatePerformanceConfig = async (data: Partial<PerformanceConfig>): Promise<void> => {
-  const { firebaseUser } = useAuthStore.getState();
+  const existing = await getPerformanceConfig();
+  const merged = { ...existing, ...data };
   await supabase.from('settings').upsert({
     id: 'performance_config',
-    ...data,
+    config: merged,
     updated_at: new Date().toISOString(),
-    updated_by: firebaseUser?.email || 'admin',
   });
 };
 
@@ -196,6 +243,9 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
             dueDate: d.due_date ? new Date(d.due_date) : null,
             startDate: d.start_date ? new Date(d.start_date) : null,
             completedAt: d.completed_at ? new Date(d.completed_at) : null,
+            // Engine uses updatedAt as the completion-time proxy — omitting it
+            // made every completed task look done "now" (wrong on-time stats).
+            updatedAt: d.updated_at ? new Date(d.updated_at) : (d.completed_at ? new Date(d.completed_at) : null),
             attachmentUrls: d.attachment_urls || [],
             followers: d.followers || [],
             estimatedHours: d.estimated_hours,
@@ -226,13 +276,15 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
   const score = calculatePerformanceScore(userId, userTasks, userReviews, userAttendance, config, roleId);
 
   const { data: oldScoreDoc } = await supabase.from('performance_scores').select('*').eq('id', userId).maybeSingle();
-  const oldScore = oldScoreDoc ? (oldScoreDoc as PerformanceScore) : null;
+  // Map to camelCase (and overlay the jsonb snapshot) so the OPI/badge/streak
+  // comparisons below read real values instead of undefined snake_case keys.
+  const oldScore = oldScoreDoc ? mapScore(oldScoreDoc) : null;
 
   const allScores = await getAllPerformanceScores();
   const sortedOldScores = [...allScores].sort((a, b) => b.overallPerformanceIndex - a.overallPerformanceIndex);
   const oldRank = sortedOldScores.findIndex(s => s.userId === userId) + 1;
 
-  await supabase.from('performance_scores').upsert(score);
+  await supabase.from('performance_scores').upsert(scoreToRow(userId, score));
 
   const updatedScores = allScores.map(s => s.userId === userId ? score : s);
   if (!allScores.some(s => s.userId === userId)) {

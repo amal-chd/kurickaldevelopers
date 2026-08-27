@@ -64,8 +64,10 @@ const convertRowToTask = (row: any): Task => {
 };
 
 const convertTaskToRow = (task: any): any => {
+  // NOTE: do not spread `...task` — it leaks camelCase keys (projectId,
+  // assigneeIds, dueDate as a Timestamp, …) which are not real columns and make
+  // PostgREST reject the whole insert/update with a 400.
   return {
-    ...task,
     title: task.title,
     description: task.description,
     project_id: task.projectId,

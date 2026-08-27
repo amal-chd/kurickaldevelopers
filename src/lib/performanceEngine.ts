@@ -1,6 +1,20 @@
 import { Task, PerformanceScore, PerformanceReview, PerformanceConfig, Attendance } from '../types';
 import { Timestamp } from 'firebase/firestore';
 
+// Dates reach this engine as Firestore Timestamps (app reads) OR plain JS Date /
+// ISO strings (Supabase recalc path). Coerce any of them — or null — to a Date
+// safely, so `.toDate()` on a non-Timestamp never crashes the whole calculation.
+const toDate = (v: any): Date | null => {
+  if (!v) return null;
+  if (typeof v.toDate === 'function') return v.toDate();
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (typeof v === 'string' || typeof v === 'number') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+};
+
 // Default config values
 export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   priorityWeights: {
@@ -86,7 +100,7 @@ export function calculatePerformanceScore(
   const completedWeeks: Record<string, { highCritical: number; total: number }> = {};
 
   completedTasks.forEach(t => {
-    const compDate = t.updatedAt ? t.updatedAt.toDate() : new Date();
+    const compDate = toDate(t.updatedAt) ?? new Date();
     const weekKey = getWeekKey(compDate);
 
     if (!completedWeeks[weekKey]) {
@@ -161,8 +175,8 @@ export function calculatePerformanceScore(
 
   // Chronological sort for streak calculations
   const sortedCompleted = [...completedTasks].sort((a, b) => {
-    const timeA = a.updatedAt ? a.updatedAt.toMillis() : 0;
-    const timeB = b.updatedAt ? b.updatedAt.toMillis() : 0;
+    const timeA = toDate(a.updatedAt)?.getTime() ?? 0;
+    const timeB = toDate(b.updatedAt)?.getTime() ?? 0;
     return timeA - timeB;
   });
 
@@ -200,9 +214,9 @@ export function calculatePerformanceScore(
     }
 
     // On-time check
-    if (t.dueDate) {
-      const due = t.dueDate.toDate();
-      const comp = t.updatedAt ? t.updatedAt.toDate() : new Date();
+    const due = toDate(t.dueDate);
+    if (due) {
+      const comp = toDate(t.updatedAt) ?? new Date();
 
       if (comp > due) {
         // Late Completion
@@ -245,8 +259,8 @@ export function calculatePerformanceScore(
   // Active missed deadlines (overdue tasks)
   const now = new Date();
   assignedTasks.forEach(t => {
-    if (t.status !== 'done' && t.dueDate) {
-      const due = t.dueDate.toDate();
+    const due = toDate(t.dueDate);
+    if (t.status !== 'done' && due) {
       if (now > due) {
         tasksOverdue++;
         const daysOverdue = Math.ceil((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
@@ -260,7 +274,7 @@ export function calculatePerformanceScore(
   // Inactivity penalty (no completions/updates for more than 3 days)
   let lastActivityDate = now;
   if (userTasks.length > 0) {
-    const dates = userTasks.map(t => t.updatedAt ? t.updatedAt.toDate().getTime() : 0);
+    const dates = userTasks.map(t => toDate(t.updatedAt)?.getTime() ?? 0);
     const maxDate = Math.max(...dates);
     if (maxDate > 0) {
       lastActivityDate = new Date(maxDate);
@@ -346,7 +360,7 @@ export function calculatePerformanceScore(
   const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
   const dailyActivityDays = new Set(
     completedTasks
-      .map(t => t.updatedAt ? t.updatedAt.toDate().toISOString().split('T')[0] : '')
+      .map(t => toDate(t.updatedAt)?.toISOString().split('T')[0] ?? '')
       .filter(dateStr => dateStr && new Date(dateStr) >= thirtyDaysAgo)
   ).size;
 
@@ -356,14 +370,15 @@ export function calculatePerformanceScore(
   // doesn't chart as a crash to zero.
   const rateForRange = (start: Date, end: Date): number => {
     const inRange = completedTasks.filter(t => {
-      const d = t.updatedAt ? t.updatedAt.toDate() : null;
+      const d = toDate(t.updatedAt);
       return d && d >= start && d < end;
     });
     if (inRange.length === 0) return 100;
     const onTime = inRange.filter(t => {
-      if (!t.dueDate) return true;
-      const comp = t.updatedAt ? t.updatedAt.toDate() : new Date();
-      return comp <= t.dueDate.toDate();
+      const dd = toDate(t.dueDate);
+      if (!dd) return true;
+      const comp = toDate(t.updatedAt) ?? new Date();
+      return comp <= dd;
     }).length;
     return Math.round((onTime / inRange.length) * 100);
   };

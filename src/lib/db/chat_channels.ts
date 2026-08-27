@@ -82,7 +82,7 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
   fetchMine();
   fetchAnnounce();
 
-  const channel = supabase.channel('chats_changes')
+  const channel = supabase.channel(`chats_changes_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_channels' }, () => {
       fetchMine();
       fetchAnnounce();
@@ -94,7 +94,8 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
 
 export const getChannel = async (channelId: string): Promise<ChatChannel | null> => {
   try {
-    const { data, error } = await supabase.from('chat_channels').select('*').eq('id', channelId).single();
+    // maybeSingle: a missing channel is a normal "not found", not a 406 error.
+    const { data, error } = await supabase.from('chat_channels').select('*').eq('id', channelId).maybeSingle();
     if (error || !data) return null;
     return mapChannelFromDB(data);
   } catch (err: any) {

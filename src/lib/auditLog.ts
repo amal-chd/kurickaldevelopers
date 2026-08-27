@@ -1,13 +1,5 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit as fbLimit,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { Timestamp } from 'firebase/firestore';
+import { supabase } from './supabaseClient';
 import { useAuthStore } from '../store/authStore';
 import { AuditChange, AuditLog } from '../types';
 
@@ -101,17 +93,18 @@ export const logAudit = async (p: LogAuditParams): Promise<void> => {
     const { appUser } = useAuthStore.getState();
     const actorId = appUser?.id ?? '';
     const actorName = (appUser?.name ?? '').trim() || 'System';
-    const now = serverTimestamp();
-    await addDoc(collection(db, 'audit_logs'), {
+    // audit_logs now lives in Supabase (shared with the mobile app). Category is
+    // stored as `target_type` — the table has no separate category column.
+    await supabase.from('audit_logs').insert({
+      id: crypto.randomUUID(),
       action: p.action,
-      category: p.category,
-      targetType: p.category, // keep in sync so legacy type-filters still work
-      actorId,
-      actorName,
-      actorRole: appUser?.roleId ?? '',
-      actorAvatar: appUser?.avatarUrl ?? '',
-      targetId: p.targetId ?? '',
-      targetName: p.targetName ?? '',
+      actor_id: actorId,
+      actor_name: actorName,
+      actor_role: appUser?.roleId ?? '',
+      actor_avatar: appUser?.avatarUrl ?? '',
+      target_id: p.targetId ?? '',
+      target_type: p.category,
+      target_name: p.targetName ?? '',
       description: p.description,
       changes: (p.changes ?? []).map((c) => ({
         field: c.field,
@@ -121,12 +114,7 @@ export const logAudit = async (p: LogAuditParams): Promise<void> => {
       })),
       meta: p.meta ?? {},
       severity: p.severity ?? 'info',
-      timestamp: now,
-      createdAt: now,
-      // ── legacy aliases (older mobile/web build reads these) ──
-      userId: actorId,
-      userName: actorName,
-      details: p.description,
+      created_at: new Date().toISOString(),
     });
   } catch (err) {
     // Best-effort: swallow. The primary operation has already succeeded.
@@ -151,27 +139,25 @@ export const diff = (
  */
 export const fetchAuditLogs = async (pageLimit = 100): Promise<AuditLog[]> => {
   try {
-    const snap = await getDocs(
-      query(
-        collection(db, 'audit_logs'),
-        orderBy('timestamp', 'desc'),
-        fbLimit(pageLimit),
-      ),
-    );
-    return snap.docs.map((d) => {
-      const x = d.data() as Record<string, any>;
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(pageLimit);
+    if (error) throw error;
+    return (data ?? []).map((x: any) => {
       const rawChanges: any[] = Array.isArray(x.changes) ? x.changes : [];
       return {
-        id: d.id,
+        id: x.id,
         action: x.action ?? '',
-        actorId: x.actorId ?? x.userId ?? '',
-        actorName: x.actorName ?? x.userName ?? '',
-        actorRole: x.actorRole ?? '',
-        actorAvatar: x.actorAvatar ?? '',
-        targetId: x.targetId ?? '',
-        targetType: x.targetType ?? x.category ?? '',
-        targetName: x.targetName ?? '',
-        description: x.description ?? x.details ?? '',
+        actorId: x.actor_id ?? '',
+        actorName: x.actor_name ?? '',
+        actorRole: x.actor_role ?? '',
+        actorAvatar: x.actor_avatar ?? '',
+        targetId: x.target_id ?? '',
+        targetType: x.target_type ?? '',
+        targetName: x.target_name ?? '',
+        description: x.description ?? '',
         changes: rawChanges.map((c) => ({
           field: c.field ?? '',
           label: c.label ?? humanize(c.field ?? ''),
@@ -180,8 +166,8 @@ export const fetchAuditLogs = async (pageLimit = 100): Promise<AuditLog[]> => {
         })),
         meta: x.meta ?? {},
         severity: x.severity ?? 'info',
-        // Modern docs order/carry `timestamp`; legacy docs only had `createdAt`.
-        createdAt: x.timestamp ?? x.createdAt ?? null,
+        // Wrap as a Firestore Timestamp so the UI's toDate() keeps working.
+        createdAt: x.created_at ? Timestamp.fromDate(new Date(x.created_at)) : null,
       } as AuditLog;
     });
   } catch (err) {

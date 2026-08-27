@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "/Users/amalchand/.local/node-v22.23.2-darwin-arm64/bin/node",
-      "runtimeArgs": ["/Users/amalchand/Desktop/kurickaldevelopers/node_modules/vite/bin/vite.js"],
+      "runtimeExecutable": "/Users/amalchand/.local/node/bin/node",
+      "runtimeArgs": ["/Users/amalchand/Documents/kurickaldevelopers/node_modules/vite/bin/vite.js"],
       "port": 5173
     }
   ]

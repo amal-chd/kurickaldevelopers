@@ -102,7 +102,10 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
 
   fetchInitial();
 
-  const channel = supabase.channel('notifications_changes')
+  // Unique channel name per subscriber. A static name is reused by supabase-js,
+  // so a second subscriber (e.g. the header bell + this page) gets the already-
+  // subscribed channel and `.on()` throws "cannot add callbacks after subscribe".
+  const channel = supabase.channel(`notifications_changes_${userId || 'anon'}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_notifications' }, () => {
       fetchInitial();
     })

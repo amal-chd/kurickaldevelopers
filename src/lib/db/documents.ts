@@ -124,18 +124,22 @@ export const getDocuments = async (projectId?: string): Promise<TDocument[]> => 
 };
 
 export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<string> => {
+  // documents columns: id, name, type, url, size, uploaded_by, project_id,
+  // folder_id, labels, created_at, updated_at. Map explicitly — spreading
+  // `...data` leaked camelCase keys (folderId, updatedAt, …) → 400.
+  const d = data as any;
   const payload = {
-    ...data,
     id: crypto.randomUUID(),
-    project_id: data.projectId,
-    uploaded_by: data.uploadedBy,
-    url: data.url || '',
-    size: data.size || 0,
-    type: 'other' // default type for mobile compatibility
+    name: d.name ?? '',
+    type: d.type ?? 'other',
+    url: d.url || '',
+    size: d.size || 0,
+    uploaded_by: d.uploadedBy ?? null,
+    project_id: d.projectId ?? null,
+    task_id: d.taskId ?? null,
+    folder_id: d.folderId ?? d.folder ?? null,
+    labels: d.labels ?? [],
   };
-  delete (payload as any).projectId;
-  delete (payload as any).uploadedBy;
-  delete (payload as any).createdAt; // Handled by Supabase defaults
 
   const { data: inserted, error } = await supabase
     .from('documents')
@@ -148,23 +152,20 @@ export const createDocument = async (data: Omit<TDocument, 'id'>): Promise<strin
 };
 
 export const updateDocument = async (id: string, data: Partial<TDocument>): Promise<void> => {
-  const updates: Record<string, any> = { ...data };
-  if (data.url !== undefined) {
-    updates.url = data.url;
-    delete updates.url;
-  }
-  if (data.size !== undefined) {
-    updates.size = data.size;
-    delete updates.size;
-  }
-  if (data.projectId !== undefined) {
-    updates.project_id = data.projectId;
-    delete updates.projectId;
-  }
-  if (data.uploadedBy !== undefined) {
-    updates.uploaded_by = data.uploadedBy;
-    delete updates.uploadedBy;
-  }
+  // Explicit column map. The previous code spread `...data` (leaking camelCase
+  // junk) AND set-then-deleted url/size, so those updates never persisted.
+  const d = data as any;
+  const updates: Record<string, any> = {};
+  if (d.name !== undefined) updates.name = d.name;
+  if (d.type !== undefined) updates.type = d.type;
+  if (d.url !== undefined) updates.url = d.url;
+  if (d.size !== undefined) updates.size = d.size;
+  if (d.uploadedBy !== undefined) updates.uploaded_by = d.uploadedBy;
+  if (d.projectId !== undefined) updates.project_id = d.projectId;
+  if (d.taskId !== undefined) updates.task_id = d.taskId;
+  if (d.folderId !== undefined || d.folder !== undefined) updates.folder_id = d.folderId ?? d.folder;
+  if (d.labels !== undefined) updates.labels = d.labels;
+  updates.updated_at = new Date().toISOString();
 
   const { error } = await supabase.from('documents').update(updates).eq('id', id);
   if (error) throw error;

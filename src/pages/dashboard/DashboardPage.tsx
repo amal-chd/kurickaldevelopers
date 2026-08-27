@@ -160,7 +160,9 @@ const DashboardPage: React.FC = () => {
   // Safe greeting — guard against empty/null name
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const firstName = (appUser?.name || appUser?.email || '').split(/[\s@]/)[0] || '';
+  // trim() first: a stored name with a leading space (" K J Paul") otherwise
+  // splits to an empty first token, dropping the name from the greeting.
+  const firstName = (appUser?.name || appUser?.email || '').trim().split(/[\s@]+/).filter(Boolean)[0] || '';
 
   const STATS = [
     { label: 'Total Tasks',       value: allTasks.length,         ready: ready.tasks,    icon: CheckSquare, gradient: 'from-slate-500 to-slate-600',     path: '/app/tasks' },

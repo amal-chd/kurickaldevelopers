@@ -45,16 +45,16 @@ export const getSubtasks = async (taskId: string): Promise<Subtask[]> => {
 };
 
 export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, addedByUid?: string): Promise<string> => {
+  // subtasks columns: id, task_id, title, is_done, completed_by. Map explicitly
+  // — spreading `...data` leaked camelCase keys (createdAt, taskId) that are not
+  // columns and 400'd the insert.
   const payload = {
-    ...data,
-    task_id: taskId,
     id: crypto.randomUUID(),
+    task_id: taskId,
+    title: (data as any).title ?? '',
     is_done: data.isDone || false,
     completed_by: data.completedBy || null,
   };
-  delete (payload as any).isDone;
-  delete (payload as any).completedBy;
-  delete (payload as any).taskId;
 
   const { data: inserted, error } = await supabase
     .from('subtasks')
@@ -105,16 +105,12 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
 };
 
 export const updateSubtask = async (taskId: string, subtaskId: string, data: Partial<Subtask>): Promise<void> => {
-  const payload: any = { ...data };
-  if (payload.isDone !== undefined) {
-    payload.is_done = payload.isDone;
-    delete payload.isDone;
-  }
-  if (payload.completedBy !== undefined) {
-    payload.completed_by = payload.completedBy;
-    delete payload.completedBy;
-  }
-  
+  // Only touch real columns — never spread the camelCase Partial wholesale.
+  const payload: any = {};
+  if (data.title !== undefined) payload.title = data.title;
+  if (data.isDone !== undefined) payload.is_done = data.isDone;
+  if (data.completedBy !== undefined) payload.completed_by = data.completedBy;
+
   const { error } = await supabase
     .from('subtasks')
     .update(payload)
@@ -135,7 +131,7 @@ export const deleteSubtask = async (taskId: string, subtaskId: string): Promise<
 };
 
 export const subscribeSubtasks = (taskId: string, cb: (subtasks: Subtask[]) => void) => {
-  const channel = supabase.channel(`subtasks:task_id=eq.${taskId}`)
+  const channel = supabase.channel(`subtasks_${taskId}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'subtasks', filter: `task_id=eq.${taskId}` }, async () => {
       const data = await getSubtasks(taskId);
       cb(data);

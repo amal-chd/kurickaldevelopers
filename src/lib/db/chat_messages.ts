@@ -67,7 +67,7 @@ export const subscribeMessages = (
 
   fetchMessages();
 
-  const channel = supabase.channel(`messages_${channelId}`)
+  const channel = supabase.channel(`messages_${channelId}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages', filter: `channel_id=eq.${channelId}` }, () => {
       fetchMessages();
     })
@@ -265,12 +265,13 @@ export const markChannelAsRead = async (channelId: string, userId: string): Prom
 };
 
 export const setTypingStatus = async (channelId: string, userId: string, name: string): Promise<void> => {
+  // Column is updated_at (not `at`); composite PK needs an explicit conflict target.
   await supabase.from('chat_typing').upsert({
     channel_id: channelId,
     user_id: userId,
     name,
-    at: new Date().toISOString(),
-  });
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'channel_id,user_id' });
 };
 
 export const clearTypingStatus = async (channelId: string, userId: string): Promise<void> => {
@@ -296,7 +297,7 @@ export const subscribeTyping = (channelId: string, cb: (typing: Record<string, s
   fetchTyping();
   const interval = setInterval(fetchTyping, 5000); // Check expiration periodically
 
-  const channel = supabase.channel(`typing_${channelId}`)
+  const channel = supabase.channel(`typing_${channelId}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_typing', filter: `channel_id=eq.${channelId}` }, () => {
       fetchTyping();
     })

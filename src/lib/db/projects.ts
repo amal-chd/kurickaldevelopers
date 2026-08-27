@@ -46,8 +46,9 @@ const convertRowToProject = (row: any): Project => {
 };
 
 const convertProjectToRow = (project: any): any => {
+  // Do not spread `...project` — camelCase keys (siteAddress, clientName,
+  // projectManagerId, memberIds, …) are not columns and 400 the whole write.
   return {
-    ...project,
     name: project.name,
     description: project.description,
     location: project.siteAddress,
