@@ -112,7 +112,7 @@ class TaskRepository {
   }
 
 
-  Stream<List<TaskModel>> watchUserTasks(String userId, {String? roleId, int attempt = 0}) {
+  Stream<List<TaskModel>> watchUserTasks(String userId, {String? roleId, List<String> myProjectIds = const [], int attempt = 0}) {
     final allTasksStream = _supabase.from('tasks').stream(primaryKey: ['id'])
         .handleError((e) {
           _logStreamError('watchUserTasks', e, userId, roleId: roleId);
@@ -124,10 +124,13 @@ class TaskRepository {
         final assignees = List<String>.from(data['assignee_ids'] ?? []);
         final assignedRoles = List<String>.from(data['assigned_role_ids'] ?? 
             (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
+        final projectId = data['project_id'] as String?;
         
         final isAssignee = assignees.contains(userId);
         final isRole = roleId != null && roleId.isNotEmpty && assignedRoles.contains(roleId);
-        return isAssignee || isRole;
+        final isProjectMember = projectId != null && myProjectIds.contains(projectId);
+        
+        return isAssignee || isRole || isProjectMember;
       }).map(_fromSupabase).toList();
       
       filtered.sort((a, b) => a.dueDate.compareTo(b.dueDate));

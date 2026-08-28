@@ -5,6 +5,7 @@ import '../data/models/comment_model.dart';
 import '../data/repositories/task_repository.dart';
 import 'role_provider.dart';
 import 'user_provider.dart';
+import 'project_provider.dart';
 
 final taskRepositoryProvider = Provider<TaskRepository>(
   (ref) => TaskRepository(),
@@ -13,7 +14,15 @@ final taskRepositoryProvider = Provider<TaskRepository>(
 final userTasksProvider = StreamProvider<List<TaskModel>>((ref) {
   final user = ref.watch(currentUserProvider).value;
   if (user == null) return Stream.value([]);
-  return ref.watch(taskRepositoryProvider).watchUserTasks(user.uid, roleId: user.roleId);
+  
+  final myProjects = ref.watch(projectsProvider).value ?? [];
+  final myProjectIds = myProjects.map((p) => p.id).toList();
+  
+  return ref.watch(taskRepositoryProvider).watchUserTasks(
+    user.uid, 
+    roleId: user.roleId,
+    myProjectIds: myProjectIds,
+  );
 });
 
 /// All tasks in the system — used by managers who assign tasks
