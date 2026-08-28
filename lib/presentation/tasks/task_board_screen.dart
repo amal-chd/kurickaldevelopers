@@ -167,7 +167,7 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen>
           foregroundColor: Colors.white,
           icon: const Icon(Icons.add_rounded),
           label: const Text(
-            'Assign Task',
+            'Create Task',
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
         ),

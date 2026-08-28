@@ -1028,10 +1028,12 @@ class _ProjectTasksTab extends ConsumerWidget {
         }).toList();
 
         // Summary chips
-        return RefreshIndicator(
-          onRefresh: () async =>
-              ref.invalidate(projectTasksProvider(projectId)),
-          child: ListView(
+        final canCreate = ref.watch(hasPermissionProvider('tasks_create'));
+        return Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async => ref.invalidate(projectTasksProvider(projectId)),
+              child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
             children: [
               // Status summary chips
@@ -1074,9 +1076,23 @@ class _ProjectTasksTab extends ConsumerWidget {
                 _TaskGroupHeader(label: 'Done', color: AppTheme.success),
                 ...done.map((t) => _TaskCard(task: t)),
               ],
+              const SizedBox(height: 60), // Space for FAB
             ],
           ),
-        );
+        ),
+        if (canCreate)
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'tasks_fab',
+              onPressed: () => context.push('/tasks/create?projectId=$projectId'),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Create Task'),
+            ),
+          ),
+      ],
+    );
       },
     );
   }
