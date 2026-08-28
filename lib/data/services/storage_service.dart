@@ -136,10 +136,19 @@ class StorageService {
         .getPublicUrl(path);
   }
 
-  Future<String> uploadPhoto({required String projectId, required File file}) =>
-      Future.error(const _StorageUnavailableException(
-        'Photo uploads are not enabled.',
-      ));
+  Future<String> uploadPhoto({required String projectId, required File file}) async {
+    if (!isReady) throw const _StorageUnavailableException(_unavailableMsg);
+    final fileName = file.path.split('/').last;
+    final path = _key('site_diary/${projectId.isEmpty ? 'general' : projectId}', fileName);
+    await _client.storage.from(SupabaseConfig.documentsBucket).upload(
+          path,
+          file,
+          fileOptions: const FileOptions(upsert: false),
+        );
+    return _client.storage
+        .from(SupabaseConfig.documentsBucket)
+        .getPublicUrl(path);
+  }
 
   Future<String> uploadAvatar(String uid, File file) =>
       Future.error(const _StorageUnavailableException(

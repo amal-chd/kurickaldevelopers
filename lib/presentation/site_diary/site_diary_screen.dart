@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../../data/services/storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -439,25 +442,34 @@ class _CreateDiaryEntrySheetState
   }
 
   Future<void> _pickPhoto() async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.cloud_off_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Photo uploads coming soon — requires Firebase Storage upgrade',
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.grey.shade700,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    if (_isUploadingPhoto) return;
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+      if (picked == null) return;
+      
+      setState(() => _isUploadingPhoto = true);
+      
+      final storage = StorageService();
+      final url = await storage.uploadPhoto(
+        projectId: widget.projectId,
+        file: File(picked.path),
+      );
+      
+      if (mounted) {
+        setState(() {
+          _photoUrls.add(url);
+          _isUploadingPhoto = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload photo: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _save() async {
