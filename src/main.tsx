@@ -4,6 +4,11 @@ import App from './App.tsx';
 import './index.css';
 
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
+import { initMonitoring } from './lib/monitoring';
+import { initAnalytics } from './lib/analytics';
+
+initMonitoring();
+void initAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

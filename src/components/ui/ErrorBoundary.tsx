@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { reportError } from '../../lib/monitoring';
 
 interface Props {
   children?: ReactNode;
@@ -21,6 +22,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    // React render errors never reach window.onerror — report them explicitly
+    // (no-op until a Sentry DSN is configured).
+    reportError(error, { componentStack: errorInfo.componentStack });
   }
 
   public render() {
