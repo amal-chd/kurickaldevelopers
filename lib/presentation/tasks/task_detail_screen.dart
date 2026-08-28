@@ -320,6 +320,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     final canEdit = ref.watch(hasPermissionProvider('tasks_edit'));
     final canApprove = ref.watch(hasPermissionProvider('tasks_approve'));
     final canCreate = ref.watch(hasPermissionProvider('tasks_create'));
+    final canDelete = ref.watch(hasPermissionProvider('tasks_delete'));
     final isManager = canEdit || canCreate;
 
     return taskAsync.when(
@@ -385,13 +386,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                 ),
                 actions: [
                   if (isManager) ...[
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      tooltip: 'Edit task',
-                      onPressed: () =>
-                          context.push('/tasks/edit?taskId=${task.id}'),
-                    ),
-                    PopupMenuButton<String>(
+                    if (canEdit)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Edit task',
+                        onPressed: () =>
+                            context.push('/tasks/edit?taskId=${task.id}'),
+                      ),
+                    if (canDelete)
+                      PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert),
                       onSelected: (v) {
                         if (v == 'delete') _confirmDelete(context, task.id);

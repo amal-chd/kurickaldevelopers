@@ -296,6 +296,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   route: '/tasks',
                                   subtitle: 'All assigned tasks',
                                 ),
+                                if (canApprove)
+                                  _KpiCardData(
+                                    title: 'Awaiting Review',
+                                    value:
+                                        '${tasks.where((t) => t.status == TaskStatus.underReview).length}',
+                                    icon: Icons.fact_check_rounded,
+                                    color: AppTheme.pastelPurple,
+                                    route: '/tasks',
+                                    subtitle: 'Pending your approval',
+                                  ),
                                 if (canViewProjects)
                                   _KpiCardData(
                                     title: AppStrings.activeProjects,
@@ -1175,7 +1185,17 @@ class _QuickActionsRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     bool hasPerm(String p) => ref.watch(hasPermissionProvider(p));
+    // Matches the web sidebar + More sheet: Director level OR any admin perm.
+    final isAdminLike = (ref.watch(currentRoleLevelProvider) >= 100) ||
+        hasPerm('roles_manage') ||
+        hasPerm('settings_manage') ||
+        hasPerm('notifications_manage') ||
+        hasPerm('attendance_view_all') ||
+        hasPerm('contact_view') ||
+        hasPerm('team_manage');
 
+    // Every action is gated to a destination the role can actually use, so the
+    // row is a true reflection of what this user is allowed to do.
     final actions = <_QuickAction>[
       if (hasPerm('tasks_create'))
         const _QuickAction(
@@ -1185,20 +1205,28 @@ class _QuickActionsRow extends ConsumerWidget {
           route: '/tasks/create',
           isPush: true,
         ),
-      if (hasPerm('projects_create'))
-        const _QuickAction(
-          icon: Icons.add_business_rounded,
-          label: 'Project',
-          color: AppTheme.statusReview,
-          route: '/projects/create',
-          isPush: true,
-        ),
+      // Attendance is a core action for every user (there is no gate on it).
+      const _QuickAction(
+        icon: Icons.fingerprint_rounded,
+        label: 'Check In',
+        color: AppTheme.success,
+        route: '/my-attendance',
+        isPush: true,
+      ),
       if (hasPerm('time_log'))
         const _QuickAction(
           icon: Icons.book_rounded,
           label: 'Diary',
-          color: AppTheme.success,
+          color: AppTheme.statusReview,
           route: '/site-diary',
+          isPush: true,
+        ),
+      if (hasPerm('chat_view'))
+        const _QuickAction(
+          icon: Icons.chat_bubble_rounded,
+          label: 'Chat',
+          color: AppTheme.info,
+          route: '/chat',
           isPush: true,
         ),
       if (hasPerm('docs_view'))
@@ -1209,12 +1237,36 @@ class _QuickActionsRow extends ConsumerWidget {
           route: '/documents',
           isPush: true,
         ),
+      if (hasPerm('team_view'))
+        const _QuickAction(
+          icon: Icons.groups_rounded,
+          label: 'Team',
+          color: AppTheme.statusReview,
+          route: '/team',
+          isPush: true,
+        ),
+      if (hasPerm('projects_create'))
+        const _QuickAction(
+          icon: Icons.add_business_rounded,
+          label: 'Project',
+          color: AppTheme.statusReview,
+          route: '/projects/create',
+          isPush: true,
+        ),
       if (hasPerm('reports_view'))
         const _QuickAction(
           icon: Icons.bar_chart_rounded,
           label: 'Reports',
           color: AppTheme.info,
           route: '/reports',
+          isPush: true,
+        ),
+      if (isAdminLike)
+        const _QuickAction(
+          icon: Icons.admin_panel_settings_rounded,
+          label: 'Admin',
+          color: AppTheme.primary,
+          route: '/admin',
           isPush: true,
         ),
     ];

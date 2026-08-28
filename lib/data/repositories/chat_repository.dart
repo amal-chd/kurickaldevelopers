@@ -192,7 +192,8 @@ class ChatRepository {
 
   Future<void> addMember(String channelId, String uid) async {
     try {
-      final doc = await _supabase.from('chat_channels').select('member_ids').eq('id', channelId).single();
+      final doc = await _supabase.from('chat_channels').select('member_ids').eq('id', channelId).maybeSingle();
+      if (doc == null) return;
       final members = List<String>.from(doc['member_ids'] ?? []);
       if (!members.contains(uid)) {
         members.add(uid);
@@ -205,7 +206,8 @@ class ChatRepository {
 
   Future<void> removeMember(String channelId, String uid) async {
     try {
-      final doc = await _supabase.from('chat_channels').select('member_ids').eq('id', channelId).single();
+      final doc = await _supabase.from('chat_channels').select('member_ids').eq('id', channelId).maybeSingle();
+      if (doc == null) return;
       final members = List<String>.from(doc['member_ids'] ?? []);
       if (members.contains(uid)) {
         members.remove(uid);
@@ -307,7 +309,8 @@ class ChatRepository {
 
   Future<void> markAsRead(String channelId, String uid) async {
     try {
-      final doc = await _supabase.from('chat_channels').select('unread_counts').eq('id', channelId).single();
+      final doc = await _supabase.from('chat_channels').select('unread_counts').eq('id', channelId).maybeSingle();
+      if (doc == null) return;
       final unreadCounts = Map<String, dynamic>.from(doc['unread_counts'] ?? {});
       unreadCounts[uid] = 0;
       await _supabase.from('chat_channels').update({'unread_counts': unreadCounts}).eq('id', channelId);
@@ -345,7 +348,8 @@ class ChatRepository {
     required bool currentlyReacted,
   }) async {
     try {
-      final doc = await _supabase.from('chat_messages').select('reactions').eq('id', messageId).single();
+      final doc = await _supabase.from('chat_messages').select('reactions').eq('id', messageId).maybeSingle();
+      if (doc == null) return;
       final reactions = Map<String, dynamic>.from(doc['reactions'] ?? {});
       final users = List<String>.from(reactions[emoji] ?? []);
       
@@ -410,7 +414,8 @@ class ChatRepository {
 
   Future<void> markAsReadWithTimestamp(String channelId, String uid) async {
     try {
-      final doc = await _supabase.from('chat_channels').select().eq('id', channelId).single();
+      final doc = await _supabase.from('chat_channels').select().eq('id', channelId).maybeSingle();
+      if (doc == null) return;
       final unreadCounts = Map<String, dynamic>.from(doc['unread_counts'] ?? {});
       final lastReadAt = Map<String, dynamic>.from(doc['last_read_at'] ?? {});
       

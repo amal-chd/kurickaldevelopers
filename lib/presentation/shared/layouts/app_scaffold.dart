@@ -63,6 +63,7 @@ const _allTabs = [
     activeIcon: Icons.chat_bubble_rounded,
     label: 'Chat',
     route: '/chat',
+    permissionKey: 'chat_view',
   ),
   _NavItem(
     icon: Icons.grid_view_outlined,
@@ -360,9 +361,16 @@ class AppScaffold extends ConsumerWidget {
     final canViewTeam = hasPerm('team_view');
     final canViewDocs = hasPerm('docs_view');
     final canViewReports = hasPerm('reports_view');
-    // Admin panel is Director-only (top role level 100) — not merely any role
-    // with roles_manage.
-    final canManageRoles = ref.read(currentRoleLevelProvider) >= 100;
+    // Admin panel: top-level role (Director, level 100) OR any admin-type
+    // permission — matches the web sidebar so access reflects permissions, not
+    // just role level.
+    final canManageRoles = ref.read(currentRoleLevelProvider) >= 100 ||
+        hasPerm('roles_manage') ||
+        hasPerm('settings_manage') ||
+        hasPerm('notifications_manage') ||
+        hasPerm('attendance_view_all') ||
+        hasPerm('contact_view') ||
+        hasPerm('team_manage');
     final canViewProjects = hasPerm('projects_view');
 
     showModalBottomSheet(
