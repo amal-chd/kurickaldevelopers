@@ -37,11 +37,59 @@ export interface Permissions {
   contact_manage?: boolean;
   performance_view?: boolean;
   performance_manage?: boolean;
+  // Asset management
+  assets_view?: boolean;
+  assets_manage?: boolean;
+  assets_assign?: boolean;
+  assets_maintain?: boolean;
   // HR & Finance (leave / payroll / expenses). Optional so existing role
   // documents remain valid; access falls back to role level / existing perms.
   leave_manage?: boolean;
   payroll_manage?: boolean;
   expense_manage?: boolean;
+}
+
+// ─── Asset management ──────────────────────────────────────────────────────────
+export interface Asset {
+  id: string;
+  name: string;
+  code?: string;
+  category?: string;   // equipment|vehicle|tool|machinery|material|other
+  serialNumber?: string;
+  manufacturer?: string;
+  model?: string;
+  status?: string;     // available|in_use|maintenance|retired
+  condition?: string;  // new|good|fair|poor
+  purchaseDate?: string | null;
+  purchaseCost?: number;
+  salvageValue?: number;
+  usefulLifeYears?: number;
+  projectId?: string | null;
+  assignedTo?: string | null;
+  location?: string;
+  photoUrls?: string[];
+  documentUrls?: string[];
+  warrantyExpiry?: string | null;
+  supplier?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AssetMaintenance {
+  id: string;
+  assetId: string;
+  type?: string;    // routine|repair|inspection
+  status?: string;  // scheduled|in_progress|completed
+  scheduledDate?: string | null;
+  completedDate?: string | null;
+  cost?: number;
+  performedBy?: string;
+  vendor?: string;
+  notes?: string;
+  nextDueDate?: string | null;
+  createdAt?: string | null;
 }
 
 // ─── Role ─────────────────────────────────────────────────────────────────────

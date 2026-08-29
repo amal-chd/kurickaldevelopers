@@ -28,6 +28,8 @@ const SiteDiaryPage = React.lazy(() => import('./pages/site-diary/SiteDiaryPage'
 const ReportsPage = React.lazy(() => import('./pages/reports/ReportsPage'));
 const NotificationsPage = React.lazy(() => import('./pages/notifications/NotificationsPage'));
 const PerformancePage = React.lazy(() => import('./pages/performance/PerformancePage'));
+const AssetsPage = React.lazy(() => import('./pages/assets/AssetsPage'));
+const AssetDetailPage = React.lazy(() => import('./pages/assets/AssetDetailPage'));
 const LeavePage = React.lazy(() => import('./pages/leave/LeavePage'));
 const SalaryPage = React.lazy(() => import('./pages/salary/SalaryPage'));
 const ExpensePage = React.lazy(() => import('./pages/expenses/ExpensePage'));
@@ -151,6 +153,10 @@ function App() {
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="performance" element={<PerformancePage />} />
+
+              {/* Assets */}
+              <Route path="assets" element={<AssetsPage />} />
+              <Route path="assets/:id" element={<AssetDetailPage />} />
 
               {/* HR & Finance */}
               <Route path="leave" element={<LeavePage />} />
