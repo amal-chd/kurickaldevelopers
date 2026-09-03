@@ -13,6 +13,7 @@ import { AppUser, AppNotification, Role } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { supabase } from '../../lib/supabaseClient';
+import { Timestamp } from 'firebase/firestore';
 
 const NOTIFICATION_TYPES = [
   { value: 'announcement', label: 'Announcement', icon: '📢', color: 'bg-blue-50 border-blue-200' },
@@ -46,12 +47,12 @@ const NotificationAdminPage: React.FC = () => {
     // unfiltered collection query gets rejected for non-targeted docs.
     const fetchNotifs = async () => {
       const { data } = await supabase
-        .from('notifications')
+        .from('app_notifications')
         .select('*')
         .eq('user_id', '')
         .order('created_at', { ascending: false })
         .limit(20);
-        
+
       if (data) {
         setRecentNotifs(data.map(d => ({
           id: d.id,
@@ -59,16 +60,16 @@ const NotificationAdminPage: React.FC = () => {
           title: d.title,
           body: d.body,
           type: d.type,
-          link: d.link,
-          isRead: d.is_read,
-          createdAt: d.created_at,
-          projectId: d.project_id
+          relatedId: d.related_id,
+          relatedType: d.related_type,
+          isRead: d.is_read || {},
+          createdAt: d.created_at ? Timestamp.fromDate(new Date(d.created_at)) : Timestamp.now(),
         } as AppNotification)));
       }
     };
     fetchNotifs();
     const channel = supabase.channel('notifs_admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: "user_id=eq." }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_notifications', filter: "user_id=eq." }, () => {
         fetchNotifs();
       }).subscribe();
     return () => { supabase.removeChannel(channel); };

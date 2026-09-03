@@ -11,7 +11,7 @@ import {
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from '../performanceEngine';
 import { notifyPush } from '../push';
 import { createNotification } from './notifications';
-import { getUser } from './users';
+import { getUser, getAllUsers } from './users';
 
 const logPermissionError = (actionName: string, error: any, context?: any) => {
   const isPermissionError = error?.code === 'PGRST301' || error?.message?.includes('permission') || error?.message?.includes('denied');
@@ -342,8 +342,9 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
     const opiDrop = oldScore.overallPerformanceIndex - score.overallPerformanceIndex;
     if (opiDrop >= 15) {
       try {
-        const { data: usersSnap } = await supabase.from('users').select('*');
-        const allUsers = (usersSnap || []) as AppUser[];
+        // Users live in Firestore, not Supabase — `supabase.from('users')` 404s
+        // and returns null, so this manager alert never fired. Read via Firestore.
+        const allUsers = await getAllUsers();
         const { data: rolesSnap } = await supabase.from('roles').select('*');
         const allRoles = (rolesSnap || []) as Role[];
         
