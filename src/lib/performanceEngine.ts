@@ -331,8 +331,11 @@ export function calculatePerformanceScore(
   // 6. Collaboration
   const tasksHelpedOnCount = userTasks.filter(t => t.assigneeIds?.length > 1 && t.createdBy !== userId).length;
 
-  // 7. Attendance
-  const attendanceDays = attendanceList.length;
+  // 7. Attendance — count DISTINCT calendar days, not rows. A user can have
+  // multiple attendance records on the same day (one per project checked into),
+  // so attendanceList.length overcounts (e.g. showed "41 days" within a 30-day
+  // window). De-dupe by the YYYY-MM-DD date.
+  const attendanceDays = new Set(attendanceList.map((a) => a.date)).size;
   const attendanceRate = Math.min(Math.round((attendanceDays / 22) * 100), 100);
 
   // 8. Normalization factor based on role
