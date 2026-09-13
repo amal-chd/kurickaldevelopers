@@ -246,6 +246,8 @@ export interface Attendance {
   isWithinGeofence?: boolean;
   projectId?: string;
   overtimeOverrideMinutes?: number;
+  /** Cumulative minutes from earlier completed check-in/out sessions the same day. */
+  workedMinutes?: number;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────

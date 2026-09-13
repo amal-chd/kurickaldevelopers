@@ -101,6 +101,15 @@ const DashboardPage: React.FC = () => {
           t.createdBy === userId
       );
 
+  // Personal task counts (assigned to me or my role) for the KPI tiles, so the
+  // numbers reflect the viewer's own work — not org-wide totals. Matches mobile.
+  const personalTasks = allTasks.filter(
+    (t) =>
+      t.assigneeIds?.includes(userId) ||
+      t.assignedRoleIds?.includes(appUser?.roleId ?? '') ||
+      (t.assignedRoleId && t.assignedRoleId === appUser?.roleId),
+  );
+
   const activeProjects   = projects.filter((p) => p.status === 'active');
   const inProgressTasks  = allTasks.filter((t) => t.status === 'in_progress');
   const overdueTasks     = myTasks.filter(
@@ -165,11 +174,11 @@ const DashboardPage: React.FC = () => {
   const firstName = (appUser?.name || appUser?.email || '').trim().split(/[\s@]+/).filter(Boolean)[0] || '';
 
   const STATS = [
-    { label: 'Total Tasks',       value: allTasks.length,         ready: ready.tasks,    icon: CheckSquare, gradient: 'from-slate-500 to-slate-600',     path: '/app/tasks' },
-    { label: 'Active Tasks',      value: inProgressTasks.length,  ready: ready.tasks,    icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
+    { label: 'Total Tasks',       value: personalTasks.length,                                        ready: ready.tasks,    icon: CheckSquare, gradient: 'from-slate-500 to-slate-600',     path: '/app/tasks' },
+    { label: 'Active Tasks',      value: personalTasks.filter((t) => t.status === 'in_progress').length, ready: ready.tasks,  icon: CheckSquare, gradient: 'from-blue-500 to-blue-600',       path: '/app/tasks' },
     { label: 'Active Projects',   value: activeProjects.length,   ready: ready.projects, icon: FolderOpen,  gradient: 'from-emerald-500 to-emerald-600', path: '/app/projects' },
     { label: 'Team Members',      value: users.length,            ready: ready.users,    icon: Users,       gradient: 'from-violet-500 to-violet-600',   path: '/app/team' },
-    { label: 'Completed Tasks',   value: doneTasks.length,        ready: ready.tasks,    icon: Trophy,      gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
+    { label: 'Completed Tasks',   value: personalTasks.filter((t) => t.status === 'done').length,     ready: ready.tasks,    icon: Trophy,      gradient: 'from-amber-500 to-amber-600',     path: '/app/tasks' },
   ];
 
   return (

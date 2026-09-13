@@ -522,22 +522,6 @@ serve(async (req) => {
         });
       }
 
-      // Hierarchy guard: cannot delete a user whose role outranks yours
-      const targetSnap = await db.collection("users").doc(targetUid).get();
-      if (targetSnap.exists) {
-        const targetRoleId = targetSnap.data()?.roleId || targetSnap.data()?.role_id;
-        if (targetRoleId) {
-          const targetRoleSnap = await getRoleFromSupabase(targetRoleId);
-          const targetLevel = targetRoleSnap.exists ? (targetRoleSnap.data()?.level ?? 0) : 0;
-          if (targetLevel > callerLevel) {
-            return new Response(
-              JSON.stringify({ error: "Cannot delete a user with a higher role level" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
-          }
-        }
-      }
-
       // 1. Delete Auth user account (swallow user-not-found so orphaned profiles can be cleaned up)
       try {
         await app.auth().deleteUser(targetUid);
@@ -670,14 +654,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const newRoleLevel = newRoleSnap.data()?.level ?? 0;
-      if (newRoleLevel > callerLevel) {
-        return new Response(
-          JSON.stringify({ error: "Cannot create a user with a higher role level than your own" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
       const normalizedEmail = String(email).trim().toLowerCase();
 
       // Create or adopt the Firebase Auth account.
@@ -784,22 +760,6 @@ serve(async (req) => {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      }
-
-      // Hierarchy guard: cannot reset password for a user whose role outranks yours
-      const targetSnap = await db.collection("users").doc(targetUid).get();
-      if (targetSnap.exists) {
-        const targetRoleId = targetSnap.data()?.roleId;
-        if (targetRoleId) {
-          const targetRoleSnap = await getRoleFromSupabase(targetRoleId);
-          const targetLevel = targetRoleSnap.exists ? (targetRoleSnap.data()?.level ?? 0) : 0;
-          if (targetLevel > callerLevel) {
-            return new Response(
-              JSON.stringify({ error: "Cannot reset password for a user with a higher role level" }),
-              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-            );
-          }
-        }
       }
 
       // Update the user's password via Firebase Admin SDK (no old password needed)

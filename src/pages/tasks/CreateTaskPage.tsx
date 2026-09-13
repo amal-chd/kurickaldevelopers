@@ -101,15 +101,15 @@ const CreateTaskPage: React.FC = () => {
   // silently drops a role that was previously assigned.
   const assignableRoles = (() => {
     const keep = (r: Role) => form.assignedRoleIds.includes(r.id);
+    // No role-level hierarchy — any role can be assigned unless the Director has
+    // configured explicit assignment rules for the current user's role.
     if (!assignConfig || !assignConfig.enabled) {
-      const myLevel = role?.level ?? 0;
-      return roles.filter((r) => r.level < myLevel || keep(r));
+      return roles;
     }
     const myRole = appUser?.roleId ?? '';
     const allowed = assignConfig.matrix?.[myRole];
     if (!allowed) {
-      const myLevel = role?.level ?? 0;
-      return roles.filter((r) => r.level < myLevel || keep(r));
+      return roles;
     }
     return roles.filter((r) => allowed.includes(r.id) || keep(r));
   })();

@@ -214,9 +214,10 @@ export function formatDelay(delaySeconds: number | undefined | null): string {
 /**
  * Calculate overtime minutes beyond 8 hours (480 minutes).
  */
-export function getOvertimeMinutes(checkInTime: Date, checkOutTime: Date, overrideMinutes?: number): number {
+export function getOvertimeMinutes(checkInTime: Date, checkOutTime: Date, overrideMinutes?: number, workedMinutes: number = 0): number {
   if (overrideMinutes !== undefined && overrideMinutes !== null) return overrideMinutes;
-  const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 60000);
+  // Include minutes banked from earlier check-in/out sessions the same day.
+  const totalMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / 60000) + (workedMinutes || 0);
   const standardMinutes = 480; // 8 hours
   return totalMinutes > standardMinutes ? totalMinutes - standardMinutes : 0;
 }

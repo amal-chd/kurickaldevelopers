@@ -88,7 +88,7 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
   const getDuration = (rec: Attendance) => {
     if (!rec.checkInTime || !rec.checkOutTime) return null;
     try {
-      const mins = differenceInMinutes(rec.checkOutTime.toDate(), rec.checkInTime.toDate());
+      const mins = differenceInMinutes(rec.checkOutTime.toDate(), rec.checkInTime.toDate()) + (rec.workedMinutes ?? 0);
       return formatDuration(mins);
     } catch { return null; }
   };
@@ -106,7 +106,8 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
     setEditingId(rec.id);
     setEditIn(rec.checkInTime ? format(rec.checkInTime.toDate(), 'HH:mm') : '');
     setEditOut(rec.checkOutTime ? format(rec.checkOutTime.toDate(), 'HH:mm') : '');
-    setEditOtOverride(rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null ? rec.overtimeOverrideMinutes.toString() : '');
+    // Override is entered/shown in HOURS (stored as minutes).
+    setEditOtOverride(rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null ? String(rec.overtimeOverrideMinutes / 60) : '');
   };
 
   const handleSave = async (rec: Attendance) => {
@@ -127,7 +128,8 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
       }
 
       if (editOtOverride) {
-        updates.overtimeOverrideMinutes = parseInt(editOtOverride, 10);
+        // Entered in hours → stored in minutes.
+        updates.overtimeOverrideMinutes = Math.round(parseFloat(editOtOverride) * 60);
       } else {
         updates.overtimeOverrideMinutes = null as any;
       }
@@ -203,7 +205,7 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                       </div>
                       <div>
                         <label className="text-xs text-slate-500 block mb-1">OT Mins (Override)</label>
-                        <input type="number" value={editOtOverride} onChange={e => setEditOtOverride(e.target.value)} className="w-full text-sm p-1.5 border rounded" placeholder="Auto" />
+                        <input type="number" step="0.5" min="0" value={editOtOverride} onChange={e => setEditOtOverride(e.target.value)} className="w-full text-sm p-1.5 border rounded" placeholder="Auto (hrs)" />
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-2">
@@ -232,7 +234,7 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                           <span className="text-xs text-slate-500">{duration}</span>
                         )}
                         {rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null && (
-                          <span className="text-xs font-semibold text-purple-600">OT: {rec.overtimeOverrideMinutes}m</span>
+                          <span className="text-xs font-semibold text-purple-600">OT: {formatOvertime(rec.overtimeOverrideMinutes)}</span>
                         )}
                       </div>
                     </div>
@@ -296,6 +298,8 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
           status: row.status,
           checkInTime: row.check_in_time,
           checkOutTime: row.check_out_time,
+          overtimeOverrideMinutes: row.overtime_override_minutes,
+          workedMinutes: row.worked_minutes ?? 0,
           location: row.location,
           notes: row.notes,
           projectId: row.project_id
@@ -319,7 +323,7 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
       const checkIn = rec.checkInTime.toDate ? rec.checkInTime.toDate() : new Date(rec.checkInTime);
       const checkOut = rec.checkOutTime.toDate ? rec.checkOutTime.toDate() : new Date(rec.checkOutTime);
       const totalMins = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60000);
-      const otMins = getOvertimeMinutes(checkIn, checkOut, rec.overtimeOverrideMinutes);
+      const otMins = getOvertimeMinutes(checkIn, checkOut, rec.overtimeOverrideMinutes, rec.workedMinutes);
       
       const existing = map.get(rec.userId) || { totalOtMins: 0, daysWithOt: 0, totalMins: 0, daysPresent: 0 };
       existing.totalMins += totalMins;
@@ -546,7 +550,7 @@ const AttendanceDashboardPage: React.FC = () => {
               const inT = rec.checkInTime.toDate();
               const outT = rec.checkOutTime.toDate();
               totalMins += differenceInMinutes(outT, inT);
-              totalOvertimeMins += getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes);
+              totalOvertimeMins += getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes, rec.workedMinutes);
             } catch {
               // Ignore invalid dates
             }
@@ -618,7 +622,7 @@ const AttendanceDashboardPage: React.FC = () => {
             'Check Out': outT ? format(outT, 'HH:mm') : '—',
             'Check Out Address': rec.checkOutAddress || '—',
             'Duration (hrs)': mins !== null ? Math.round((mins / 60) * 100) / 100 : '—',
-            'Overtime (hrs)': (inT && outT) ? Math.round((getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes) / 60) * 100) / 100 : '—',
+            'Overtime (hrs)': (inT && outT) ? Math.round((getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes, rec.workedMinutes) / 60) * 100) / 100 : '—',
             'Geofence Compliance': isOutsideGeofence(rec) ? 'Outside Geofence' : 'Compliant',
           });
         }
@@ -945,7 +949,7 @@ const AttendanceDashboardPage: React.FC = () => {
                           <span className="font-medium text-blue-600">{getDur()}</span>
                           {(() => {
                             if (!rec?.checkInTime || !rec?.checkOutTime) return null;
-                            const otMins = getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate(), rec.overtimeOverrideMinutes);
+                            const otMins = getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate(), rec.overtimeOverrideMinutes, rec.workedMinutes);
                             if (otMins > 0) {
                               return <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-bold">OT: {formatOvertime(otMins)}</span>;
                             }
