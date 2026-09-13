@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CheckSquare, FolderOpen, Users, FileText,
   MessageSquare, BookOpen, BarChart2, Shield, LogOut, X, Award,
-  CalendarDays, Wallet, Receipt, Package,
+  CalendarDays, Wallet, Receipt, Package, HelpCircle,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
@@ -30,6 +30,7 @@ const NAV_GROUPS = [
       { to: '/app/assets', label: 'Assets', icon: Package, perm: 'assets_view' as const },
       { to: '/app/reports', label: 'Reports', icon: BarChart2, perm: 'reports_view' as const },
       { to: '/app/performance', label: 'Performance & Points', icon: Award, requiresRole: true },
+      { to: '/app/manual', label: 'Field Manual', icon: HelpCircle, always: true },
     ],
   },
   {

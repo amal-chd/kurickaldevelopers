@@ -314,11 +314,21 @@ const TaskDetailPage: React.FC = () => {
 
   const handleAddSubtask = async () => {
     if (!taskId || !newSubtask.trim()) return;
+    const title = newSubtask.trim();
     setAddingSubtask(true);
     try {
-      await addSubtask(taskId, { title: newSubtask.trim(), isDone: false }, appUser?.id);
+      const newId = await addSubtask(taskId, { title, isDone: false } as any, appUser?.id);
+      // Show it immediately — don't wait on the realtime subscription to
+      // re-render (the row IS saved; the previous version looked like nothing
+      // happened until a refresh). The subscription reconciles shortly after.
+      setSubtasks((prev) =>
+        prev.some((s) => s.id === newId)
+          ? prev
+          : [...prev, { id: newId, taskId, title, isDone: false, completedBy: null } as unknown as Subtask],
+      );
       setNewSubtask('');
-    } catch {
+    } catch (e) {
+      console.error('addSubtask failed:', e);
       toast.error('Failed to add subtask');
     } finally {
       setAddingSubtask(false);

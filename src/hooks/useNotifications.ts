@@ -3,12 +3,72 @@ import { subscribeNotifications } from '../lib/firestore';
 import { useAuthStore } from '../store/authStore';
 import { AppNotification } from '../types';
 
-/**
- * Live notifications for the current user (targeted + broadcast), with the
- * unread count derived from the per-user `isRead` map. Used by the TopBar bell
- * so its badge reflects unread NOTIFICATIONS (not chat unread, which has its
- * own indicator on the sidebar).
- */
+export interface StackedNotification {
+  id: string; // id of the latest notification in the stack
+  isStacked: boolean;
+  count: number;
+  hasUnread: boolean;
+  allIds: string[];
+  latest: AppNotification;
+  children: AppNotification[];
+  createdAt: Date | any;
+  relatedId?: string;
+}
+
+export function stackNotifications(notifications: AppNotification[], currentUserId: string): StackedNotification[] {
+  const stacks: StackedNotification[] = [];
+  const map = new Map<string, StackedNotification>();
+
+  for (const n of notifications) {
+    const isRead = !!n.isRead?.[currentUserId];
+    
+    if (n.relatedId) {
+      if (map.has(n.relatedId)) {
+        const stack = map.get(n.relatedId)!;
+        stack.count += 1;
+        stack.allIds.push(n.id);
+        stack.children.push(n);
+        if (!isRead) {
+          stack.hasUnread = true;
+        }
+      } else {
+        const newStack: StackedNotification = {
+          id: n.id,
+          isStacked: false,
+          count: 1,
+          hasUnread: !isRead,
+          allIds: [n.id],
+          latest: n,
+          children: [n],
+          createdAt: n.createdAt,
+          relatedId: n.relatedId,
+        };
+        stacks.push(newStack);
+        map.set(n.relatedId, newStack);
+      }
+    } else {
+      stacks.push({
+        id: n.id,
+        isStacked: false,
+        count: 1,
+        hasUnread: !isRead,
+        allIds: [n.id],
+        latest: n,
+        children: [n],
+        createdAt: n.createdAt,
+      });
+    }
+  }
+
+  for (const stack of stacks) {
+    if (stack.count > 1) {
+      stack.isStacked = true;
+    }
+  }
+
+  return stacks;
+}
+
 export function useNotifications() {
   const { appUser } = useAuthStore();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -24,6 +84,8 @@ export function useNotifications() {
 
   const uid = appUser?.id ?? '';
   const unreadCount = notifications.filter((n) => !n.isRead?.[uid]).length;
+  
+  const stackedNotifications = stackNotifications(notifications, uid);
 
-  return { notifications, unreadCount };
+  return { notifications, stackedNotifications, unreadCount };
 }

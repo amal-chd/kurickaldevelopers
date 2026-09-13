@@ -247,8 +247,8 @@ const UserManagementPage: React.FC = () => {
     try {
       // 1. Delete authentication account and subcollections (attendance, notifications, private)
       await deleteUserAccount(user.id);
-      // 2. Delete Firestore user document
-      await deleteUser(user.id);
+      // 2. Delete Firestore user document (client-side fallback if server didn't already remove it)
+      await deleteUser(user.id).catch(() => {});
       
       await logAudit({
         action: 'user.deleted',

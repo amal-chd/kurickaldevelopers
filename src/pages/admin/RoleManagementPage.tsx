@@ -27,6 +27,9 @@ const ALL_PERMISSIONS: (keyof Permissions)[] = [
   'attendance_view_all',
   'contact_view', 'contact_manage',
   'performance_view', 'performance_manage',
+  // HR & Finance — these were enforced in the pages but missing here, so they
+  // could never be granted/revoked from the UI (only via level fallback).
+  'leave_manage', 'payroll_manage', 'expense_manage',
 ];
 
 const RoleManagementPage: React.FC = () => {

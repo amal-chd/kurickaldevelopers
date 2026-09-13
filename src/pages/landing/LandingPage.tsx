@@ -112,7 +112,13 @@ export default function LandingPage() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-5">
+            <a
+              href="/manual"
+              className="text-sm font-medium text-white/85 hover:text-white transition-colors"
+            >
+              Field Manual
+            </a>
             <button
               onClick={() => navigate('/login')}
               className="text-sm font-semibold px-6 py-2.5 rounded text-white bg-[#1b61d4] hover:bg-[#154db0] transition-colors shadow-[0_4px_14px_0_rgba(27,97,212,0.39)]"
@@ -131,6 +137,7 @@ export default function LandingPage() {
             {NAV.map((l) => (
               <a key={l} href={`#${l.toLowerCase()}`} onClick={() => setMenuOpen(false)} className="block py-3 text-white font-medium border-b border-white/10">{l}</a>
             ))}
+            <a href="/manual" onClick={() => setMenuOpen(false)} className="block py-3 text-white font-medium border-b border-white/10">Field Manual</a>
             <button
               onClick={() => { setMenuOpen(false); navigate('/login'); }}
               className="w-full mt-4 bg-[#1b61d4] text-white font-semibold py-3 rounded text-center"
@@ -325,7 +332,7 @@ export default function LandingPage() {
                 </div>
                 <span className="text-white font-bold tracking-wide text-lg uppercase">Kurickal Developers</span>
             </div>
-            <div className="flex items-center gap-6 text-blue-100/60 text-[13px] font-medium">
+            <div className="flex items-center gap-6 text-blue-100/60 text-[13px] font-medium flex-wrap justify-center">
                 <a href="#home" className="hover:text-white transition-colors">Home</a>
                 <a href="#services" className="hover:text-white transition-colors">Services</a>
                 <a href="#projects" className="hover:text-white transition-colors">Projects</a>
@@ -333,6 +340,7 @@ export default function LandingPage() {
                 <a href="#contact" className="hover:text-white transition-colors">Contact</a>
                 <a href="/policy" className="hover:text-white transition-colors">Privacy Policy</a>
                 <a href="/terms" className="hover:text-white transition-colors">Terms of Use</a>
+                <a href="/manual" className="hover:text-white transition-colors text-blue-200 font-semibold">Field Manual</a>
             </div>
             <p className="text-blue-100/40 text-[11px]">© {new Date().getFullYear()} Kurickal Developers LLP. All rights reserved.</p>
         </div>

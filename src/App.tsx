@@ -42,6 +42,7 @@ const NotificationAdminPage = React.lazy(() => import('./pages/admin/Notificatio
 const AttendanceDashboardPage = React.lazy(() => import('./pages/admin/AttendanceDashboardPage'));
 const ContactInquiriesPage = React.lazy(() => import('./pages/admin/ContactInquiriesPage'));
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
+const FieldManualPage = React.lazy(() => import('./pages/manual/FieldManualPage'));
 import Spinner from './components/ui/Spinner';
 
 const queryClient = new QueryClient({
@@ -71,6 +72,17 @@ const DirectorGate = () => {
 
   if (hasAccess) return <Outlet />;
   return <Navigate to="/app/dashboard" replace />;
+};
+
+// Generic per-permission route guard. Blocks direct-URL access to a feature page
+// when the user lacks its permission, mirroring the sidebar gating so hiding a
+// nav item and blocking the route can never drift apart.
+const RequirePerm = ({ perm, children }: { perm: string; children: React.ReactNode }) => {
+  const { can } = usePermissions();
+  const { role, loading } = useAuthStore();
+  // While the role is still resolving, don't bounce an authorized user.
+  if (loading || role === undefined) return <>{children}</>;
+  return can(perm as any) ? <>{children}</> : <Navigate to="/app/dashboard" replace />;
 };
 
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
@@ -116,6 +128,8 @@ function App() {
             <Route path="/policy" element={<PrivacyPolicyPage />} />
             <Route path="/privacy-policy" element={<Navigate to="/policy" replace />} />
             <Route path="/terms" element={<TermsOfUsePage />} />
+            <Route path="/manual" element={<FieldManualPage />} />
+            <Route path="/field-manual" element={<Navigate to="/manual" replace />} />
 
             {/* Protected App */}
             <Route
@@ -129,34 +143,35 @@ function App() {
               <Route index element={<Navigate to="/app/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
 
-              {/* Tasks */}
+              {/* Tasks — list/detail open to all with tasks_view (default);
+                  create/edit guarded so the URL can't bypass the button gate. */}
               <Route path="tasks" element={<TasksPage />} />
               <Route path="tasks/:id" element={<TaskDetailPage />} />
-              <Route path="tasks/create" element={<CreateTaskPage />} />
-              <Route path="tasks/:taskId/edit" element={<CreateTaskPage />} />
+              <Route path="tasks/create" element={<RequirePerm perm="tasks_create"><CreateTaskPage /></RequirePerm>} />
+              <Route path="tasks/:taskId/edit" element={<RequirePerm perm="tasks_edit"><CreateTaskPage /></RequirePerm>} />
 
               {/* Projects */}
-              <Route path="projects" element={<ProjectsPage />} />
-              <Route path="projects/:id" element={<ProjectDetailPage />} />
-              <Route path="projects/create" element={<CreateProjectPage />} />
-              <Route path="projects/:projectId/edit" element={<CreateProjectPage />} />
+              <Route path="projects" element={<RequirePerm perm="projects_view"><ProjectsPage /></RequirePerm>} />
+              <Route path="projects/:id" element={<RequirePerm perm="projects_view"><ProjectDetailPage /></RequirePerm>} />
+              <Route path="projects/create" element={<RequirePerm perm="projects_create"><CreateProjectPage /></RequirePerm>} />
+              <Route path="projects/:projectId/edit" element={<RequirePerm perm="projects_edit"><CreateProjectPage /></RequirePerm>} />
 
               {/* Team */}
-              <Route path="team" element={<TeamPage />} />
-              <Route path="team/:id" element={<MemberDetailPage />} />
+              <Route path="team" element={<RequirePerm perm="team_view"><TeamPage /></RequirePerm>} />
+              <Route path="team/:id" element={<RequirePerm perm="team_view"><MemberDetailPage /></RequirePerm>} />
 
               {/* Other */}
-              <Route path="documents" element={<DocumentsPage />} />
-              <Route path="chat" element={<ChatPage />} />
-              <Route path="chat/:channelId" element={<ChatPage />} />
+              <Route path="documents" element={<RequirePerm perm="docs_view"><DocumentsPage /></RequirePerm>} />
+              <Route path="chat" element={<RequirePerm perm="chat_view"><ChatPage /></RequirePerm>} />
+              <Route path="chat/:channelId" element={<RequirePerm perm="chat_view"><ChatPage /></RequirePerm>} />
               <Route path="site-diary" element={<SiteDiaryPage />} />
-              <Route path="reports" element={<ReportsPage />} />
+              <Route path="reports" element={<RequirePerm perm="reports_view"><ReportsPage /></RequirePerm>} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="performance" element={<PerformancePage />} />
 
               {/* Assets */}
-              <Route path="assets" element={<AssetsPage />} />
-              <Route path="assets/:id" element={<AssetDetailPage />} />
+              <Route path="assets" element={<RequirePerm perm="assets_view"><AssetsPage /></RequirePerm>} />
+              <Route path="assets/:id" element={<RequirePerm perm="assets_view"><AssetDetailPage /></RequirePerm>} />
 
               {/* HR & Finance */}
               <Route path="leave" element={<LeavePage />} />
@@ -176,8 +191,10 @@ function App() {
                 <Route path="admin/contact" element={<ContactInquiriesPage />} />
               </Route>
 
-              {/* Profile */}
+              {/* Profile & Help */}
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="manual" element={<FieldManualPage />} />
+              <Route path="field-manual" element={<Navigate to="/app/manual" replace />} />
             </Route>
 
             {/* Catch-all */}
