@@ -5,6 +5,7 @@ import '../../../core/extensions/datetime_ext.dart';
 import '../../../data/models/task_model.dart';
 import '../../../core/enums/task_status.dart';
 import '../../../providers/role_provider.dart';
+import '../../../providers/project_provider.dart';
 import '../../shared/widgets/status_chip.dart';
 
 class TaskCard extends ConsumerWidget {
@@ -78,6 +79,36 @@ class TaskCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 14),
+            // Project this task belongs to
+            if (task.projectId.isNotEmpty)
+              ref.watch(projectProvider(task.projectId)).maybeWhen(
+                    data: (project) => project == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.folder_outlined,
+                                    size: 13, color: AppTheme.primary),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    project.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primary,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
             Text(
               task.title,
               style: TextStyle(

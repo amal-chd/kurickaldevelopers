@@ -446,6 +446,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   canMarkDone,
                   displayStatus,
                   isAssignee,
+                  project,
                 ),
                 _buildSubtasksTab(task, subtasksAsync, currentUser, canEdit),
                 _buildCommentsTab(task, commentsAsync, currentUser, canAddComment, project),
@@ -467,6 +468,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     bool canMarkDone,
     TaskStatus displayStatus,
     bool isAssignee,
+    ProjectModel? project,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -789,6 +791,12 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
             ),
             child: Column(
               children: [
+                _InfoRow(
+                  icon: Icons.folder_outlined,
+                  label: 'Project',
+                  value: project?.name ?? '—',
+                ),
+                const Divider(height: 1, indent: 44),
                 _InfoRow(
                   icon: Icons.calendar_today_outlined,
                   label: 'Due Date',

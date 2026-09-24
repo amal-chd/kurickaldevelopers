@@ -129,8 +129,10 @@ class TaskRepository {
         final isAssignee = assignees.contains(userId);
         final isRole = roleId != null && roleId.isNotEmpty && assignedRoles.contains(roleId);
         final isProjectMember = projectId != null && myProjectIds.contains(projectId);
-        
-        return isAssignee || isRole || isProjectMember;
+        // The creator/assigner of a task must always see it (matches web).
+        final isCreator = data['created_by'] == userId;
+
+        return isAssignee || isRole || isProjectMember || isCreator;
       }).map(_fromSupabase).toList();
       
       filtered.sort((a, b) => a.dueDate.compareTo(b.dueDate));

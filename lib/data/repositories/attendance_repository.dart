@@ -189,18 +189,10 @@ class AttendanceRepository {
   }
 
   AttendanceModel _fromSupabase(Map<String, dynamic> data) {
-    final record = AttendanceModel.fromMap(_toCamelCase(data), data['id']);
-    if (record.checkOutTime == null) {
-      final now = DateTime.now();
-      final startOfToday = DateTime(now.year, now.month, now.day);
-      if (record.checkInTime.isBefore(startOfToday)) {
-        final autoOut = record.checkInTime.add(const Duration(hours: 8));
-        _supabase.from(_table).update({
-          'check_out_time': autoOut.toUtc().toIso8601String(),
-        }).eq('id', data['id']).then((_) {});
-      }
-    }
-    return record;
+    // Automatic checkout removed: a stale open session (checked in on a
+    // previous day with no check-out) is left as-is instead of being
+    // silently closed with an 8-hour check-out. Reads must never mutate rows.
+    return AttendanceModel.fromMap(_toCamelCase(data), data['id']);
   }
 
   Stream<List<AttendanceModel>> watchAllAttendanceForDate(String date) {

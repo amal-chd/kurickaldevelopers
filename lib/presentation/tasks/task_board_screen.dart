@@ -369,7 +369,9 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen>
           final myTasks = allTasks.where((t) {
             final isExplicitAssignee = t.assigneeIds.contains(currentUser?.uid);
             final isRoleAssignee = currentUser?.roleId != null && t.assignedRoleIds.contains(currentUser!.roleId);
-            return isExplicitAssignee || isRoleAssignee;
+            // The creator/assigner must always see their own task (matches web).
+            final isCreator = currentUser?.uid != null && t.createdBy == currentUser!.uid;
+            return isExplicitAssignee || isRoleAssignee || isCreator;
           }).toList();
 
           return TabBarView(
