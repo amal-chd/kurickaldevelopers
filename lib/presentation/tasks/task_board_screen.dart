@@ -501,13 +501,13 @@ class _ProjectChip extends StatelessWidget {
 
 // ─── Manager Task Row ─────────────────────────────────────────────────────────
 
-class _ManagerTaskRow extends StatelessWidget {
+class _ManagerTaskRow extends ConsumerWidget {
   final TaskModel task;
   final VoidCallback onTap;
   const _ManagerTaskRow({required this.task, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -536,6 +536,35 @@ class _ManagerTaskRow extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  if (task.projectId.isNotEmpty)
+                    ref.watch(projectProvider(task.projectId)).maybeWhen(
+                          data: (project) => project == null
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.folder_outlined,
+                                          size: 13, color: AppTheme.primary),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                        child: Text(
+                                          project.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primary,
+                                            fontFamily: 'Inter',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                          orElse: () => const SizedBox.shrink(),
+                        ),
                   Text(
                     task.title,
                     style: const TextStyle(
@@ -689,6 +718,35 @@ class _EmployeeTaskCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 14),
+            if (task.projectId.isNotEmpty)
+              ref.watch(projectProvider(task.projectId)).maybeWhen(
+                    data: (project) => project == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.folder_outlined,
+                                    size: 13, color: AppTheme.primary),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    project.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primary,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
             Text(
               task.title,
               style: TextStyle(
