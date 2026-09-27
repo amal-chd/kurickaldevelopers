@@ -952,7 +952,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                           .where((u) => rolesList.contains(u.roleId) && u.isActive)
                           .forEach((u) => roleUids.add(u.uid));
                     }
-                    final allAssigneeUids = {...explicitUids, ...roleUids}.toList();
+                    var allAssigneeUids = {...explicitUids, ...roleUids}.toList();
+
+                    // Fallback: when no one is explicitly assigned (and no role
+                    // resolves to members), show the creator/assigner as the
+                    // responsible member — matches the web, so every task shows
+                    // at least one person instead of "No members assigned".
+                    if (allAssigneeUids.isEmpty && task.createdBy.isNotEmpty) {
+                      allAssigneeUids = [task.createdBy];
+                    }
 
                     if (allAssigneeUids.isEmpty) {
                       return const Text('No members assigned');
