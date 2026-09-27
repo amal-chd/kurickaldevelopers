@@ -96,6 +96,12 @@ const TaskDetailPage: React.FC = () => {
   const isManager = can('tasks_approve');
   const explicitUids = task.assigneeIds ?? [];
   const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+  const roleUids = users.filter((u) => assignedRolesList.includes(u.roleId) && u.isActive).map((u) => u.id);
+  let allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+  // Fallback: show creator when no one is explicitly assigned
+  if (allAssigneeIds.length === 0 && task.createdBy) {
+    allAssigneeIds = [task.createdBy];
+  }
   const isAssignee = Boolean(
     appUser && (
       explicitUids.includes(appUser.id) ||
@@ -186,15 +192,7 @@ const TaskDetailPage: React.FC = () => {
         nextGlobalStatus = newStatus;
         if (newStatus === 'done') {
           const details = calculateCompletionDetails(new Date(), task.dueDate);
-          const explicitUids = task.assigneeIds ?? [];
-          const roleUids: string[] = [];
-          const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
-          if (assignedRolesList.length > 0) {
-            users
-              .filter((u) => assignedRolesList.includes(u.roleId) && u.isActive)
-              .forEach((u) => roleUids.push(u.id));
-          }
-          const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+
           allAssigneeIds.forEach((uid) => {
             updatedProgress[uid] = {
               status: 'done',
@@ -835,22 +833,32 @@ const TaskDetailPage: React.FC = () => {
           <Card className="hover:shadow-card-hover transition-all duration-300">
             <h3 className="font-bold text-lg text-slate-900 mb-4 pb-3 border-b border-slate-100">Assignees</h3>
             <div className="space-y-3">
-              {task.assigneeIds?.map((uid) => {
+              {allAssigneeIds.map((uid) => {
                 const u = getUser(uid);
                 if (!u) return null;
+                const isViaRole = roleUids.includes(uid) && !explicitUids.includes(uid);
+                const isCreatorFallback = explicitUids.length === 0 && roleUids.length === 0 && uid === task.createdBy;
                 return (
                   <div
                     key={uid}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-2 rounded-xl border border-transparent hover:border-slate-100 transition-all"
+                    className="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 rounded-xl border border-transparent hover:border-slate-100 transition-all"
                     onClick={() => navigate(`/app/team/${uid}`)}
                   >
-                    <Avatar name={u.name} src={u.avatarUrl} size="md" />
-                    <span className="font-medium text-slate-900">{u.name}</span>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={u.name} src={u.avatarUrl} size="md" />
+                      <span className="font-medium text-slate-900">{u.name}</span>
+                    </div>
+                    {isCreatorFallback && (
+                      <span className="text-[10px] font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">Creator</span>
+                    )}
+                    {isViaRole && (
+                      <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Via Role</span>
+                    )}
                   </div>
                 );
               })}
-              {!task.assigneeIds?.length && (
-                <p className="text-sm text-slate-400 italic">No specific members assigned</p>
+              {allAssigneeIds.length === 0 && (
+                <p className="text-sm text-slate-400 italic">No members assigned</p>
               )}
             </div>
           </Card>
@@ -885,15 +893,6 @@ const TaskDetailPage: React.FC = () => {
               <h3 className="font-bold text-lg text-slate-900 mb-4 pb-3 border-b border-slate-100">Member Progress</h3>
               <div className="space-y-3">
                 {(() => {
-                  const explicitUids = task.assigneeIds ?? [];
-                  const roleUids: string[] = [];
-                  const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
-                  if (assignedRolesList.length > 0) {
-                    users
-                      .filter((u) => assignedRolesList.includes(u.roleId) && u.isActive)
-                      .forEach((u) => roleUids.push(u.id));
-                  }
-                  const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
                   if (allAssigneeIds.length === 0) {
                     return <p className="text-sm text-slate-400 italic">No team members working on this</p>;
                   }
