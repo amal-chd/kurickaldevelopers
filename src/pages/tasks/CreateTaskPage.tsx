@@ -158,6 +158,9 @@ const CreateTaskPage: React.FC = () => {
       }
 
       const finalAttachmentUrls = [...form.attachmentUrls, ...uploadedUrls];
+      // Snapshot the task BEFORE saving: the creator must survive an edit, and
+      // the role diff below needs the old roles, not the just-saved ones.
+      const existing = isEdit && taskId ? await getTask(taskId) : null;
 
       const data: Omit<Task, 'id'> = {
         title: form.title.trim(),
@@ -176,17 +179,30 @@ const CreateTaskPage: React.FC = () => {
         assigneeIds: form.assigneeIds,
         assignedRoleIds: form.assignedRoleIds,
         attachmentUrls: finalAttachmentUrls,
-        createdBy: appUser.id,
-        createdAt: isEdit && taskId ? (await getTask(taskId))?.createdAt || Timestamp.now() : Timestamp.now(),
+        createdBy: existing?.createdBy || appUser.id,
+        createdAt: existing?.createdAt || Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
       if (isEdit && taskId) {
         await updateTask(taskId, data);
         if (form.assigneeIds.length > 0) notifyPush({ event: 'task', taskId, kind: 'assigned' });
+        const oldAssignees = existing?.assigneeIds ?? [];
+        form.assigneeIds
+          .filter((uid) => uid !== appUser.id && !oldAssignees.includes(uid))
+          .forEach((uid) =>
+            createNotification({
+              title: 'New Task Assigned',
+              body: `You have been assigned to: ${form.title.trim()}`,
+              userId: uid,
+              type: 'task_assigned',
+              isRead: {},
+              createdAt: null as any,
+            }).catch(() => {}),
+          );
         
         // Notify role members if assignedRoleIds are newly set or changed
-        getTask(taskId).then((oldTask) => {
+        Promise.resolve(existing).then((oldTask) => {
           if (oldTask) {
             const oldRoles = oldTask.assignedRoleIds ?? (oldTask.assignedRoleId ? [oldTask.assignedRoleId] : []);
             const newRoles = form.assignedRoleIds;

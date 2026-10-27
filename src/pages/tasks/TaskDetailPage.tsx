@@ -190,20 +190,22 @@ const TaskDetailPage: React.FC = () => {
         nextGlobalStatus = allSubmitted && allAssigneeIds.length > 0 ? 'under_review' : 'in_progress';
       } else {
         nextGlobalStatus = newStatus;
-        if (newStatus === 'done') {
-          const details = calculateCompletionDetails(new Date(), task.dueDate);
-
-          allAssigneeIds.forEach((uid) => {
-            updatedProgress[uid] = {
-              status: 'done',
-              updatedAt: Timestamp.now() as any,
-              completedBy: appUser.id,
-              completedAt: Timestamp.now() as any,
-              completionStatus: details.completionStatus,
-              delaySeconds: details.delaySeconds,
-            };
-          });
-        }
+        // A manager's status change applies to every member, so Member
+        // Progress never shows stale "Done" rows on a reopened task (or
+        // "In Progress" rows on a finished one).
+        const details = newStatus === 'done' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
+        allAssigneeIds.forEach((uid) => {
+          updatedProgress[uid] = details
+            ? {
+                status: 'done',
+                updatedAt: Timestamp.now() as any,
+                completedBy: appUser.id,
+                completedAt: Timestamp.now() as any,
+                completionStatus: details.completionStatus,
+                delaySeconds: details.delaySeconds,
+              }
+            : { status: newStatus, updatedAt: Timestamp.now() as any };
+        });
       }
 
       const globalDetails = nextGlobalStatus === 'done' ? calculateCompletionDetails(new Date(), task.dueDate) : null;
@@ -900,7 +902,8 @@ const TaskDetailPage: React.FC = () => {
                     const u = getUser(uid);
                     if (!u) return null;
                     const prog = task.memberProgress?.[uid];
-                    const uStatus: TaskStatus = prog?.status ?? 'in_progress';
+                    // No per-member entry yet → the member is wherever the task is.
+                    const uStatus: TaskStatus = prog?.status ?? task.status;
                     return (
                       <div key={uid} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/app/team/${uid}`)}>

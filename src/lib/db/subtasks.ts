@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { Subtask } from '../../types';
 import { notifyPush } from '../push';
+import { createNotification } from './notifications';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 const logPermissionError = (actionName: string, error: any, context?: any) => {

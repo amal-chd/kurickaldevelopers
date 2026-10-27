@@ -2,9 +2,7 @@ import { Timestamp, QueryConstraint } from 'firebase/firestore';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { Task } from '../../types';
-
-// Declare anything that was used implicitly or missing in imports but present in original code
-declare function recalculatePerformanceScore(uid: string): Promise<void>;
+import { recalculatePerformanceScore } from './performance_score_and_points_engine';
 
 const logPermissionError = (actionName: string, error: any, context?: any) => {
   const isPermissionError = error?.code === 'PGRST301' || error?.code === '42501' || error?.message?.includes('permission') || error?.message?.includes('denied');
@@ -26,6 +24,62 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
 const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
+const toIso = (v: any): string | null => {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v?.toDate === 'function') return v.toDate().toISOString();
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v?.seconds === 'number') return new Date(v.seconds * 1000).toISOString();
+  return String(v);
+};
+
+const toTs = (v: any): Timestamp | undefined => {
+  if (!v) return undefined;
+  if (typeof v?.toDate === 'function') return v as Timestamp;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? undefined : Timestamp.fromDate(d);
+};
+
+// Legacy rows may carry `assigned_to` as a JSON array string or a bare uid.
+const parseLegacyAssignedTo = (v: any): string[] | null => {
+  if (!v) return null;
+  try {
+    const parsed = JSON.parse(v);
+    return Array.isArray(parsed) ? parsed : [String(parsed)];
+  } catch {
+    return [String(v)];
+  }
+};
+
+const progressFromRow = (raw: any): Task['memberProgress'] => {
+  const out: NonNullable<Task['memberProgress']> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [uid, p] of Object.entries<any>(raw)) {
+    if (!p || typeof p !== 'object') continue;
+    out[uid] = {
+      ...p,
+      updatedAt: toTs(p.updatedAt),
+      completedAt: toTs(p.completedAt),
+    };
+  }
+  return out;
+};
+
+const progressToRow = (progress: Task['memberProgress']): Record<string, any> => {
+  const out: Record<string, any> = {};
+  for (const [uid, p] of Object.entries(progress ?? {})) {
+    if (!p) continue;
+    const entry: Record<string, any> = { status: p.status };
+    if (p.updatedAt) entry.updatedAt = toIso(p.updatedAt);
+    if (p.completedAt) entry.completedAt = toIso(p.completedAt);
+    if (p.completedBy) entry.completedBy = p.completedBy;
+    if (p.completionStatus) entry.completionStatus = p.completionStatus;
+    if (p.delaySeconds !== undefined && p.delaySeconds !== null) entry.delaySeconds = p.delaySeconds;
+    if (p.actualHours !== undefined && p.actualHours !== null) entry.actualHours = p.actualHours;
+    out[uid] = entry;
+  }
+  return out;
+};
+
 const convertRowToTask = (row: any): Task => {
   return {
     ...row,
@@ -34,7 +88,7 @@ const convertRowToTask = (row: any): Task => {
     description: row.description,
     projectId: row.project_id,
     milestoneId: row.milestone_id,
-    assigneeIds: row.assigned_to ? JSON.parse(row.assigned_to) : (row.assignee_ids || []),
+    assigneeIds: row.assignee_ids?.length ? row.assignee_ids : (parseLegacyAssignedTo(row.assigned_to) ?? []),
     assignedRoleId: row.assigned_role_id,
     assignedRoleIds: row.assigned_role_ids || [],
     createdBy: row.created_by,
@@ -51,7 +105,11 @@ const convertRowToTask = (row: any): Task => {
     attachmentUrls: row.attachments || row.attachment_urls || [],
     createdAt: row.created_at ? Timestamp.fromDate(new Date(row.created_at)) : null,
     updatedAt: row.updated_at ? Timestamp.fromDate(new Date(row.updated_at)) : null,
-    
+    completedAt: toTs(row.completed_at),
+    completionStatus: row.completion_status ?? undefined,
+    delaySeconds: row.delay_seconds ?? undefined,
+    memberProgress: progressFromRow(row.member_progress),
+
     isArchived: row.is_archived || false,
     rejectionReason: row.rejection_reason,
     rejectionCount: row.rejection_count || 0,
@@ -63,40 +121,55 @@ const convertRowToTask = (row: any): Task => {
   } as unknown as Task;
 };
 
+// camelCase model key → [snake column, value transform].
+const TASK_COLUMNS: Record<string, [string, (v: any) => any]> = {
+  title: ['title', (v) => v],
+  description: ['description', (v) => v],
+  projectId: ['project_id', (v) => v],
+  milestoneId: ['milestone_id', (v) => v],
+  assigneeIds: ['assignee_ids', (v) => v || []],
+  assignedRoleId: ['assigned_role_id', (v) => v ?? null],
+  assignedRoleIds: ['assigned_role_ids', (v) => v || []],
+  createdBy: ['created_by', (v) => v],
+  status: ['status', (v) => v],
+  priority: ['priority', (v) => v],
+  dueDate: ['due_date', toIso],
+  estimatedHours: ['estimated_hours', (v) => v || 0],
+  actualHours: ['actual_hours', (v) => v || 0],
+  tags: ['labels', (v) => v || []],
+  dependsOn: ['depends_on', (v) => v || []],
+  isRecurring: ['is_recurring', (v) => v || false],
+  recurrenceRule: ['recurrence_rule', (v) => v ?? null],
+  isTemplate: ['is_template', (v) => v || false],
+  attachmentUrls: ['attachments', (v) => v || []],
+  completedAt: ['completed_at', toIso],
+  completionStatus: ['completion_status', (v) => v ?? null],
+  delaySeconds: ['delay_seconds', (v) => (v === undefined ? null : v)],
+  memberProgress: ['member_progress', progressToRow],
+  isArchived: ['is_archived', (v) => v || false],
+  rejectionReason: ['rejection_reason', (v) => v ?? null],
+  rejectionCount: ['rejection_count', (v) => v || 0],
+  reopenCount: ['reopen_count', (v) => v || 0],
+  extensionCount: ['extension_count', (v) => v || 0],
+  originalDueDate: ['original_due_date', toIso],
+  peerReviewStatus: ['peer_review_status', (v) => v ?? null],
+  managerReviewStatus: ['manager_review_status', (v) => v ?? null],
+};
+
+// Maps ONLY the keys present on `task`. This matters for updates: filling in
+// defaults for absent keys (e.g. `assignee_ids: []`) turned every partial
+// update — a status change, a comment-driven edit — into a wipe of the task's
+// assignees, roles, labels, attachments and estimate.
+// Never spread `...task` either — camelCase keys are not real columns and make
+// PostgREST reject the whole write with a 400.
 const convertTaskToRow = (task: any): any => {
-  // NOTE: do not spread `...task` — it leaks camelCase keys (projectId,
-  // assigneeIds, dueDate as a Timestamp, …) which are not real columns and make
-  // PostgREST reject the whole insert/update with a 400.
-  return {
-    title: task.title,
-    description: task.description,
-    project_id: task.projectId,
-    milestone_id: task.milestoneId,
-    assignee_ids: task.assigneeIds || [],
-    assigned_role_id: task.assignedRoleId,
-    assigned_role_ids: task.assignedRoleIds || [],
-    created_by: task.createdBy,
-    status: task.status,
-    priority: task.priority,
-    due_date: task.dueDate?.toDate ? task.dueDate.toDate().toISOString() : task.dueDate,
-    estimated_hours: task.estimatedHours || 0,
-    actual_hours: task.actualHours || 0,
-    labels: task.tags || [],
-    depends_on: task.dependsOn || [],
-    is_recurring: task.isRecurring || false,
-    recurrence_rule: task.recurrenceRule,
-    is_template: task.isTemplate || false,
-    attachments: task.attachmentUrls || [],
-    
-    is_archived: task.isArchived || false,
-    rejection_reason: task.rejectionReason,
-    rejection_count: task.rejectionCount || 0,
-    reopen_count: task.reopenCount || 0,
-    extension_count: task.extensionCount || 0,
-    original_due_date: task.originalDueDate?.toDate ? task.originalDueDate.toDate().toISOString() : task.originalDueDate,
-    peer_review_status: task.peerReviewStatus,
-    manager_review_status: task.managerReviewStatus,
-  };
+  const row: Record<string, any> = {};
+  for (const [key, [column, transform]] of Object.entries(TASK_COLUMNS)) {
+    if (Object.prototype.hasOwnProperty.call(task, key) && task[key] !== undefined) {
+      row[column] = transform(task[key]);
+    }
+  }
+  return row;
 };
 
 const applyConstraints = (queryObj: any, constraints: QueryConstraint[]) => {
@@ -310,7 +383,7 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
   fetchAndEmit();
 
   const channel = supabase
-    .channel('public:tasks')
+    .channel(`public:tasks_${Date.now()}_${Math.random().toString(36).slice(2)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
       fetchAndEmit();
     })
