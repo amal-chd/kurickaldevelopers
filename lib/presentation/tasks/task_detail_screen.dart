@@ -249,11 +249,23 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     final subtask = SubtaskModel(id: '', title: title);
     _newSubtaskCtrl.clear();
     final currentUser = ref.read(currentUserProvider).value;
-    await ref.read(taskRepositoryProvider).addSubtask(
-      taskId,
-      subtask,
-      addedByUid: currentUser?.uid,
-    );
+    try {
+      await ref.read(taskRepositoryProvider).addSubtask(
+        taskId,
+        subtask,
+        addedByUid: currentUser?.uid,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      // Restore the text so the user doesn't lose what they typed, and tell them.
+      _newSubtaskCtrl.text = title;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not add subtask. Please try again.'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
   }
 
   Future<void> _addComment(TaskModel task, bool canAddComment) async {
@@ -994,10 +1006,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                               lastLoginAt: DateTime.now(),
                             ),
                           );
-                          final prog = task.memberProgress[uid];
-                          final uStatus = prog != null && prog is Map
-                              ? TaskStatusX.fromString(prog['status'] as String? ?? 'created')
-                              : TaskStatus.inProgress;
+                          // No per-member entry yet → the member is wherever the task is.
+                          final uStatus = task.statusForUser(uid);
 
                           return ListTile(
                             leading: AvatarWidget(

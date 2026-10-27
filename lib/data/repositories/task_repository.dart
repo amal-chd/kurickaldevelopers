@@ -49,6 +49,14 @@ Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   return map;
 }
 
+dynamic _jsonSafe(dynamic value) {
+  if (value is Timestamp) return value.toDate().toUtc().toIso8601String();
+  if (value is DateTime) return value.toUtc().toIso8601String();
+  if (value is Map) return value.map((k, v) => MapEntry(k.toString(), _jsonSafe(v)));
+  if (value is List) return value.map(_jsonSafe).toList();
+  return value;
+}
+
 Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
   data.forEach((key, value) {
@@ -62,7 +70,13 @@ Map<String, dynamic> _toSnakeCase(Map<String, dynamic> data) {
       return;
     }
     // Drop fields not in Supabase schema
-    if (['photoUrls', 'approvalStatus', 'approvedBy', 'approvedAt', 'slaDeadline', 'slaBreached', 'memberProgress', 'completionStatus', 'delaySeconds'].contains(key)) {
+    if (['photoUrls', 'approvalStatus', 'approvedBy', 'approvedAt', 'slaDeadline', 'slaBreached'].contains(key)) {
+      return;
+    }
+    // jsonb column — nested Timestamps/DateTimes must become ISO strings or the
+    // JSON encode fails.
+    if (key == 'memberProgress') {
+      map['member_progress'] = _jsonSafe(value ?? const {});
       return;
     }
 
@@ -207,7 +221,7 @@ class TaskRepository {
             userId: uid,
             type: 'task_assigned',
             title: 'New Task Assigned',
-            body: 'You have been assigned to: \${task.title}',
+            body: 'You have been assigned to: ${task.title}',
             relatedId: id,
           );
         }
@@ -222,7 +236,7 @@ class TaskRepository {
               userId: uid,
               type: 'task_assigned',
               title: 'New Role Task Assigned',
-              body: 'A task has been assigned to your role: \${task.title}',
+              body: 'A task has been assigned to your role: ${task.title}',
               relatedId: id,
             );
           }
@@ -283,7 +297,7 @@ class TaskRepository {
               userId: uid,
               type: 'task_assigned',
               title: 'New Task Assigned',
-              body: 'You have been assigned to: \$taskTitle',
+              body: 'You have been assigned to: $taskTitle',
               relatedId: taskId,
             );
           }
@@ -304,7 +318,7 @@ class TaskRepository {
                 userId: uid,
                 type: 'task_assigned',
                 title: 'New Role Task Assigned',
-                body: 'A task has been assigned to your role: \$taskTitle',
+                body: 'A task has been assigned to your role: $taskTitle',
                 relatedId: taskId,
               );
             }
@@ -342,7 +356,9 @@ class TaskRepository {
       bool isManager = false;
       if (userSnap != null) {
         userName = userSnap['name'] as String? ?? 'Someone';
-        final roleId = userSnap['role_id'] as String? ?? '';
+        // Firestore user docs are camelCase (`roleId`); `role_id` never exists,
+        // which made every manager look like a plain member here.
+        final roleId = (userSnap['roleId'] ?? userSnap['role_id']) as String? ?? '';
         if (roleId.isNotEmpty) {
           final roleData = await _supabase.from('roles').select().eq('id', roleId).maybeSingle();
           if (roleData != null) {
@@ -352,6 +368,26 @@ class TaskRepository {
           }
         }
       }
+
+      final explicitUids = List<String>.from(data['assignee_ids'] ?? []);
+      final assignedRoleIds = List<String>.from(
+          (data['assigned_role_ids'] as List?)?.isNotEmpty == true
+              ? data['assigned_role_ids']
+              : (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
+      final roleUids = <String>[];
+      if (assignedRoleIds.isNotEmpty) {
+        try {
+          final usersSnap = (await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('roleId', whereIn: assignedRoleIds.take(30).toList())
+                  .get())
+              .docs;
+          for (final d in usersSnap) {
+            if (d.data()['isActive'] != false) roleUids.add(d.id);
+          }
+        } catch (_) {}
+      }
+      final allAssigneeUids = {...explicitUids, ...roleUids};
 
       final canMarkDone = isManager || isProjectManager || userId == createdBy;
       final actualStatus = (!canMarkDone && newStatus == TaskStatus.done)
@@ -363,6 +399,7 @@ class TaskRepository {
         memberProgress[userId] = {
           'status': actualStatus.value,
           'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          'completedBy': userId,
           'completedAt': DateTime.now().toUtc().toIso8601String(),
           'completionStatus': details.completionStatus,
           'delaySeconds': details.delaySeconds,
@@ -380,56 +417,46 @@ class TaskRepository {
 
       if (canMarkDone) {
         updates['status'] = actualStatus.value;
-        if (actualStatus == TaskStatus.done) {
-          final details = AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate);
-          final explicitUids = List<String>.from(data['assignee_ids'] ?? []);
-          final roleUids = <String>[];
-          final assignedRoleIds = List<String>.from(data['assigned_role_ids'] ??
-              (data['assigned_role_id'] != null ? [data['assigned_role_id']] : []));
-          if (assignedRoleIds.isNotEmpty) {
-            final usersSnap = (await FirebaseFirestore.instance.collection('users').where('roleId', whereIn: assignedRoleIds).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
-            for (final uData in usersSnap) {
-              if (uData['is_active'] != false) {
-                final uid = uData['id'] as String? ?? uData['uid'] as String? ?? '';
-                if (uid.isNotEmpty) roleUids.add(uid);
-              }
-            }
-          }
-          final allAssigneeUids = {...explicitUids, ...roleUids};
-          for (final uid in allAssigneeUids) {
-            memberProgress[uid] = {
-              'status': TaskStatus.done.value,
-              'updatedAt': DateTime.now().toUtc().toIso8601String(),
-              'completedAt': DateTime.now().toUtc().toIso8601String(),
-              'completionStatus': details.completionStatus,
-              'delaySeconds': details.delaySeconds,
-            };
-          }
-          updates['memberProgress'] = memberProgress;
-          updates['completedAt'] = DateTime.now().toUtc().toIso8601String();
+        // A manager's change applies to every member so Member Progress never
+        // shows stale rows (e.g. "Done" on a reopened task).
+        final now = DateTime.now().toUtc().toIso8601String();
+        final details = actualStatus == TaskStatus.done
+            ? AppDateUtils.calculateCompletionDetails(DateTime.now(), dueDate)
+            : null;
+        for (final uid in allAssigneeUids) {
+          memberProgress[uid] = details != null
+              ? {
+                  'status': TaskStatus.done.value,
+                  'updatedAt': now,
+                  'completedBy': userId,
+                  'completedAt': now,
+                  'completionStatus': details.completionStatus,
+                  'delaySeconds': details.delaySeconds,
+                }
+              : {'status': actualStatus.value, 'updatedAt': now};
+        }
+        updates['memberProgress'] = memberProgress;
+        if (details != null) {
+          updates['completedAt'] = now;
           updates['completionStatus'] = details.completionStatus;
           updates['delaySeconds'] = details.delaySeconds;
-        } else if (actualStatus == TaskStatus.underReview) {
-          updates['completedAt'] = null;
-          updates['completionStatus'] = null;
-          updates['delaySeconds'] = null;
         } else {
           updates['completedAt'] = null;
           updates['completionStatus'] = null;
           updates['delaySeconds'] = null;
         }
       } else {
-        if (actualStatus == TaskStatus.underReview) {
-          updates['status'] = TaskStatus.underReview.value;
-          updates['completedAt'] = null;
-          updates['completionStatus'] = null;
-          updates['delaySeconds'] = null;
-        } else {
-          updates['status'] = TaskStatus.inProgress.value;
-          updates['completedAt'] = null;
-          updates['completionStatus'] = null;
-          updates['delaySeconds'] = null;
-        }
+        // Task goes Under Review only once EVERY member has submitted (web parity).
+        final allSubmitted = allAssigneeUids.isNotEmpty &&
+            allAssigneeUids.every((uid) {
+              final p = memberProgress[uid];
+              final st = p is Map ? p['status'] as String? : null;
+              return st == TaskStatus.underReview.value || st == TaskStatus.done.value;
+            });
+        updates['status'] = allSubmitted ? TaskStatus.underReview.value : TaskStatus.inProgress.value;
+        updates['completedAt'] = null;
+        updates['completionStatus'] = null;
+        updates['delaySeconds'] = null;
       }
 
       await updateTask(taskId, updates);
@@ -443,7 +470,7 @@ class TaskRepository {
               userId: createdBy,
               type: 'task_updated',
               title: 'Verification Required',
-              body: '\$userName raised task "\$title" for review.',
+              body: '${userName} raised task "$title" for review.',
               relatedId: taskId,
             );
           }
@@ -452,20 +479,19 @@ class TaskRepository {
               userId: projectManagerId,
               type: 'task_updated',
               title: 'Verification Required',
-              body: '\$userName submitted task "\$title" for verification.',
+              body: '${userName} submitted task "$title" for verification.',
               relatedId: taskId,
             );
           }
         } else if (actualStatus == TaskStatus.done && canMarkDone) {
-          final explicitUids = List<String>.from(data['assignee_ids'] ?? []);
-          final notifyUids = <String>{...explicitUids, if (createdBy.isNotEmpty) createdBy};
+          final notifyUids = <String>{...allAssigneeUids, if (createdBy.isNotEmpty) createdBy};
           for (final uid in notifyUids) {
             if (uid == userId) continue;
             await _writeNotif(
               userId: uid,
               type: 'task_updated',
               title: 'Task Verified & Completed',
-              body: 'Task "\$title" has been verified and marked as Done by \$userName.',
+              body: 'Task "$title" has been verified and marked as Done by ${userName}.',
               relatedId: taskId,
             );
           }
@@ -475,7 +501,7 @@ class TaskRepository {
               userId: createdBy,
               type: 'task_updated',
               title: 'Task Status Updated',
-              body: 'Task "\$title" is now \${actualStatus.label}',
+              body: 'Task "$title" is now ${actualStatus.label}',
               relatedId: taskId,
             );
           }
@@ -530,7 +556,7 @@ class TaskRepository {
                 userId: uid,
                 type: 'task_updated',
                 title: 'New Subtask Added',
-                body: 'A subtask "\${subtask.title}" was added to: \$title',
+                body: 'A subtask "${subtask.title}" was added to: $title',
                 relatedId: taskId,
               );
             }
@@ -602,7 +628,7 @@ class TaskRepository {
               userId: uid,
               type: 'task_updated',
               title: 'New Comment on Task',
-              body: 'New comment on "\$title"',
+              body: 'New comment on "$title"',
               relatedId: taskId,
             );
           }
