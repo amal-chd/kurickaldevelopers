@@ -128,7 +128,7 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
     });
 
     await supabase.from('chat_channels').update({
-      last_message_text: data.isDeleted ? '' : (data.text && data.text.length > 80 ? data.text.slice(0, 80) + '…' : data.text),
+      last_message_text: data.isDeleted ? '' : previewText(data),
       last_message_at: new Date().toISOString(),
       last_message_by: data.senderId,
       unread_counts: newUnreadCounts,
@@ -176,6 +176,20 @@ export const sendMessage = async (channelId: string, data: Partial<ChatMessage> 
   return msgId;
 };
 
+// Channel-list preview for a message — same rules as mobile's _previewText,
+// so photos/files/task refs don't show up as an empty preview.
+const previewText = (m: { type?: string; text?: string; attachmentName?: string; taskTitle?: string }): string => {
+  switch (m.type) {
+    case 'image': return '📷 Photo';
+    case 'file': return `📎 ${m.attachmentName || 'File'}`;
+    case 'task_ref': return `📌 ${m.taskTitle || 'Task'}`;
+    default: {
+      const text = m.text || '';
+      return text.length > 80 ? text.slice(0, 80) + '…' : text;
+    }
+  }
+};
+
 export const editMessage = async (messageId: string, text: string): Promise<void> => {
   await supabase.from('chat_messages').update({
     text,
@@ -209,12 +223,13 @@ export const syncChannelPreview = async (channelId: string): Promise<void> => {
     return;
   }
 
-  const text = lastVisible.text.length > 80
-    ? lastVisible.text.slice(0, 80) + '…'
-    : lastVisible.text;
-    
   await supabase.from('chat_channels').update({
-    last_message_text: text,
+    last_message_text: previewText({
+      type: lastVisible.type,
+      text: lastVisible.text,
+      attachmentName: lastVisible.attachment_name,
+      taskTitle: lastVisible.task_title,
+    }),
     last_message_by: lastVisible.sender_id,
   }).eq('id', channelId);
 };

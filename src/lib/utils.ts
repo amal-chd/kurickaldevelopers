@@ -51,11 +51,13 @@ export function formatTime(ts: Timestamp | Date | undefined | null): string {
   return format(d, 'h:mm a');
 }
 
-export function getDuration(start: Timestamp | null | undefined, end: Timestamp | null | undefined): string {
+// `extraMinutes` = minutes banked from earlier sessions the same day
+// (attendance.workedMinutes), so multi-session days show their full total.
+export function getDuration(start: Timestamp | null | undefined, end: Timestamp | null | undefined, extraMinutes = 0): string {
   if (!start) return '—';
   const startDate = toDate(start)!;
   const endDate = end ? toDate(end)! : new Date();
-  const diffMs = endDate.getTime() - startDate.getTime();
+  const diffMs = Math.max(0, endDate.getTime() - startDate.getTime()) + (extraMinutes || 0) * 60000;
   const hours = Math.floor(diffMs / 3600000);
   const minutes = Math.floor((diffMs % 3600000) / 60000);
   return `${hours}h ${minutes}m`;

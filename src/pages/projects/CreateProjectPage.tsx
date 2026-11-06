@@ -88,8 +88,10 @@ const CreateProjectPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      // Omit start/end date entirely when blank — Firestore rejects undefined,
-      // and Timestamp.now() defaults previously polluted project timelines.
+      const existing = isEdit && projectId ? await getProject(projectId) : null;
+      // Blank dates: keep what the project already had on edit, and leave them
+      // unset on create. Defaulting to Timestamp.now() silently rewrote the
+      // timeline (an edit made "today" the expected end date).
       const data: Omit<Project, 'id' | 'startDate' | 'expectedEndDate'> &
         Pick<Project, 'startDate' | 'expectedEndDate'> = {
         name: form.name.trim(),
@@ -97,13 +99,13 @@ const CreateProjectPage: React.FC = () => {
         siteAddress: form.siteAddress.trim(),
         clientName: form.clientName.trim(),
         status: form.status,
-        ...(form.startDate ? { startDate: Timestamp.fromDate(new Date(form.startDate)) } : { startDate: Timestamp.now() }),
-        ...(form.expectedEndDate ? { expectedEndDate: Timestamp.fromDate(new Date(form.expectedEndDate)) } : { expectedEndDate: Timestamp.now() }),
+        startDate: (form.startDate ? Timestamp.fromDate(new Date(form.startDate)) : existing?.startDate) as Timestamp,
+        expectedEndDate: (form.expectedEndDate ? Timestamp.fromDate(new Date(form.expectedEndDate)) : existing?.expectedEndDate) as Timestamp,
         budget: Number(form.budget) || 0,
         projectManagerId: form.projectManagerId || appUser.id,
-        progressPercent: isEdit && projectId ? (await getProject(projectId))?.progressPercent || 0 : 0,
+        progressPercent: existing?.progressPercent || 0,
         healthStatus: form.healthStatus,
-        createdAt: isEdit && projectId ? (await getProject(projectId))?.createdAt || Timestamp.now() : Timestamp.now(),
+        createdAt: existing?.createdAt || Timestamp.now(),
         memberIds: Array.from(
           new Set([...form.memberIds, form.projectManagerId || appUser.id, appUser.id].filter(Boolean)),
         ),

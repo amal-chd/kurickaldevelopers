@@ -175,8 +175,8 @@ export function calculatePerformanceScore(
 
   // Chronological sort for streak calculations
   const sortedCompleted = [...completedTasks].sort((a, b) => {
-    const timeA = toDate(a.updatedAt)?.getTime() ?? 0;
-    const timeB = toDate(b.updatedAt)?.getTime() ?? 0;
+    const timeA = (toDate(a.completedAt) ?? toDate(a.updatedAt))?.getTime() ?? 0;
+    const timeB = (toDate(b.completedAt) ?? toDate(b.updatedAt))?.getTime() ?? 0;
     return timeA - timeB;
   });
 
@@ -213,11 +213,13 @@ export function calculatePerformanceScore(
       totalPenaltyPoints += extPen;
     }
 
-    // On-time check
+    // On-time check — judged from the real completion time. `updatedAt` is NOT
+    // a completion time: any later edit (comment, reassignment, data repair)
+    // bumps it and used to flip finished tasks to "late". A done task with no
+    // recorded completion time gives no evidence of lateness → counted on time.
     const due = toDate(t.dueDate);
-    if (due) {
-      const comp = toDate(t.updatedAt) ?? new Date();
-
+    const comp = toDate(t.completedAt);
+    if (due && comp) {
       if (comp > due) {
         // Late Completion
         tasksCompletedLate++;
@@ -236,7 +238,7 @@ export function calculatePerformanceScore(
         }
       }
     } else {
-      // Tasks without due date are considered on-time
+      // No due date, or no recorded completion time → considered on-time
       tasksCompletedOnTime++;
       consecutiveSuccesses++;
       if (consecutiveSuccesses > bestStreak) {

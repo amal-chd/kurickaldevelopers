@@ -45,25 +45,37 @@ const convertRowToProject = (row: any): Project => {
   } as unknown as Project;
 };
 
+const isoOrRaw = (v: any) => (v?.toDate ? v.toDate().toISOString() : v);
+
+// camelCase model key → [snake column, value transform].
+const PROJECT_COLUMNS: Record<string, [string, (v: any) => any]> = {
+  name: ['name', (v) => v],
+  description: ['description', (v) => v],
+  siteAddress: ['location', (v) => v],
+  clientName: ['client_name', (v) => v],
+  status: ['status', (v) => v],
+  startDate: ['start_date', isoOrRaw],
+  expectedEndDate: ['end_date', isoOrRaw],
+  actualEndDate: ['actual_end_date', isoOrRaw],
+  memberIds: ['member_ids', (v) => v || []],
+  projectManagerId: ['manager_id', (v) => v],
+  progressPercent: ['progress_percent', (v) => v || 0],
+  healthStatus: ['health_status', (v) => v || 'on_track'],
+  budget: ['budget', (v) => v],
+  siteCoordinates: ['site_coordinates', (v) => v],
+};
+
+// Maps ONLY the keys present, so a partial update can never reset members,
+// progress or health to defaults. Do not spread `...project` either —
+// camelCase keys are not columns and 400 the whole write.
 const convertProjectToRow = (project: any): any => {
-  // Do not spread `...project` — camelCase keys (siteAddress, clientName,
-  // projectManagerId, memberIds, …) are not columns and 400 the whole write.
-  return {
-    name: project.name,
-    description: project.description,
-    location: project.siteAddress,
-    client_name: project.clientName,
-    status: project.status,
-    start_date: project.startDate?.toDate ? project.startDate.toDate().toISOString() : project.startDate,
-    end_date: project.expectedEndDate?.toDate ? project.expectedEndDate.toDate().toISOString() : project.expectedEndDate,
-    actual_end_date: project.actualEndDate?.toDate ? project.actualEndDate.toDate().toISOString() : project.actualEndDate,
-    member_ids: project.memberIds || [],
-    manager_id: project.projectManagerId,
-    progress_percent: project.progressPercent || 0,
-    health_status: project.healthStatus || 'on_track',
-    budget: project.budget,
-    site_coordinates: project.siteCoordinates,
-  };
+  const row: Record<string, any> = {};
+  for (const [key, [column, transform]] of Object.entries(PROJECT_COLUMNS)) {
+    if (Object.prototype.hasOwnProperty.call(project, key) && project[key] !== undefined) {
+      row[column] = transform(project[key]);
+    }
+  }
+  return row;
 };
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
@@ -162,7 +174,7 @@ export const subscribeProjects = (cb: (projects: Project[]) => void) => {
   getProjects().then(cb);
 
   const channel = supabase
-    .channel('public:projects')
+    .channel(`public:projects_${Date.now()}_${Math.random().toString(36).slice(2)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
       // Re-fetch on change
       getProjects().then(cb);

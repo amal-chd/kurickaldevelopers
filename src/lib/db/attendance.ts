@@ -95,7 +95,7 @@ export const subscribeAttendance = (date: string, cb: (records: Attendance[]) =>
   });
 
   const channel = supabase
-    .channel(`public:attendance:${date}`)
+    .channel(`public:attendance:${date}_${Date.now()}_${Math.random().toString(36).slice(2)}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `date=eq.${date}` }, () => {
       getAttendance(date).then(cb).catch(err => {
         logPermissionError('subscribeAttendance realtime', err);
