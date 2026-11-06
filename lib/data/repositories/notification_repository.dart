@@ -45,7 +45,9 @@ class NotificationRepository {
 
   Stream<List<NotificationModel>> watchUserNotifications(String userId, [int attempt = 0]) async* {
     try {
-      yield* _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId).order('created_at', ascending: false)
+      // user_id '' = broadcast to everyone (admin broadcasts) — web shows these
+      // too; matching only the user's id hid them on mobile.
+      yield* _supabase.from(_table).stream(primaryKey: ['id']).inFilter('user_id', [userId, '']).order('created_at', ascending: false)
           .map((list) => list.map((data) => NotificationModel.fromMap(_toCamelCase(data), data['id'])).toList());
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -55,7 +57,7 @@ class NotificationRepository {
   Stream<int> watchUnreadCount(String userId) {
     // `is_read` is a jsonb per-user map ({uid: true}); a notification is unread
     // for this user unless their entry is true.
-    return _supabase.from(_table).stream(primaryKey: ['id']).eq('user_id', userId)
+    return _supabase.from(_table).stream(primaryKey: ['id']).inFilter('user_id', [userId, ''])
         .map((list) => list.where((data) {
               final ir = data['is_read'];
               return !(ir is Map && ir[userId] == true);
@@ -82,7 +84,7 @@ class NotificationRepository {
 
   Future<void> markAllAsRead(String userId) async {
     try {
-      final rows = await _supabase.from(_table).select('id, is_read').eq('user_id', userId);
+      final rows = await _supabase.from(_table).select('id, is_read').inFilter('user_id', [userId, '']);
       for (final row in (rows as List)) {
         final isRead = (row['is_read'] is Map)
             ? Map<String, dynamic>.from(row['is_read'] as Map)

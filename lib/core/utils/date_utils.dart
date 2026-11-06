@@ -12,6 +12,8 @@ class AppDateUtils {
     if (value == null) return null;
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
+    // Supabase rows (and jsonb like tasks.member_progress) carry ISO strings.
+    if (value is String) return DateTime.tryParse(value)?.toLocal();
     return null;
   }
 

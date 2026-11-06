@@ -122,7 +122,7 @@ class TaskRepository {
   }
 
   void _logStreamError(String streamName, Object error, String userId, {String? roleId}) {
-    debugPrint('[API ERROR] Mobile TaskRepository stream "\$streamName" failed: \$error, userId=\$userId, roleId=\$roleId');
+    debugPrint('[API ERROR] Mobile TaskRepository stream "$streamName" failed: $error, userId=$userId, roleId=$roleId');
   }
 
 

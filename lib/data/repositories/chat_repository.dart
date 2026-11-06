@@ -115,7 +115,7 @@ class ChatRepository {
     }
   }
 
-  static String projectChannelId(String projectId) => 'project_\$projectId';
+  static String projectChannelId(String projectId) => 'project_$projectId';
 
   Future<String> getOrCreateProjectChannel({
     required String projectId,
@@ -134,7 +134,7 @@ class ChatRepository {
         id: id,
         type: ChannelType.project,
         name: projectName,
-        description: 'Project channel for \$projectName',
+        description: 'Project channel for $projectName',
         projectId: projectId,
         iconEmoji: '🏗️',
         memberIds: seededMembers,
@@ -464,7 +464,7 @@ class ChatRepository {
           id: id,
           type: ChannelType.project,
           name: projectName,
-          description: 'Project channel for \$projectName',
+          description: 'Project channel for $projectName',
           projectId: projectId,
           iconEmoji: '🏗️',
           memberIds: members,
@@ -492,7 +492,7 @@ class ChatRepository {
       case MessageType.system:
         return msg.text;
       case MessageType.text:
-        return msg.text.length > 80 ? '\${msg.text.substring(0, 80)}…' : msg.text;
+        return msg.text.length > 80 ? '${msg.text.substring(0, 80)}…' : msg.text;
     }
   }
 
@@ -577,9 +577,9 @@ class ChatRepository {
         'id': const Uuid().v4(),
           'user_id': uid,
           'type': isAnnouncement ? 'announcement' : 'chat_message',
-          'title': isAnnouncement ? 'Announcement in \$channelName' : 'New Message',
+          'title': isAnnouncement ? 'Announcement in $channelName' : 'New Message',
           'body': isAnnouncement
-              ? '\$senderName: \$previewText'
+              ? '$senderName: $previewText'
               : (previewText.isNotEmpty ? previewText : 'You have a new message'),
           'related_id': channelId,
           'related_type': 'chat',

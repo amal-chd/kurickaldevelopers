@@ -815,7 +815,7 @@ class _StaffAttendanceCard extends StatelessWidget {
                           ],
                           if (isOnSite) ...[
                             const SizedBox(width: 6),
-                            _LiveTimer(checkInTime: rec.checkInTime),
+                            _LiveTimer(checkInTime: rec.checkInTime, bankedMinutes: rec.workedMinutes),
                           ],
                           if (!isOnSite) ...[
                             const SizedBox(width: 6),
@@ -1138,7 +1138,9 @@ class _AbsentCard extends StatelessWidget {
 
 class _LiveTimer extends StatefulWidget {
   final DateTime checkInTime;
-  const _LiveTimer({required this.checkInTime});
+  // Minutes from earlier sessions today, so the timer shows the day's total.
+  final int bankedMinutes;
+  const _LiveTimer({required this.checkInTime, this.bankedMinutes = 0});
 
   @override
   State<_LiveTimer> createState() => _LiveTimerState();
@@ -1162,7 +1164,7 @@ class _LiveTimerState extends State<_LiveTimer> {
       stream: _ticker,
       initialData: DateTime.now(),
       builder: (_, snap) {
-        final elapsed = snap.data!.difference(widget.checkInTime);
+        final elapsed = snap.data!.difference(widget.checkInTime) + Duration(minutes: widget.bankedMinutes);
         final h = elapsed.inHours;
         final m = elapsed.inMinutes % 60;
         final label = h > 0 ? '${h}h ${m}m' : '${m}m';
