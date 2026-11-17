@@ -1,3 +1,4 @@
+import { scopedSettingsId } from '../tenant';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { OrgSettings } from '../../types';
@@ -22,7 +23,7 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 // ─── Org Settings ─────────────────────────────────────────────────────────────
 export const getOrgSettings = async (): Promise<OrgSettings | null> => {
   try {
-    const { data, error } = await supabase.from('settings').select('*').eq('id', 'org').maybeSingle();
+    const { data, error } = await supabase.from('settings').select('*').eq('id', scopedSettingsId('org')).maybeSingle();
     if (error || !data) return null;
     return {
       companyName: data.company_name,
@@ -41,7 +42,7 @@ export const getOrgSettings = async (): Promise<OrgSettings | null> => {
 };
 
 export const updateOrgSettings = async (data: Partial<OrgSettings>): Promise<void> => {
-  const payload: any = { id: 'org' };
+  const payload: any = { id: scopedSettingsId('org') };
   if (data.companyName !== undefined) payload.company_name = data.companyName;
   if (data.companyLogo !== undefined) payload.company_logo = data.companyLogo;
   if (data.timezone !== undefined) payload.timezone = data.timezone;

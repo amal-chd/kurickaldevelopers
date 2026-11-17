@@ -1,3 +1,4 @@
+import { tenantPoll } from '../tenant';
 import { Timestamp } from 'firebase/firestore';
 import { getUser } from "./users";
 
@@ -72,8 +73,9 @@ export const subscribeMessages = (
       fetchMessages();
     })
     .subscribe();
+  const stopPoll = tenantPoll(fetchMessages, 4000);
 
-  return () => { supabase.removeChannel(channel); };
+  return () => { stopPoll(); supabase.removeChannel(channel); };
 };
 
 export const sendMessage = async (channelId: string, data: Partial<ChatMessage> & { attachmentUrl?: string, attachmentName?: string }): Promise<string> => {

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import BillingBanner from '../saas/BillingBanner';
+import ModuleGate from '../saas/ModuleGate';
 
 const pageTitles: Record<string, string> = {
   '/app/dashboard': 'Dashboard',
@@ -23,6 +25,9 @@ const pageTitles: Record<string, string> = {
   '/app/admin/notifications': 'Notification Center',
   '/app/admin/attendance': 'Attendance Dashboard',
   '/app/profile': 'Profile',
+  '/app/organization': 'Organization',
+  '/app/billing': 'Plan & Billing',
+  '/app/support': 'Help & Support',
 };
 
 const AppLayout: React.FC = () => {
@@ -35,6 +40,7 @@ const AppLayout: React.FC = () => {
     <div className="flex h-screen bg-canvas overflow-hidden">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <BillingBanner />
         <TopBar onMenuClick={() => setSidebarOpen(true)} title={title} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden w-full">
           {/* Keyed by route so every page navigation gets a smooth entrance.
@@ -44,7 +50,9 @@ const AppLayout: React.FC = () => {
               internally via overflow-x-hidden instead of pushing the page
               wide. This is the root-cause guard against mobile h-scroll. */}
           <div key={location.pathname} className="animate-fade-in min-h-full max-w-[1600px] mx-auto w-full min-w-0 overflow-x-hidden">
-            <Outlet />
+            <ModuleGate>
+              <Outlet />
+            </ModuleGate>
           </div>
         </main>
       </div>

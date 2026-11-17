@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -32,12 +32,14 @@ const LoginPage: React.FC = () => {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
   const navigate                = useNavigate();
+  const [searchParams]          = useSearchParams();
+  const next = (searchParams.get('next') || '').startsWith('/') && !(searchParams.get('next') || '').startsWith('//') ? searchParams.get('next')! : '/app/dashboard';
   const { firebaseUser }        = useAuthStore();
 
   // Already logged in → straight to dashboard
   useEffect(() => {
-    if (firebaseUser) navigate('/app/dashboard');
-  }, [firebaseUser, navigate]);
+    if (firebaseUser) navigate(next);
+  }, [firebaseUser, navigate, next]);
 
   // ── Error helper ────────────────────────────────────────────────────────────
   const toastAuthError = (code: string) => {
@@ -60,7 +62,7 @@ const LoginPage: React.FC = () => {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       toast.success('Signed in!');
-      navigate('/app/dashboard');
+      navigate(next);
     } catch (err: unknown) {
       toastAuthError((err as { code?: string }).code ?? '');
     } finally {
@@ -183,9 +185,9 @@ const LoginPage: React.FC = () => {
               </Button>
             </form>
 
-
-
-
+            <p className="text-center text-sm text-slate-500 mt-6">
+              New company? <Link to="/register" className="font-semibold text-slate-900 underline underline-offset-2">Start a free trial</Link>
+            </p>
           </div>
 
           <p className="text-center text-slate-400 text-xs mt-6">

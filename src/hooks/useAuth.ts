@@ -5,6 +5,8 @@ import { auth, db } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getUser, getRole } from '../lib/firestore';
 import { registerFcm, clearFcmToken } from '../lib/fcm';
+import { setActiveOrgId, useTenantStore, LEGACY_ORG_ID } from '../lib/tenant';
+import { saasApi } from '../lib/saasApi';
 
 // ─── Default roles seeded on first boot ─────────────────────────────────────
 
@@ -209,7 +211,11 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
     return;
   }
 
-  // Create the user document even if they don't have a role yet
+  // Unknown accounts are SaaS sign-ups: their profile is created by the
+  // `saas-api` (register_org / accept_invitation), which also assigns the
+  // organisation. Only the legacy bootstrap accounts are auto-created here —
+  // previously every unknown login was silently placed into the legacy org.
+  if (!roleId) return;
   await setDoc(ref, {
     name: derivedName,
     email,
@@ -217,10 +223,32 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
     avatarUrl: '',
     roleId: roleId || null,
     isActive: true,
-    orgId: 'main',
+    orgId: LEGACY_ORG_ID,
     createdAt: serverTimestamp(),
     lastLoginAt: serverTimestamp(),
   });
+}
+
+// ─── Tenant context (plan, features, limits, platform role) ─────────────────
+// Non-blocking: the legacy workspace renders immediately; plan gating and the
+// billing banner appear once this resolves. Failure never locks users out.
+export async function loadTenantContext(): Promise<void> {
+  const t = useTenantStore.getState();
+  try {
+    const me = await saasApi<any>('me');
+    t.setPlatformRole(me.platformRole ?? null);
+    if (me.context) {
+      t.setContext(me.context);
+      t.setNeedsOnboarding(false);
+    } else {
+      t.setContext(null);
+      t.setNeedsOnboarding(true);
+    }
+  } catch (err) {
+    console.warn('[tenant] context unavailable (non-fatal):', err);
+  } finally {
+    t.setLoaded(true);
+  }
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
@@ -275,7 +303,11 @@ export function useAuthInit() {
                 }
               }
             }
+            // Tenant scope MUST be set before any Supabase read below.
+            setActiveOrgId((appUser as any)?.orgId || LEGACY_ORG_ID);
             setAppUser(appUser);
+            if (!appUser) useTenantStore.getState().setNeedsOnboarding(true);
+            void loadTenantContext();
 
             if (appUser) registerFcm(appUser.id);
 
@@ -307,6 +339,7 @@ export function useAuthInit() {
           setLoading(false);
         }
       } else {
+        useTenantStore.getState().reset();
         setAppUser(null);
         setRole(null);
         setLoading(false);

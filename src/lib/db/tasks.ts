@@ -1,3 +1,4 @@
+import { tenantPoll } from '../tenant';
 import { Timestamp, QueryConstraint } from 'firebase/firestore';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
@@ -338,8 +339,10 @@ export const subscribeTasks = (cb: (tasks: Task[]) => void, constraints: QueryCo
       fetchAndEmit();
     })
     .subscribe();
+  const stopPoll = tenantPoll(fetchAndEmit, 15000);
 
   return () => {
+    stopPoll();
     supabase.removeChannel(channel);
   };
 };

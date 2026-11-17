@@ -35,6 +35,17 @@ service cloud.firestore {
       return role != null ? role.get('level', 0) : 0;
     }
 
+    // ── Multi-tenancy ──
+    // Every user doc carries orgId (legacy docs default to the original
+    // workspace "main"). Users may only see / manage people in their own org.
+    function myOrg() {
+      let u = getUserData();
+      return u != null ? u.get('orgId', 'main') : '';
+    }
+    function sameOrg(data) {
+      return data.get('orgId', 'main') == myOrg();
+    }
+
     function isProjectMember(projectId) {
       let projPath = /databases/$(database)/documents/projects/$(projectId);
       return isAuthenticated() &&
@@ -107,21 +118,25 @@ service cloud.firestore {
     // ─────────────────────────────────────────────────────────────────────────
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Own profile, or a colleague in the same organisation.
+      allow read: if isOwner(userId) || (isAuthenticated() && sameOrg(resource.data));
 
       // A new user can create their own profile on sign-up — but may only
       // self-assign the role bootstrapped for their email (usually none).
       // Prevents anyone (e.g. any Google account) from creating their user
       // doc with roleId:'director' and escalating to full control.
       allow create: if isOwner(userId) &&
-                    roleAllowedForSelf(request.resource.data.get('roleId', null));
+                    roleAllowedForSelf(request.resource.data.get('roleId', null)) &&
+                    request.resource.data.get('orgId', 'main') == 'main';
 
       // Self-update: may change name/phone/avatar/fcmToken. May NOT change
       // isActive, and may only set roleId to their bootstrap role (never an
       // arbitrary/elevated one — closes the "role-less user promotes self"
       // escalation the old rule allowed).
       // team_manage: may update any field for any user EXCEPT escalating roleId above their own level
-      allow update: if isAuthenticated() && (
+      // orgId can never change from the client (moves happen server-side).
+      allow update: if isAuthenticated() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['orgId']) && (
         // Owner updating their own non-sensitive fields
         (isOwner(userId) &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive']) &&
@@ -131,7 +146,7 @@ service cloud.firestore {
           )
         ) ||
         // team_manage updating other users (role change constrained)
-        (hasPermission('team_manage') && (
+        (hasPermission('team_manage') && sameOrg(resource.data) && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roleId']) ||
           request.resource.data.roleId == null || 
           request.resource.data.roleId == '' ||
@@ -146,7 +161,7 @@ service cloud.firestore {
       // This is handled via the update rule above (they can change isActive)
 
       // Only allow delete with team_delete permission
-      allow delete: if hasPermission('team_delete');
+      allow delete: if hasPermission('team_delete') && sameOrg(resource.data);
 
       // Private subcollection
       match /private/{docId} {

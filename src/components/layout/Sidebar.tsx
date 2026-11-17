@@ -5,6 +5,8 @@ import {
   MessageSquare, BookOpen, BarChart2, Shield, LogOut, X, Award,
   CalendarDays, Wallet, Receipt, Package, HelpCircle,
 } from 'lucide-react';
+import { Building, CreditCard, LifeBuoy, Globe2 } from 'lucide-react';
+import { useTenantStore, hasModule, moduleForPath } from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -66,6 +68,9 @@ const NAV_GROUPS = [
           'team_manage',
         ] as const,
       },
+      { to: '/app/organization', label: 'Organization', icon: Building, minLevel: 100, anyPerm: ['settings_manage', 'team_manage'] as const },
+      { to: '/app/billing', label: 'Plan & Billing', icon: CreditCard, minLevel: 100, anyPerm: ['settings_manage'] as const, saasOnly: true },
+      { to: '/app/support', label: 'Help & Support', icon: LifeBuoy, always: true },
     ],
   },
 ];
@@ -75,6 +80,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const { can } = usePermissions();
   const navigate = useNavigate();
   const { channels } = useChannels();
+  const tenant = useTenantStore((st) => st.context);
+  const platformRole = useTenantStore((st) => st.platformRole);
 
   const totalUnread = channels.reduce((sum, ch) => {
     if (!appUser) return sum;
@@ -96,7 +103,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     perm?: keyof ReturnType<typeof usePermissions>['permissions'];
     anyPerm?: readonly string[];
     minLevel?: number;
+    saasOnly?: boolean;
+    to?: string;
   }) => {
+    // Plan-based module gating (legacy workspace has every module).
+    if (item.to) {
+      const mod = moduleForPath(item.to);
+      if (mod && !hasModule(tenant, mod)) return false;
+    }
+    if (item.saasOnly && (!tenant || tenant.org.is_legacy)) return false;
     if (item.always) return true;
     // Visible only to users who have an assigned role.
     if (item.requiresRole) return Boolean(appUser?.roleId);
@@ -136,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
             <img src="/logo.png" alt="Task Pilot" className="w-9 h-9 rounded-lg object-cover shadow-sm border border-slate-200/50" />
             <div>
               <p className="text-slate-900 font-bold text-sm leading-tight tracking-tight">Task Pilot</p>
-              <p className="text-slate-500 text-xs font-medium">Construction TMS</p>
+              <p className="text-slate-500 text-xs font-medium truncate max-w-[130px]" title={tenant?.org.name}>{tenant && !tenant.org.is_legacy ? tenant.org.name : 'Construction TMS'}</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors">
@@ -184,6 +199,12 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               </div>
             );
           })}
+          {platformRole && (
+            <NavLink to="/platform" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+              <Globe2 className="w-4 h-4" />
+              <span>Platform Console</span>
+            </NavLink>
+          )}
         </nav>
 
         {/* User footer */}

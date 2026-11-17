@@ -1,3 +1,4 @@
+import { tenantPoll } from '../tenant';
 import { Timestamp } from 'firebase/firestore';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
@@ -88,8 +89,9 @@ export const subscribeChannels = (userId: string, cb: (channels: ChatChannel[]) 
       fetchAnnounce();
     })
     .subscribe();
+  const stopPoll = tenantPoll(() => { fetchMine(); fetchAnnounce(); }, 10000);
 
-  return () => { supabase.removeChannel(channel); };
+  return () => { stopPoll(); supabase.removeChannel(channel); };
 };
 
 export const getChannel = async (channelId: string): Promise<ChatChannel | null> => {

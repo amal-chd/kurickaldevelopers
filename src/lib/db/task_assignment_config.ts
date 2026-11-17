@@ -1,3 +1,4 @@
+import { scopedSettingsId } from '../tenant';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { TaskAssignmentConfig } from '../../types';
@@ -21,7 +22,7 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 
 // ─── Task Assignment Config ─────────────────────────────────────────────────
 export const getTaskAssignmentConfig = async (): Promise<TaskAssignmentConfig | null> => {
-  const { data, error } = await supabase.from('settings').select('config').eq('id', 'task_assignment').maybeSingle();
+  const { data, error } = await supabase.from('settings').select('config').eq('id', scopedSettingsId('task_assignment')).maybeSingle();
   if (error || !data) return null;
   // Config is stored in the generic `config` jsonb column (the rigid settings
   // columns can't hold arbitrary assignment rules).
@@ -33,7 +34,7 @@ export const updateTaskAssignmentConfig = async (
 ): Promise<void> => {
   const existing = await getTaskAssignmentConfig();
   const merged = { ...(existing || {}), ...data };
-  const { error } = await supabase.from('settings').upsert({ id: 'task_assignment', config: merged, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from('settings').upsert({ id: scopedSettingsId('task_assignment'), config: merged, updated_at: new Date().toISOString() });
   if (error) {
     logPermissionError('updateTaskAssignmentConfig', error);
   }
@@ -43,7 +44,7 @@ export const subscribeTaskAssignmentConfig = (
   cb: (config: TaskAssignmentConfig | null) => void,
 ) => {
   const channel = supabase.channel(`task_assignment_config_${Date.now()}_${Math.floor(Math.random() * 1e6)}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: 'id=eq.task_assignment' }, (payload) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: `id=eq.${scopedSettingsId('task_assignment')}` }, (payload) => {
       cb(((payload.new as any)?.config ?? null) as TaskAssignmentConfig | null);
     })
     .subscribe();

@@ -1,3 +1,4 @@
+import { scopedSettingsId } from '../tenant';
 import { Timestamp } from 'firebase/firestore';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
@@ -183,7 +184,7 @@ export const submitPerformanceReview = async (review: Omit<PerformanceReview, 'i
 
 export const getPerformanceConfig = async (): Promise<PerformanceConfig> => {
   try {
-    const { data, error } = await supabase.from('settings').select('config').eq('id', 'performance_config').maybeSingle();
+    const { data, error } = await supabase.from('settings').select('config').eq('id', scopedSettingsId('performance_config')).maybeSingle();
     if (error || !data || !(data as any).config) return DEFAULT_PERFORMANCE_CONFIG;
     // Stored in the generic `config` jsonb column (settings has no per-config
     // columns); merge over defaults so new keys are always present.
@@ -198,7 +199,7 @@ export const updatePerformanceConfig = async (data: Partial<PerformanceConfig>):
   const existing = await getPerformanceConfig();
   const merged = { ...existing, ...data };
   await supabase.from('settings').upsert({
-    id: 'performance_config',
+    id: scopedSettingsId('performance_config'),
     config: merged,
     updated_at: new Date().toISOString(),
   });

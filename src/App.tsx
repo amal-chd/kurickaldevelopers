@@ -7,6 +7,7 @@ import { useAuthStore } from './store/authStore';
 import AppLayout from './components/layout/AppLayout';
 
 import { usePermissions } from './hooks/usePermissions';
+import { useTenantStore } from './lib/tenant';
 
 const LandingPage = React.lazy(() => import('./pages/landing/LandingPage'));
 const PrivacyPolicyPage = React.lazy(() => import('./pages/landing/PrivacyPolicyPage'));
@@ -43,6 +44,22 @@ const AttendanceDashboardPage = React.lazy(() => import('./pages/admin/Attendanc
 const ContactInquiriesPage = React.lazy(() => import('./pages/admin/ContactInquiriesPage'));
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
 const FieldManualPage = React.lazy(() => import('./pages/manual/FieldManualPage'));
+// SaaS
+const ProductHomePage = React.lazy(() => import('./pages/saas/marketing/ProductHomePage'));
+const PricingPage = React.lazy(() => import('./pages/saas/marketing/PricingPage'));
+const FeaturesPage = React.lazy(() => import('./pages/saas/marketing/FeaturesPage').then((m) => ({ default: m.FeaturesPage })));
+const IndustryPage = React.lazy(() => import('./pages/saas/marketing/FeaturesPage').then((m) => ({ default: m.IndustryPage })));
+const ContactSalesPage = React.lazy(() => import('./pages/saas/marketing/ContactSalesPage'));
+const RegisterPage = React.lazy(() => import('./pages/saas/RegisterPage'));
+const InvitePage = React.lazy(() => import('./pages/saas/InvitePage'));
+const BillingPage = React.lazy(() => import('./pages/saas/BillingPage'));
+const InvoicePage = React.lazy(() => import('./pages/saas/BillingPage').then((m) => ({ default: m.InvoicePage })));
+const OrganizationPage = React.lazy(() => import('./pages/saas/OrganizationPage'));
+const SupportPage = React.lazy(() => import('./pages/saas/SupportPage'));
+const PlatformConsole = React.lazy(() => import('./pages/platform/PlatformConsole'));
+
+// The company website stays at "/" unless this deployment is the SaaS site.
+const SITE_IS_SAAS = import.meta.env.VITE_SITE_MODE === 'saas';
 import Spinner from './components/ui/Spinner';
 
 const queryClient = new QueryClient({
@@ -85,12 +102,31 @@ const RequirePerm = ({ perm, children }: { perm: string; children: React.ReactNo
   return can(perm as any) ? <>{children}</> : <Navigate to="/app/dashboard" replace />;
 };
 
+// Organisation settings & billing: owner/director or settings/team managers.
+const OrgAdminGate = ({ children }: { children: React.ReactNode }) => {
+  const { role } = useAuthStore();
+  const { canAny } = usePermissions();
+  const ctx = useTenantStore((s) => s.context);
+  const isOwner = ctx?.org.owner_uid && ctx.org.owner_uid === useAuthStore.getState().firebaseUser?.uid;
+  if (isOwner || (role?.level ?? 0) >= 100 || canAny('settings_manage', 'team_manage')) return <>{children}</>;
+  return <Navigate to="/app/dashboard" replace />;
+};
+
+// Signed-in user without a workspace: create one (or open the platform console).
+const OnboardingRoute = () => {
+  const { firebaseUser, appUser, initialized, loading } = useAuthStore();
+  if (!initialized || loading) return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;
+  if (!firebaseUser) return <Navigate to="/register" replace />;
+  if (appUser) return <Navigate to="/app/dashboard" replace />;
+  return <RegisterPage onboardingOnly />;
+};
+
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
 // Sign-in only (mirrors the mobile app): once authenticated the user goes
 // straight to the app. There is no onboarding flow — roles are assigned by an
 // admin in User Management.
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { firebaseUser, loading, initialized } = useAuthStore();
+  const { firebaseUser, appUser, loading, initialized } = useAuthStore();
 
   // Show spinner until auth is both initialized AND finished loading user data
   if (!initialized || loading) {
@@ -107,6 +143,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Not logged in → Login
   if (!firebaseUser) return <Navigate to="/login" replace />;
 
+  // Signed in but not part of any workspace (new SaaS sign-up) → onboarding.
+  if (!appUser) return <Navigate to="/onboarding" replace />;
+
   return <>{children}</>;
 };
 
@@ -119,8 +158,21 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>}>
           <Routes>
-            {/* Landing */}
-            <Route path="/" element={<LandingPage />} />
+            {/* Landing — company site by default; SaaS home on the SaaS domain */}
+            <Route path="/" element={SITE_IS_SAAS ? <ProductHomePage /> : <LandingPage />} />
+            <Route path="/company" element={<LandingPage />} />
+
+            {/* SaaS marketing & onboarding */}
+            <Route path="/product" element={<ProductHomePage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/features" element={<FeaturesPage />} />
+            <Route path="/industries/:slug" element={<IndustryPage />} />
+            <Route path="/contact-sales" element={<ContactSalesPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/signup" element={<Navigate to="/register" replace />} />
+            <Route path="/onboarding" element={<OnboardingRoute />} />
+            <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/platform/*" element={<PlatformConsole />} />
 
             {/* Public Auth */}
             <Route path="/login" element={<LoginPage />} />
@@ -190,6 +242,12 @@ function App() {
                 <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
                 <Route path="admin/contact" element={<ContactInquiriesPage />} />
               </Route>
+
+              {/* Organisation, billing & support */}
+              <Route path="organization" element={<OrgAdminGate><OrganizationPage /></OrgAdminGate>} />
+              <Route path="billing" element={<OrgAdminGate><BillingPage /></OrgAdminGate>} />
+              <Route path="billing/invoice/:id" element={<OrgAdminGate><InvoicePage /></OrgAdminGate>} />
+              <Route path="support" element={<SupportPage />} />
 
               {/* Profile & Help */}
               <Route path="profile" element={<ProfilePage />} />

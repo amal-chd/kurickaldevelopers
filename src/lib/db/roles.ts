@@ -1,6 +1,22 @@
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { Role } from '../../types';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+import { getActiveOrgId } from '../tenant';
+
+// Firestore security rules resolve permissions from roles/{id}, so keep a
+// best-effort mirror of every Supabase role there (Supabase stays the source
+// of truth). Failures are ignored — rules may forbid non-admins.
+const mirrorRole = async (id: string, data: any) => {
+  try {
+    const clean = Object.fromEntries(Object.entries({
+      name: data.name, permissions: data.permissions, level: data.level, description: data.description,
+      color: data.color, isSystem: data.isSystem, orgId: getActiveOrgId(),
+    }).filter(([, v]) => v !== undefined));
+    await setDoc(doc(db, 'roles', id), clean, { merge: true });
+  } catch { /* non-fatal */ }
+};
 
 const logPermissionError = (actionName: string, error: any, context?: any) => {
   const isPermissionError = error?.code === 'PGRST301' || error?.message?.includes('permission') || error?.message?.includes('denied');
@@ -71,15 +87,18 @@ const roleToRow = (data: any): any => {
 export const createRole = async (data: Omit<Role, 'id'>): Promise<string> => {
   const { data: inserted, error } = await supabase.from('roles').insert([{ ...roleToRow(data), id: crypto.randomUUID(), created_at: new Date().toISOString() }]).select('id').single();
   if (error) throw error;
+  void mirrorRole(inserted.id, data);
   return inserted.id;
 };
 
 export const updateRole = async (roleId: string, data: Partial<Role>): Promise<void> => {
   const { error } = await supabase.from('roles').update(roleToRow(data)).eq('id', roleId);
   if (error) throw error;
+  void mirrorRole(roleId, data);
 };
 
 export const deleteRole = async (roleId: string): Promise<void> => {
   const { error } = await supabase.from('roles').delete().eq('id', roleId);
   if (error) throw error;
+  try { await deleteDoc(doc(db, 'roles', roleId)); } catch { /* non-fatal */ }
 };

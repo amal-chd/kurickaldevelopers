@@ -49,6 +49,21 @@ async function getRoleFromSupabase(roleId: string) {
 
 let firebaseApp: admin.app.App | null = null;
 
+// ─── Tenancy helpers ─────────────────────────────────────────────────────────
+// Every admin action is confined to the caller's organisation. Users created
+// before multi-tenancy have no orgId → they belong to the legacy org "main".
+async function orgOf(db: admin.firestore.Firestore, uid: string): Promise<string | null> {
+  const snap = await db.collection("users").doc(uid).get();
+  if (!snap.exists) return null;
+  return (snap.data()?.orgId as string) || "main";
+}
+function forbidden(msg: string) {
+  return new Response(JSON.stringify({ error: msg }), {
+    status: 403,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 function getAdminApp(): admin.app.App {
   if (firebaseApp) return firebaseApp;
   
@@ -464,7 +479,8 @@ serve(async (req) => {
       if (Array.isArray(userIds) && userIds.length > 0) {
         tokens = await tokensFor(db, userIds);
       } else {
-        let usersQuery: admin.firestore.Query = db.collection("users");
+        const callerOrgB = (callerSnap.data()?.orgId as string) || "main";
+        let usersQuery: admin.firestore.Query = db.collection("users").where("orgId", "==", callerOrgB);
         if (targetRoleId) usersQuery = usersQuery.where("roleId", "==", targetRoleId);
         const usersSnap = await usersQuery.get();
         tokens = [];
@@ -522,6 +538,10 @@ serve(async (req) => {
         });
       }
 
+      const callerOrgD = await orgOf(db, caller.uid);
+      const targetOrgD = await orgOf(db, targetUid);
+      if (targetOrgD && targetOrgD !== callerOrgD) return forbidden("User belongs to another workspace");
+
       // 1. Delete Auth user account (swallow user-not-found so orphaned profiles can be cleaned up)
       try {
         await app.auth().deleteUser(targetUid);
@@ -550,6 +570,10 @@ serve(async (req) => {
           }
         } catch (_) { /* best effort */ }
       }
+
+      try {
+        await supabase.from("org_members").update({ status: "removed" }).eq("user_uid", targetUid).eq("org_id", targetOrgD ?? "main");
+      } catch (_) { /* best effort */ }
 
       // 4. Delete Supabase app_notifications
       try {
@@ -654,6 +678,27 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const callerOrg = (callerSnap.data()?.orgId as string) || "main";
+      const roleOrg = (newRoleSnap.data() as any)?.org_id ?? "main";
+      if (roleOrg !== callerOrg) return forbidden("Choose a role from your own workspace");
+
+      // Plan seat limit (legacy org is unlimited).
+      if (callerOrg !== "main") {
+        const { data: orgRow } = await supabase.from("organizations").select("status, plan_id, limit_overrides, is_legacy").eq("id", callerOrg).maybeSingle();
+        if (orgRow && !orgRow.is_legacy) {
+          if (["suspended", "cancelled", "expired"].includes(orgRow.status)) return forbidden("This workspace is inactive. Renew the subscription to add users.");
+          const { data: planRow } = await supabase.from("plans").select("max_users").eq("id", orgRow.plan_id).maybeSingle();
+          const max = orgRow.limit_overrides?.max_users ?? planRow?.max_users ?? null;
+          if (max !== null) {
+            const { count } = await supabase.from("org_members").select("id", { count: "exact", head: true }).eq("org_id", callerOrg).eq("status", "active");
+            if ((count ?? 0) >= Number(max)) {
+              return new Response(JSON.stringify({ error: `Your plan includes ${max} users. Upgrade to add more people.`, code: "PLAN_LIMIT" }), {
+                status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          }
+        }
+      }
       const normalizedEmail = String(email).trim().toLowerCase();
 
       // Create or adopt the Firebase Auth account.
@@ -712,7 +757,7 @@ serve(async (req) => {
           avatarUrl: "",
           roleId,
           isActive: true,
-          orgId: "main",
+          orgId: callerOrg,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       } catch (e: any) {
@@ -720,6 +765,14 @@ serve(async (req) => {
         await app.auth().deleteUser(newUid).catch(() => {});
         throw e;
       }
+
+      try {
+        await supabase.from("org_members").upsert({
+          org_id: callerOrg, user_uid: newUid, email: normalizedEmail, name: name || null,
+          role_id: roleId, status: "active", invited_by: caller.uid,
+        }, { onConflict: "org_id,user_uid" });
+        await app.auth().setCustomUserClaims(newUid, { role: "authenticated", org_id: callerOrg });
+      } catch (_) { /* best effort — membership is re-derived from Firestore on first API call */ }
 
       return new Response(JSON.stringify({ ok: true, uid: newUid }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -761,6 +814,10 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      const callerOrgR = await orgOf(db, caller.uid);
+      const targetOrgR = await orgOf(db, targetUid);
+      if (targetOrgR !== callerOrgR) return forbidden("User belongs to another workspace");
 
       // Update the user's password via Firebase Admin SDK (no old password needed)
       await app.auth().updateUser(targetUid, { password: newPassword });

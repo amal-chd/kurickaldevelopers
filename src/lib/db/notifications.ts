@@ -1,3 +1,4 @@
+import { tenantPoll } from '../tenant';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { AppNotification } from '../../types';
@@ -110,8 +111,10 @@ export const subscribeNotifications = (userId: string, cb: (notifs: AppNotificat
       fetchInitial();
     })
     .subscribe();
+  const stopPoll = tenantPoll(fetchInitial, 15000);
 
   return () => {
+    stopPoll();
     supabase.removeChannel(channel);
   };
 };

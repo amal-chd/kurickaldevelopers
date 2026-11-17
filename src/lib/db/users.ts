@@ -30,6 +30,7 @@ import {
   PerformanceScore, PerformanceReview, PerformanceConfig,
   LeaveRequest, SalarySlip, Expense,
 } from '../../types';
+import { getActiveOrgId } from '../tenant';
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from '../performanceEngine';
 import { notifyPush } from '../push';
 
@@ -66,7 +67,8 @@ export const getUser = async (uid: string): Promise<AppUser | null> => {
 
 export const getAllUsers = async (): Promise<AppUser[]> => {
   try {
-    const snap = await getDocs(collection(db, 'users'));
+    // Tenant-scoped: only people in the active organisation.
+    const snap = await getDocs(query(collection(db, 'users'), where('orgId', '==', getActiveOrgId())));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser));
   } catch (err: any) {
     console.warn('Gracefully handled getAllUsers error:', err);
@@ -79,7 +81,7 @@ export const updateUser = async (uid: string, data: Partial<AppUser>): Promise<v
 };
 
 export const createUser = async (uid: string, data: Omit<AppUser, 'id'>): Promise<void> => {
-  await setDoc(doc(db, 'users', uid), { ...data, createdAt: serverTimestamp() });
+  await setDoc(doc(db, 'users', uid), { ...data, orgId: (data as any).orgId || getActiveOrgId(), createdAt: serverTimestamp() });
 };
 
 export const deleteUser = async (uid: string): Promise<void> => {
@@ -87,7 +89,7 @@ export const deleteUser = async (uid: string): Promise<void> => {
 };
 
 export const subscribeUsers = (cb: (users: AppUser[]) => void) => {
-  return onSnapshot(collection(db, 'users'), (snap) => {
+  return onSnapshot(query(collection(db, 'users'), where('orgId', '==', getActiveOrgId())), (snap) => {
     cb(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AppUser)));
   });
 };
