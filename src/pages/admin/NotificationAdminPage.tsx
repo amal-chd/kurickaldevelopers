@@ -68,7 +68,7 @@ const NotificationAdminPage: React.FC = () => {
       }
     };
     fetchNotifs();
-    const channel = supabase.channel('notifs_admin')
+    const channel = supabase.channel(`notifs_admin_${Date.now()}_${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_notifications', filter: "user_id=eq." }, () => {
         fetchNotifs();
       }).subscribe();

@@ -175,8 +175,8 @@ export function calculatePerformanceScore(
 
   // Chronological sort for streak calculations
   const sortedCompleted = [...completedTasks].sort((a, b) => {
-    const timeA = toDate(a.updatedAt)?.getTime() ?? 0;
-    const timeB = toDate(b.updatedAt)?.getTime() ?? 0;
+    const timeA = (toDate(a.completedAt) ?? toDate(a.updatedAt))?.getTime() ?? 0;
+    const timeB = (toDate(b.completedAt) ?? toDate(b.updatedAt))?.getTime() ?? 0;
     return timeA - timeB;
   });
 
@@ -213,25 +213,29 @@ export function calculatePerformanceScore(
       totalPenaltyPoints += extPen;
     }
 
-    // On-time check
+    // On-time check — judged from the real completion time. `updatedAt` is NOT
+    // a completion time: any later edit (comment, reassignment, data repair)
+    // bumps it and used to flip finished tasks to "late". A done task with no
+    // recorded completion time gives no evidence of lateness → counted on time.
     const due = toDate(t.dueDate);
     if (due) {
       const memberProg = (t as any).memberProgress?.[userId];
       const memberStatus = memberProg?.completionStatus;
-      const comp = toDate(memberProg?.completedAt) ?? toDate((t as any).completedAt) ?? toDate(t.updatedAt) ?? new Date();
+      // Only a recorded completion time is evidence (never updatedAt/now).
+      const comp = toDate(memberProg?.completedAt) ?? toDate((t as any).completedAt);
 
       // If the due date was set at midnight (00:00:00), give grace until end of day (23:59:59)
       const isMidnight = due.getHours() === 0 && due.getMinutes() === 0 && due.getSeconds() === 0;
       const effectiveDue = isMidnight ? new Date(due.getFullYear(), due.getMonth(), due.getDate(), 23, 59, 59, 999) : due;
 
-      const isLate = memberStatus === 'late' || (memberStatus !== 'on_time' && comp > effectiveDue);
+      const isLate = memberStatus === 'late' || (memberStatus !== 'on_time' && !!comp && comp > effectiveDue);
 
       if (isLate) {
         // Late Completion
         tasksCompletedLate++;
         consecutiveSuccesses = 0; // Break the streak
 
-        const daysLate = Math.max(1, Math.ceil((comp.getTime() - effectiveDue.getTime()) / (1000 * 60 * 60 * 24)));
+        const daysLate = Math.max(1, Math.ceil(((comp ?? effectiveDue).getTime() - effectiveDue.getTime()) / (1000 * 60 * 60 * 24)));
         const latePen = Math.min(daysLate * config.penalties.latePerDay, 30); // Max 30 points penalty
         penaltyBreakdown.lateCompletions += latePen;
         totalPenaltyPoints += latePen;
@@ -244,7 +248,7 @@ export function calculatePerformanceScore(
         }
       }
     } else {
-      // Tasks without due date are considered on-time
+      // No due date, or no recorded completion time → considered on-time
       tasksCompletedOnTime++;
       consecutiveSuccesses++;
       if (consecutiveSuccesses > bestStreak) {

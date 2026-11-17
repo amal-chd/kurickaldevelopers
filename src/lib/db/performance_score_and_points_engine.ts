@@ -261,14 +261,17 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
             createdBy: d.created_by,
             status: d.status,
             priority: d.priority,
-            tags: typeof d.tags === 'string' ? JSON.parse(d.tags) : (d.tags || []),
             dueDate: d.due_date ? new Date(d.due_date) : null,
             startDate: d.start_date ? new Date(d.start_date) : null,
             completedAt: d.completed_at ? new Date(d.completed_at) : null,
-            // Engine uses updatedAt as the completion-time proxy — omitting it
-            // made every completed task look done "now" (wrong on-time stats).
+            // On-time stats use completedAt; updatedAt only feeds the
+            // inactivity check.
             updatedAt: d.updated_at ? new Date(d.updated_at) : (d.completed_at ? new Date(d.completed_at) : null),
-            attachmentUrls: d.attachment_urls || [],
+            attachmentUrls: d.attachments || d.attachment_urls || [],
+            tags: d.labels || [],
+            memberProgress: d.member_progress || {},
+            completionStatus: d.completion_status ?? undefined,
+            delaySeconds: d.delay_seconds ?? undefined,
             followers: d.followers || [],
             estimatedHours: d.estimated_hours,
             actualHours: d.actual_hours,
