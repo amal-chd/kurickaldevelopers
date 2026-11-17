@@ -44,6 +44,16 @@ class PermissionModel {
   // role edits on mobile never drop them).
   final bool performanceView;
   final bool performanceManage;
+  // Asset management permissions
+  final bool assetsView;
+  final bool assetsManage;
+  final bool assetsAssign;
+  final bool assetsMaintain;
+  // HR & Finance — kept in sync with the web app so mobile role edits never
+  // drop them (mobile has no leave/payroll/expense screens, but the web does).
+  final bool leaveManage;
+  final bool payrollManage;
+  final bool expenseManage;
 
   const PermissionModel({
     this.tasksView = true,
@@ -81,6 +91,13 @@ class PermissionModel {
     this.contactManage = false,
     this.performanceView = false,
     this.performanceManage = false,
+    this.assetsView = true,
+    this.assetsManage = false,
+    this.assetsAssign = false,
+    this.assetsMaintain = false,
+    this.leaveManage = false,
+    this.payrollManage = false,
+    this.expenseManage = false,
   });
 
   factory PermissionModel.fromMap(Map<String, dynamic> map) => PermissionModel(
@@ -119,6 +136,13 @@ class PermissionModel {
     contactManage: map['contact_manage'] ?? false,
     performanceView: map['performance_view'] ?? false,
     performanceManage: map['performance_manage'] ?? false,
+    assetsView: map['assets_view'] ?? true,
+    assetsManage: map['assets_manage'] ?? false,
+    assetsAssign: map['assets_assign'] ?? false,
+    assetsMaintain: map['assets_maintain'] ?? false,
+    leaveManage: map['leave_manage'] ?? false,
+    payrollManage: map['payroll_manage'] ?? false,
+    expenseManage: map['expense_manage'] ?? false,
   );
 
   Map<String, dynamic> toMap() => {
@@ -157,6 +181,13 @@ class PermissionModel {
     'contact_manage': contactManage,
     'performance_view': performanceView,
     'performance_manage': performanceManage,
+    'assets_view': assetsView,
+    'assets_manage': assetsManage,
+    'assets_assign': assetsAssign,
+    'assets_maintain': assetsMaintain,
+    'leave_manage': leaveManage,
+    'payroll_manage': payrollManage,
+    'expense_manage': expenseManage,
   };
 
   bool hasPermission(String key) {

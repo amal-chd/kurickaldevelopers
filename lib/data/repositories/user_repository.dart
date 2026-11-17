@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/push_sender.dart';
 import '../../core/utils/error_translator.dart';
+import '../../core/tenant/tenant.dart';
 
 class UserRepository {
   final _db = FirebaseFirestore.instance;
@@ -72,8 +73,12 @@ class UserRepository {
 
   Future<List<UserModel>> getAllUsers() async {
     try {
-      final snap = await _users.orderBy('name').get();
-      return snap.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList();
+      await Tenant.ensureResolved();
+      // Org-scoped; sorted client-side (orgId + orderBy would need a composite index).
+      final snap = await _users.where('orgId', isEqualTo: Tenant.orgId).get();
+      final list = snap.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList();
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -117,7 +122,8 @@ class UserRepository {
   ///  • retries on permission-denied (token not yet propagated after sign-in)
   Stream<List<UserModel>> watchAllUsers([int attempt = 0]) async* {
     try {
-      await for (final snap in _users.snapshots()) {
+      await Tenant.ensureResolved();
+      await for (final snap in _users.where('orgId', isEqualTo: Tenant.orgId).snapshots()) {
         final users = <UserModel>[];
         for (final d in snap.docs) {
           try {
@@ -147,10 +153,11 @@ class UserRepository {
   }
 
   Stream<List<UserModel>> watchUsersByRole(String roleId) {
-    return _users
+    return Stream.fromFuture(Tenant.ensureResolved()).asyncExpand((org) => _users
+        .where('orgId', isEqualTo: org)
         .where('roleId', isEqualTo: roleId)
         .where('isActive', isEqualTo: true)
-        .snapshots()
+        .snapshots())
         .map((s) => s.docs.map((d) => UserModel.fromMap(d.data() as Map<String, dynamic>, d.id)).cast<UserModel>().toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }

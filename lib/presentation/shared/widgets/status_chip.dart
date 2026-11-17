@@ -53,7 +53,8 @@ class StatusChip extends StatelessWidget {
     if (dueDate != null) {
       final now = DateTime.now();
       final isSameDay = dueDate.year == now.year && dueDate.month == now.month && dueDate.day == now.day;
-      if (now.isAfter(dueDate) && !isSameDay) {
+      final isMidnight = dueDate.hour == 0 && dueDate.minute == 0 && dueDate.second == 0;
+      if (now.isAfter(dueDate) && (!isSameDay || !isMidnight)) {
         return const StatusChip(
           label: 'Late (Overdue)',
           color: AppTheme.error,

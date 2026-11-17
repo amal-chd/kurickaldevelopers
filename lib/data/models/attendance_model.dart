@@ -23,6 +23,12 @@ class AttendanceModel {
   /// Optional manual override for overtime minutes set by an admin.
   final int? overtimeOverrideMinutes;
 
+  /// Cumulative minutes from earlier COMPLETED check-in/out sessions on the same
+  /// day (0 for a single-session day). The current/open session is added on top
+  /// once the record is checked out. This lets 2–3 check-ins per day sum
+  /// correctly without counting the gaps between sessions.
+  final int workedMinutes;
+
   const AttendanceModel({
     required this.id,
     required this.userId,
@@ -36,16 +42,18 @@ class AttendanceModel {
     required this.isWithinGeofence,
     required this.date,
     this.overtimeOverrideMinutes,
+    this.workedMinutes = 0,
   });
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
   bool get isOnSite => checkOutTime == null;
 
-  /// Total logged minutes (0 if still on site).
+  /// Total logged minutes across all sessions today. While still on site, only
+  /// earlier completed sessions count (the open session is added at check-out).
   int get durationMinutes {
-    if (checkOutTime == null) return 0;
-    return checkOutTime!.difference(checkInTime).inMinutes;
+    if (checkOutTime == null) return workedMinutes;
+    return workedMinutes + checkOutTime!.difference(checkInTime).inMinutes;
   }
 
   /// E.g. "8h 30m" or "45m" or "—" when still on site.
@@ -101,6 +109,7 @@ class AttendanceModel {
       isWithinGeofence: data['isWithinGeofence'] ?? true,
       date: data['date'] ?? '',
       overtimeOverrideMinutes: (data['overtimeOverrideMinutes'] as num?)?.toInt(),
+      workedMinutes: (data['workedMinutes'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -117,6 +126,7 @@ class AttendanceModel {
     'checkOutAddress': checkOutAddress,
     'isWithinGeofence': isWithinGeofence,
     'date': date,
+    'workedMinutes': workedMinutes,
     if (overtimeOverrideMinutes != null)
       'overtimeOverrideMinutes': overtimeOverrideMinutes,
   };

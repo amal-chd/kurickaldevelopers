@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme.dart';
 import '../../data/models/chat_channel_model.dart';
 import '../../data/models/chat_message_model.dart';
+import '../../data/models/role_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/storage_service.dart';
 import '../../providers/chat_provider.dart';
@@ -19,6 +20,7 @@ import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/role_provider.dart';
 import '../shared/widgets/avatar_widget.dart';
+import '../shared/widgets/cached_image_widget.dart';
 import '../shared/widgets/error_widget.dart';
 import '../shared/widgets/loading_widget.dart';
 
@@ -165,7 +167,19 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
   // ── Mention select ─────────────────────────────────────────────────────────
 
-  void _selectMention(UserModel user) {
+  void _selectMention(UserModel user) => _insertMention(user.name, [user.uid]);
+
+  /// Tag an entire role: inserts @RoleName and mentions every active member of
+  /// that role, so lower-level staff can notify a whole team at once.
+  void _selectRoleMention(RoleModel role, List<UserModel> allUsers) {
+    final uids = allUsers
+        .where((u) => u.roleId == role.id && u.isActive)
+        .map((u) => u.uid)
+        .toList();
+    _insertMention(role.name, uids);
+  }
+
+  void _insertMention(String name, List<String> uids) {
     final text = _textCtrl.text;
     final selection = _textCtrl.selection;
     final pos = selection.baseOffset.clamp(0, text.length);
@@ -174,14 +188,16 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     if (atIdx < 0) return;
 
     final after = text.substring(pos);
-    final insert = '@${user.name} ';
+    final insert = '@$name ';
     final newText = '${text.substring(0, atIdx)}$insert$after';
     _textCtrl.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: atIdx + insert.length),
     );
-    if (!_mentionedUserIds.contains(user.uid)) {
-      _mentionedUserIds.add(user.uid);
+    for (final uid in uids) {
+      if (uid.isNotEmpty && !_mentionedUserIds.contains(uid)) {
+        _mentionedUserIds.add(uid);
+      }
     }
     setState(() => _mentionQuery = null);
     _focusNode.requestFocus();
@@ -577,6 +593,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                         [],
                     currentUid: currentUser?.uid ?? '',
                     onSelect: _selectMention,
+                    onSelectRole: (r) => _selectRoleMention(
+                        r, ref.read(allUsersProvider).value ?? []),
                   ),
 
                 _ComposeBar(
@@ -1086,34 +1104,64 @@ class _MentionPicker extends ConsumerWidget {
   final List<String> channelMemberIds;
   final String currentUid;
   final void Function(UserModel) onSelect;
+  final void Function(RoleModel) onSelectRole;
 
   const _MentionPicker({
     required this.query,
     required this.channelMemberIds,
     required this.currentUid,
     required this.onSelect,
+    required this.onSelectRole,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allUsersAsync = ref.watch(allUsersProvider);
-    final members =
-        allUsersAsync.value
-            ?.where(
-              (u) =>
-                  u.uid != currentUid &&
-                  channelMemberIds.contains(u.uid) &&
-                  (query.isEmpty ||
-                      u.name.toLowerCase().contains(query.toLowerCase())),
-            )
-            .take(5)
-            .toList() ??
-        [];
+    final allUsers = ref.watch(allUsersProvider).value ?? const <UserModel>[];
+    final allRoles = ref.watch(allRolesProvider).value ?? const <RoleModel>[];
+    final q = query.toLowerCase();
 
-    if (members.isEmpty) return const SizedBox.shrink();
+    // Any active user is taggable (not just people already in this channel);
+    // channel members are surfaced first for relevance.
+    final members = allUsers
+        .where((u) =>
+            u.uid != currentUid &&
+            u.isActive &&
+            (query.isEmpty || u.name.toLowerCase().contains(q)))
+        .toList()
+      ..sort((a, b) {
+        final am = channelMemberIds.contains(a.uid) ? 0 : 1;
+        final bm = channelMemberIds.contains(b.uid) ? 0 : 1;
+        return am != bm ? am - bm : a.name.compareTo(b.name);
+      });
+    final memberMatches = members.take(6).toList();
+
+    // Whole-role mentions: @Site Engineer notifies every active engineer.
+    final roleMatches = allRoles
+        .where((r) => query.isEmpty || r.name.toLowerCase().contains(q))
+        .take(3)
+        .toList();
+
+    if (memberMatches.isEmpty && roleMatches.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    Color roleColor(String hex) {
+      try {
+        return Color(int.parse(hex.replaceFirst('#', '0xFF')));
+      } catch (_) {
+        return AppTheme.primary;
+      }
+    }
+
+    const sectionLabel = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+      letterSpacing: 0.5,
+      color: AppTheme.textLight,
+    );
 
     return Container(
-      constraints: const BoxConstraints(maxHeight: 220),
+      constraints: const BoxConstraints(maxHeight: 260),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
@@ -1125,30 +1173,55 @@ class _MentionPicker extends ConsumerWidget {
           ),
         ],
       ),
-      child: ListView.builder(
+      child: ListView(
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
-        itemCount: members.length,
-        itemBuilder: (_, i) {
-          final u = members[i];
-          return ListTile(
-            dense: true,
-            leading: AvatarWidget(
-              name: u.name,
-              imageUrl: u.avatarUrl,
-              size: 32,
+        children: [
+          if (roleMatches.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 6, 16, 2),
+              child: Text('ROLES', style: sectionLabel),
             ),
-            title: Text(
-              u.name,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ...roleMatches.map((r) {
+            final c = roleColor(r.color);
+            return ListTile(
+              dense: true,
+              leading: CircleAvatar(
+                radius: 16,
+                backgroundColor: c.withValues(alpha: 0.15),
+                child: Icon(Icons.groups_rounded, size: 18, color: c),
+              ),
+              title: Text('@${r.name}',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: const Text('Notify everyone in this role',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textLight)),
+              onTap: () => onSelectRole(r),
+            );
+          }),
+          if (roleMatches.isNotEmpty && memberMatches.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 2),
+              child: Text('PEOPLE', style: sectionLabel),
             ),
-            subtitle: Text(
-              u.email,
-              style: const TextStyle(fontSize: 11, color: AppTheme.textLight),
-            ),
-            onTap: () => onSelect(u),
-          );
-        },
+          ...memberMatches.map((u) {
+            return ListTile(
+              dense: true,
+              leading: AvatarWidget(
+                name: u.name,
+                imageUrl: u.avatarUrl,
+                size: 32,
+              ),
+              title: Text(u.name,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              subtitle: Text(u.email,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppTheme.textLight)),
+              onTap: () => onSelect(u),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -1485,19 +1558,13 @@ class _BubbleContent extends StatelessWidget {
             },
             child: Stack(
               children: [
-                Image.network(
-                  message.attachmentUrl!,
+                CachedImageWidget(
+                  imageUrl: message.attachmentUrl!,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: 200,
-                  loadingBuilder: (_, child, progress) => progress == null
-                      ? child
-                      : Container(
-                          height: 200,
-                          color: Colors.grey.shade200,
-                          child: const Center(child: CircularProgressIndicator()),
-                        ),
-                  errorBuilder: (_, __, ___) => Container(
+                  memCacheWidth: 720,
+                  errorWidget: Container(
                     height: 80,
                     color: Colors.grey.shade200,
                     child: const Icon(Icons.broken_image_rounded),

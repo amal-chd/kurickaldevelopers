@@ -20,6 +20,9 @@ import '../presentation/team/member_detail_screen.dart';
 import '../presentation/documents/documents_screen.dart';
 import '../presentation/documents/document_viewer_screen.dart';
 import '../presentation/reports/reports_screen.dart';
+import '../presentation/assets/assets_list_screen.dart';
+import '../presentation/assets/asset_detail_screen.dart';
+import '../presentation/assets/create_asset_screen.dart';
 import '../presentation/notifications/notifications_screen.dart';
 import '../presentation/performance/performance_screen.dart';
 import '../presentation/admin/admin_panel_screen.dart';
@@ -33,11 +36,15 @@ import '../presentation/admin/notification_admin_screen.dart';
 import '../presentation/admin/staff_attendance_screen.dart';
 import '../presentation/site_diary/site_diary_screen.dart';
 import '../presentation/profile/profile_screen.dart';
+import '../presentation/help/tutorial_screen.dart';
 import '../presentation/chat/chat_list_screen.dart';
 import '../presentation/chat/chat_room_screen.dart';
 import '../presentation/chat/create_channel_screen.dart';
 import '../presentation/shared/layouts/app_scaffold.dart';
 import '../providers/auth_provider.dart';
+import '../providers/role_provider.dart';
+import '../core/tenant/tenant.dart';
+import '../providers/tenant_provider.dart';
 
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -60,6 +67,48 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && state.matchedLocation == '/login') return '/dashboard';
+
+      // ── Permission gating (blocks direct / deep-link nav to areas the role
+      // cannot access; mirrors the nav gating). Only enforced once permissions
+      // have resolved, so an authorised user is never bounced mid-load. ──
+      if (isLoggedIn) {
+        final perms = ref.read(permissionsProvider);
+        if (perms.isNotEmpty) {
+          final loc = state.matchedLocation;
+          bool has(String k) => perms[k] == true;
+          final level = ref.read(currentRoleLevelProvider);
+          bool blocked = false;
+          if (loc.startsWith('/admin')) {
+            blocked = !(level >= 100 ||
+                has('roles_manage') ||
+                has('settings_manage') ||
+                has('notifications_manage') ||
+                has('attendance_view_all') ||
+                has('contact_view') ||
+                has('team_manage'));
+          } else if (loc.startsWith('/reports')) {
+            blocked = !has('reports_view');
+          } else if (loc.startsWith('/team')) {
+            blocked = !has('team_view');
+          } else if (loc.startsWith('/documents')) {
+            blocked = !has('docs_view');
+          } else if (loc.startsWith('/assets')) {
+            blocked = !has('assets_view');
+          } else if (loc.startsWith('/chat')) {
+            blocked = !has('chat_view');
+          } else if (loc.startsWith('/projects')) {
+            blocked = !has('projects_view');
+          }
+          if (blocked) return '/dashboard';
+        }
+        // ── Plan gating: modules not in the organisation's plan. Only once
+        // the plan context has loaded (never blocks while loading/offline). ──
+        final module = moduleForRoute(state.matchedLocation);
+        if (module != null) {
+          final tenant = ref.read(tenantContextProvider).valueOrNull;
+          if (tenant != null && !tenant.hasModule(module)) return '/dashboard';
+        }
+      }
       return null;
     },
     routes: [
@@ -155,6 +204,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Reports
           GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
 
+          // Assets (construction asset management)
+          GoRoute(path: '/assets', builder: (_, __) => const AssetsListScreen()),
+          GoRoute(
+              path: '/assets/create',
+              builder: (_, __) => const CreateAssetScreen()),
+          GoRoute(
+              path: '/assets/:assetId/edit',
+              builder: (_, s) =>
+                  CreateAssetScreen(assetId: s.pathParameters['assetId'])),
+          GoRoute(
+              path: '/assets/:assetId',
+              builder: (_, s) =>
+                  AssetDetailScreen(assetId: s.pathParameters['assetId']!)),
+
           // Notifications
           GoRoute(
             path: '/notifications',
@@ -181,6 +244,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           // Profile
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+
+          // Tutorial / Help guide
+          GoRoute(path: '/tutorial', builder: (_, __) => const TutorialScreen()),
 
           // Admin — Hub
           GoRoute(path: '/admin', builder: (_, __) => const AdminPanelScreen()),

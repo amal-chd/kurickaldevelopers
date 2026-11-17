@@ -1257,7 +1257,7 @@ class _TaskCard extends ConsumerWidget {
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
-                                  task.dueDate.formatted,
+                                  task.dueDate.compactDateTime,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isOverdue

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/role_model.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+import '../../core/tenant/tenant.dart';
 
 
 class RoleRepository {
@@ -42,7 +43,7 @@ class RoleRepository {
 
   Stream<List<RoleModel>> watchAllRoles([int attempt = 0]) async* {
     try {
-      yield* _supabase.from(_table).stream(primaryKey: ['id']).map((list) {
+      yield* _supabase.from(_table).stream(primaryKey: ['id']).tenantScoped().map((list) {
         return list.map((data) {
           return RoleModel.fromMap(_toCamelCase(data), data['id']);
         }).toList();
@@ -54,7 +55,7 @@ class RoleRepository {
 
   Stream<RoleModel?> watchRole(String roleId, [int attempt = 0]) async* {
     try {
-      yield* _supabase.from(_table).stream(primaryKey: ['id']).eq('id', roleId).map((list) {
+      yield* _supabase.from(_table).stream(primaryKey: ['id']).eq('id', roleId).tenantScoped().map((list) {
         if (list.isEmpty) return null;
         final data = list.first;
         return RoleModel.fromMap(_toCamelCase(data), data['id']);

@@ -9,7 +9,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/enums/task_status.dart';
-import '../../core/enums/approval_status.dart';
 import '../../core/extensions/datetime_ext.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/models/project_model.dart';
@@ -243,7 +242,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     }
   }
 
-  Future<void> _addSubtask(String taskId) async {
+  Future<void> _addSubtask(TaskModel task) async {
     final title = _newSubtaskCtrl.text.trim();
     if (title.isEmpty) return;
     final subtask = SubtaskModel(id: '', title: title);
@@ -251,9 +250,16 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     final currentUser = ref.read(currentUserProvider).value;
     try {
       await ref.read(taskRepositoryProvider).addSubtask(
-        taskId,
+        task.id,
         subtask,
         addedByUid: currentUser?.uid,
+      );
+      ref.read(auditServiceProvider).log(
+        action: 'subtask.created',
+        category: AuditCategory.task,
+        targetId: task.id,
+        targetName: task.title,
+        description: 'Added subtask "$title" on task "${task.title}"',
       );
     } catch (_) {
       if (!mounted) return;
@@ -297,6 +303,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
         createdAt: DateTime.now(),
       );
       await ref.read(taskRepositoryProvider).addComment(task.id, comment);
+      ref.read(auditServiceProvider).log(
+        action: 'comment.created',
+        category: AuditCategory.task,
+        targetId: task.id,
+        targetName: task.title,
+        description: 'Added comment on task "${task.title}"',
+      );
       _commentCtrl.clear();
       if (mounted) setState(() => _commentFiles.clear());
     } catch (e) {
@@ -307,6 +320,102 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
       }
     } finally {
       if (mounted) setState(() => _postingComment = false);
+    }
+  }
+
+  Future<void> _editComment(TaskModel task, CommentModel comment) async {
+    final editCtrl = TextEditingController(text: comment.text);
+    final updatedText = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Comment'),
+        content: TextField(
+          controller: editCtrl,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Edit your comment…',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, editCtrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (updatedText != null && updatedText.isNotEmpty && updatedText != comment.text) {
+      try {
+        await ref.read(taskRepositoryProvider).updateComment(task.id, comment.id, updatedText);
+        ref.read(auditServiceProvider).log(
+          action: 'comment.updated',
+          category: AuditCategory.task,
+          targetId: task.id,
+          targetName: task.title,
+          description: 'Edited comment on task "${task.title}"',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Comment updated')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update comment: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteComment(TaskModel task, CommentModel comment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Comment'),
+        content: const Text('Are you sure you want to delete this comment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(taskRepositoryProvider).deleteComment(task.id, comment.id);
+        ref.read(auditServiceProvider).log(
+          action: 'comment.deleted',
+          category: AuditCategory.task,
+          targetId: task.id,
+          targetName: task.title,
+          description: 'Deleted comment on task "${task.title}"',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Comment deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete comment: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -374,7 +483,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                 task.assignedRoleId == currentUser?.roleId ||
                 task.assignedRoleIds.contains(currentUser?.roleId)
             ));
-        final isOverdue = task.dueDate.isBefore(DateTime.now()) && displayStatus != TaskStatus.done;
+        final isOverdue = (() {
+          if (displayStatus == TaskStatus.done) return false;
+          final isMidnight = task.dueDate.hour == 0 && task.dueDate.minute == 0 && task.dueDate.second == 0;
+          if (isMidnight) {
+            final endOfDueDay = DateTime(task.dueDate.year, task.dueDate.month, task.dueDate.day, 23, 59, 59, 999);
+            return DateTime.now().isAfter(endOfDueDay);
+          }
+          return DateTime.now().isAfter(task.dueDate);
+        })();
         final dueDateColor = isOverdue
             ? AppTheme.error
             : task.dueDate.isToday
@@ -461,7 +578,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                   project,
                 ),
                 _buildSubtasksTab(task, subtasksAsync, currentUser, canEdit),
-                _buildCommentsTab(task, commentsAsync, currentUser, canAddComment, project),
+                _buildCommentsTab(task, commentsAsync, currentUser, canAddComment, project, isManager),
               ],
             ),
           ),
@@ -811,10 +928,19 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                 const Divider(height: 1, indent: 44),
                 _InfoRow(
                   icon: Icons.calendar_today_outlined,
-                  label: 'Due Date',
-                  value: task.dueDate.formatted,
+                  label: 'Due Date & Time',
+                  value: task.dueDate.formattedWithTime,
                   valueColor: dueDateColor,
                 ),
+                if (task.completedAt != null) ...[
+                  const Divider(height: 1, indent: 44),
+                  _InfoRow(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Completed',
+                    value: task.completedAt!.formattedWithTime,
+                    valueColor: AppTheme.success,
+                  ),
+                ],
                 const Divider(height: 1, indent: 44),
                 _InfoRow(
                   icon: Icons.access_time_rounded,
@@ -830,6 +956,12 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                     valueColor: AppTheme.success,
                   ),
                 ],
+                const Divider(height: 1, indent: 44),
+                _InfoRow(
+                  icon: Icons.schedule_rounded,
+                  label: 'Created',
+                  value: task.createdAt.formattedWithTime,
+                ),
               ],
             ),
           ),
@@ -850,19 +982,48 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
           ],
 
           // Assignees
-          if (task.assigneeIds.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            const Text(
-              'Assigned To',
-              style: TextStyle(
-                fontWeight: FontWeight.w700, 
-                fontSize: 15,
-                fontFamily: 'Plus Jakarta Sans',
-              ),
-            ),
-            const SizedBox(height: 10),
-            _AssigneesRow(assigneeIds: task.assigneeIds),
-          ],
+          Consumer(
+            builder: (context, ref, child) {
+              final usersAsync = ref.watch(allUsersProvider);
+              final allUsers = usersAsync.value ?? [];
+              final explicitUids = task.assigneeIds;
+              final roleUids = <String>[];
+              final rolesList = task.assignedRoleIds.isNotEmpty
+                  ? task.assignedRoleIds
+                  : (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty
+                      ? [task.assignedRoleId!]
+                      : <String>[]);
+              if (rolesList.isNotEmpty && allUsers.isNotEmpty) {
+                allUsers
+                    .where((u) => rolesList.contains(u.roleId) && u.isActive)
+                    .forEach((u) => roleUids.add(u.uid));
+              }
+              var allAssigneeUids = {...explicitUids, ...roleUids}.toList();
+              if (allAssigneeUids.isEmpty && task.createdBy.isNotEmpty) {
+                allAssigneeUids = [task.createdBy];
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Assigned To',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700, 
+                      fontSize: 15,
+                      fontFamily: 'Plus Jakarta Sans',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (allAssigneeUids.isEmpty)
+                    const Text('No members assigned', style: TextStyle(color: AppTheme.textMuted))
+                  else
+                    _AssigneesRow(assigneeIds: allAssigneeUids),
+                ],
+              );
+            },
+          ),
 
           // Assigned Roles
           if (task.assignedRoleIds.isNotEmpty || (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty)) ...[
@@ -1177,9 +1338,57 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
             ...subtasks.map(
               (s) => SubtaskItem(
                 subtask: s,
-                onToggle: (v) => ref
-                    .read(taskRepositoryProvider)
-                    .toggleSubtask(task.id, s.id, v, currentUser?.uid ?? ''),
+                onToggle: (v) {
+                  ref
+                      .read(taskRepositoryProvider)
+                      .toggleSubtask(task.id, s.id, v, currentUser?.uid ?? '', subtaskTitle: s.title);
+                  ref.read(auditServiceProvider).log(
+                    action: v ? 'subtask.completed' : 'subtask.reopened',
+                    category: AuditCategory.task,
+                    targetId: task.id,
+                    targetName: task.title,
+                    description: '${v ? "Completed" : "Reopened"} subtask "${s.title}" on task "${task.title}"',
+                  );
+                },
+                onDelete: canEdit
+                    ? () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Subtask'),
+                            content: Text('Are you sure you want to delete "${s.title}"?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete', style: TextStyle(color: AppTheme.error)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          try {
+                            await ref.read(taskRepositoryProvider).deleteSubtask(task.id, s.id);
+                            ref.read(auditServiceProvider).log(
+                              action: 'subtask.deleted',
+                              category: AuditCategory.task,
+                              targetId: task.id,
+                              targetName: task.title,
+                              description: 'Deleted subtask "${s.title}" on task "${task.title}"',
+                            );
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to delete subtask: $e')),
+                              );
+                            }
+                          }
+                        }
+                      }
+                    : null,
               ),
             ),
 
@@ -1204,7 +1413,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                         Icons.send_rounded,
                         color: AppTheme.primary,
                       ),
-                      onPressed: () => _addSubtask(task.id),
+                      onPressed: () => _addSubtask(task),
                     ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
@@ -1212,7 +1421,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                       vertical: 14,
                     ),
                   ),
-                  onSubmitted: (_) => _addSubtask(task.id),
+                  onSubmitted: (_) => _addSubtask(task),
                 ),
               ),
             ],
@@ -1250,6 +1459,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
     UserModel? currentUser,
     bool canAddComment,
     ProjectModel? project,
+    bool isManager,
   ) {
     final allUsers = ref.watch(allUsersProvider).value ?? [];
     final allRoles = ref.watch(allRolesProvider).value ?? [];
@@ -1375,16 +1585,65 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen>
                                             ],
                                           ],
                                         ),
-                                        Text(
-                                          comment.createdAt.formattedWithTime,
-                                          style: const TextStyle(
-                                            color: AppTheme.textMuted,
-                                            fontSize: 11,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              comment.createdAt.formattedWithTime,
+                                              style: const TextStyle(
+                                                color: AppTheme.textMuted,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            if (comment.editedAt != null) ...[
+                                              const SizedBox(width: 4),
+                                              const Text(
+                                                '(edited)',
+                                                style: TextStyle(
+                                                  color: AppTheme.textMuted,
+                                                  fontSize: 10,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
+                                  if (currentUser?.uid == comment.authorId || isManager)
+                                    PopupMenuButton<String>(
+                                      padding: EdgeInsets.zero,
+                                      icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppTheme.textMuted),
+                                      onSelected: (val) {
+                                        if (val == 'edit') {
+                                          _editComment(task, comment);
+                                        } else if (val == 'delete') {
+                                          _deleteComment(task, comment);
+                                        }
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit_outlined, size: 16),
+                                              SizedBox(width: 8),
+                                              Text('Edit'),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.error),
+                                              SizedBox(width: 8),
+                                              Text('Delete', style: TextStyle(color: AppTheme.error)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                 ],
                               ),
                               if (comment.text.isNotEmpty) ...[

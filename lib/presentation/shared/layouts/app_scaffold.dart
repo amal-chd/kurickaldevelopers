@@ -11,6 +11,9 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/chat_provider.dart';
 import '../../../providers/role_provider.dart';
 import '../widgets/app_logo.dart';
+import '../../../core/tenant/tenant.dart';
+import '../../../providers/tenant_provider.dart';
+import '../widgets/tenant_status_banner.dart';
 
 // ─── Nav Item Definition ──────────────────────────────────────────────────────
 
@@ -86,6 +89,8 @@ class AppScaffold extends ConsumerWidget {
   List<_NavItem> _filteredTabs(WidgetRef ref) {
     final isRoleLoading = ref.watch(currentRoleProvider).isLoading;
     return _allTabs.where((tab) {
+      final module = moduleForRoute(tab.route);
+      if (module != null && !ref.watch(hasModuleProvider(module))) return false;
       if (tab.permissionKey == null) return true;
       if (isRoleLoading) return true; // show everything while loading
       return ref.watch(hasPermissionProvider(tab.permissionKey!));
@@ -115,12 +120,14 @@ class AppScaffold extends ConsumerWidget {
     // Routes that map to "More" tab
     if (location.startsWith('/team') ||
         location.startsWith('/my-attendance') ||
+        location.startsWith('/assets') ||
         location.startsWith('/documents') ||
         location.startsWith('/reports') ||
         location.startsWith('/notifications') ||
         location.startsWith('/admin') ||
         location.startsWith('/site-diary') ||
         location.startsWith('/performance') ||
+        location.startsWith('/tutorial') ||
         location.startsWith('/profile')) {
       // Return index of the More tab (always the last)
       return tabs.length - 1;
@@ -158,6 +165,8 @@ class AppScaffold extends ConsumerWidget {
         return Scaffold(
           body: Column(
             children: [
+              // ── Workspace / subscription banner (SaaS tenants) ─────────
+              const TenantStatusBanner(),
               // ── Offline Banner ──────────────────────────────────────────
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
@@ -357,10 +366,15 @@ class AppScaffold extends ConsumerWidget {
 
   void _showMoreSheet(BuildContext context, WidgetRef ref) {
     bool hasPerm(String p) => ref.read(hasPermissionProvider(p));
+    // Plan gating (organisation subscription) on top of role permissions.
+    bool inPlan(String module) => ref.read(hasModuleProvider(module));
 
     final canViewTeam = hasPerm('team_view');
-    final canViewDocs = hasPerm('docs_view');
-    final canViewReports = hasPerm('reports_view');
+    final canViewDocs = hasPerm('docs_view') && inPlan('documents');
+    final canViewAssets = hasPerm('assets_view') && inPlan('assets');
+    final canViewReports = hasPerm('reports_view') && inPlan('reports');
+    final canViewDiary = hasPerm('projects_view') && inPlan('site_diary');
+    final canViewPerformance = inPlan('performance');
     // Admin panel: top-level role (Director, level 100) OR any admin-type
     // permission — matches the web sidebar so access reflects permissions, not
     // just role level.
@@ -371,7 +385,6 @@ class AppScaffold extends ConsumerWidget {
         hasPerm('attendance_view_all') ||
         hasPerm('contact_view') ||
         hasPerm('team_manage');
-    final canViewProjects = hasPerm('projects_view');
 
     showModalBottomSheet(
       context: context,
@@ -454,7 +467,19 @@ class AppScaffold extends ConsumerWidget {
                                 context.go('/documents');
                               },
                             ),
-                          if (canViewProjects)
+                          if (canViewAssets)
+                            _SheetListItem(
+                              icon: Icons.inventory_2_rounded,
+                              label: 'Assets',
+                              color: AppTheme.accent,
+                              isFirst: false,
+                              isLast: false,
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                context.go('/assets');
+                              },
+                            ),
+                          if (canViewDiary)
                             _SheetListItem(
                               icon: Icons.book_rounded,
                               label: 'Site Diary',
@@ -478,15 +503,27 @@ class AppScaffold extends ConsumerWidget {
                                 context.go('/reports');
                               },
                             ),
+                          if (canViewPerformance)
                           _SheetListItem(
                             icon: Icons.emoji_events_rounded,
                             label: 'Performance & Points',
                             color: AppTheme.accent,
                             isFirst: false,
-                            isLast: true,
+                            isLast: false,
                             onTap: () {
                               Navigator.pop(ctx);
                               context.go('/performance');
+                            },
+                          ),
+                          _SheetListItem(
+                            icon: Icons.school_rounded,
+                            label: 'App Tutorial',
+                            color: AppTheme.info,
+                            isFirst: false,
+                            isLast: true,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              context.push('/tutorial');
                             },
                           ),
                         ],

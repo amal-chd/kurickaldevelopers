@@ -2,17 +2,15 @@ import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'package:rxdart/rxdart.dart';
 import '../models/task_model.dart';
 import '../models/subtask_model.dart';
 import '../models/comment_model.dart';
 import '../models/time_log_model.dart';
-import '../models/user_model.dart';
 import '../services/push_sender.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint, FieldValue;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -115,7 +113,7 @@ class TaskRepository {
     return _supabase.from('tasks').stream(primaryKey: ['id'])
         .eq('project_id', projectId)
         .order('created_at', ascending: false)
-        .map((list) => list.map(_fromSupabase).toList())
+        .tenantScoped().map((list) => list.map(_fromSupabase).toList())
         .handleError((e) {
           throw ErrorTranslator.translate(e);
         });
@@ -128,7 +126,7 @@ class TaskRepository {
 
   Stream<List<TaskModel>> watchUserTasks(String userId, {String? roleId, List<String> myProjectIds = const [], int attempt = 0}) {
     final allTasksStream = _supabase.from('tasks').stream(primaryKey: ['id'])
-        .handleError((e) {
+        .tenantScoped().handleError((e) {
           _logStreamError('watchUserTasks', e, userId, roleId: roleId);
           throw ErrorTranslator.translate(e);
         });
@@ -158,7 +156,7 @@ class TaskRepository {
     return _supabase.from('tasks').stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .limit(200)
-        .map((list) {
+        .tenantScoped().map((list) {
           final result = list.map(_fromSupabase).toList();
           result.sort((a, b) => a.dueDate.compareTo(b.dueDate));
           return result;
@@ -190,7 +188,7 @@ class TaskRepository {
   Stream<TaskModel?> watchTask(String taskId, [int attempt = 0]) {
     return _supabase.from('tasks').stream(primaryKey: ['id'])
         .eq('id', taskId)
-        .map((list) => list.isEmpty ? null : _fromSupabase(list.first))
+        .tenantScoped().map((list) => list.isEmpty ? null : _fromSupabase(list.first))
         .handleError((e) {
           throw ErrorTranslator.translate(e);
         });
@@ -228,7 +226,7 @@ class TaskRepository {
       }
       if (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty) {
         try {
-          final usersData = (await FirebaseFirestore.instance.collection('users').where('roleId', isEqualTo: task.assignedRoleId!).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
+          final usersData = (await FirebaseFirestore.instance.collection('users').where('orgId', isEqualTo: await Tenant.ensureResolved()).where('roleId', isEqualTo: task.assignedRoleId!).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
           for (final u in usersData) {
             final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
             if (uid.isEmpty || uid == task.createdBy) continue;
@@ -310,7 +308,7 @@ class TaskRepository {
           final taskTitle = (updates['title'] ?? doc['title'] ?? 'Task') as String;
           final createdBy = doc['created_by'] as String? ?? '';
           try {
-            final usersData = (await FirebaseFirestore.instance.collection('users').where('roleId', isEqualTo: newRoleId).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
+            final usersData = (await FirebaseFirestore.instance.collection('users').where('orgId', isEqualTo: await Tenant.ensureResolved()).where('roleId', isEqualTo: newRoleId).where('isActive', isEqualTo: true).get()).docs.map((d) => d.data()..['id'] = d.id).toList();
             for (final u in usersData) {
               final uid = u['id'] as String? ?? u['uid'] as String? ?? '';
               if (uid.isEmpty || uid == createdBy) continue;
@@ -379,6 +377,7 @@ class TaskRepository {
         try {
           final usersSnap = (await FirebaseFirestore.instance
                   .collection('users')
+                  .where('orgId', isEqualTo: await Tenant.ensureResolved())
                   .where('roleId', whereIn: assignedRoleIds.take(30).toList())
                   .get())
               .docs;
@@ -526,7 +525,7 @@ class TaskRepository {
 
   Stream<List<SubtaskModel>> watchSubtasks(String taskId) {
     return _supabase.from('subtasks').stream(primaryKey: ['id']).eq('task_id', taskId)
-        .map((list) {
+        .tenantScoped().map((list) {
           final result = list.map(_fromSubtask).toList();
           result.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
           return result;
@@ -546,11 +545,25 @@ class TaskRepository {
           final taskData = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
           if (taskData != null) {
             final assigneeIds = List<String>.from(taskData['assignee_ids'] ?? []);
+            final createdBy = taskData['created_by'] as String? ?? '';
             final title = taskData['title'] as String? ?? 'Task';
+            final assignedRoleIds = List<String>.from(taskData['assigned_role_ids'] ?? []);
+            if (taskData['assigned_role_id'] != null && (taskData['assigned_role_id'] as String).isNotEmpty) {
+              assignedRoleIds.add(taskData['assigned_role_id'] as String);
+            }
+
+            final recipients = <String>{...assigneeIds};
+            if (createdBy.isNotEmpty) recipients.add(createdBy);
+            if (assignedRoleIds.isNotEmpty) {
+              final roleUsers = await _supabase.from('users').select('id').inFilter('role_id', assignedRoleIds).eq('is_active', true);
+              for (final u in roleUsers) {
+                if (u['id'] != null) recipients.add(u['id'] as String);
+              }
+            }
 
             PushSender.instance.task(taskId: taskId, kind: 'subtask_added');
 
-            for (final uid in assigneeIds.toSet()) {
+            for (final uid in recipients) {
               if (uid == addedByUid) continue;
               await _writeNotif(
                 userId: uid,
@@ -572,8 +585,9 @@ class TaskRepository {
     String taskId,
     String subtaskId,
     bool isDone,
-    String userId,
-  ) async {
+    String userId, {
+    String? subtaskTitle,
+  }) async {
     try {
       // subtasks columns: id, task_id, title, is_done, completed_by
       // (no done_at / done_by — those caused the PATCH 400).
@@ -581,6 +595,55 @@ class TaskRepository {
         'is_done': isDone,
         'completed_by': isDone ? userId : null,
       }).eq('id', subtaskId);
+
+      if (isDone) {
+        try {
+          final taskData = await _supabase.from('tasks').select().eq('id', taskId).maybeSingle();
+          if (taskData != null) {
+            final assigneeIds = List<String>.from(taskData['assignee_ids'] ?? []);
+            final createdBy = taskData['created_by'] as String? ?? '';
+            final title = taskData['title'] as String? ?? 'Task';
+            final assignedRoleIds = List<String>.from(taskData['assigned_role_ids'] ?? []);
+            if (taskData['assigned_role_id'] != null && (taskData['assigned_role_id'] as String).isNotEmpty) {
+              assignedRoleIds.add(taskData['assigned_role_id'] as String);
+            }
+
+            final recipients = <String>{...assigneeIds};
+            if (createdBy.isNotEmpty) recipients.add(createdBy);
+            if (assignedRoleIds.isNotEmpty) {
+              final roleUsers = await _supabase.from('users').select('id').inFilter('role_id', assignedRoleIds).eq('is_active', true);
+              for (final u in roleUsers) {
+                if (u['id'] != null) recipients.add(u['id'] as String);
+              }
+            }
+
+            PushSender.instance.task(taskId: taskId, kind: 'subtask_completed');
+
+            for (final uid in recipients) {
+              if (uid == userId) continue;
+              await _writeNotif(
+                userId: uid,
+                type: 'task_updated',
+                title: 'Subtask Completed',
+                body: 'Subtask "${subtaskTitle ?? 'Subtask'}" marked completed on: $title',
+                relatedId: taskId,
+              );
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
+  Future<void> deleteSubtask(String taskId, String subtaskId) async {
+    try {
+      await _supabase
+          .from('subtasks')
+          .delete()
+          .eq('id', subtaskId)
+          .eq('task_id', taskId);
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -593,7 +656,7 @@ class TaskRepository {
   Stream<List<CommentModel>> watchComments(String taskId) {
     return _supabase.from('comments').stream(primaryKey: ['id']).eq('task_id', taskId)
         .order('created_at', ascending: true)
-        .map((list) => list.map(_fromComment).toList())
+        .tenantScoped().map((list) => list.map(_fromComment).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -639,6 +702,25 @@ class TaskRepository {
     }
   }
 
+  Future<void> updateComment(String taskId, String commentId, String text) async {
+    try {
+      await _supabase.from('comments').update({
+        'text': text,
+        'edited_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', commentId).eq('task_id', taskId);
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
+  Future<void> deleteComment(String taskId, String commentId) async {
+    try {
+      await _supabase.from('comments').delete().eq('id', commentId).eq('task_id', taskId);
+    } catch (e) {
+      throw ErrorTranslator.translate(e);
+    }
+  }
+
   TimeLogModel _fromTimeLog(Map<String, dynamic> data) {
     return TimeLogModel.fromMap(_toCamelCase(data), data['id']);
   }
@@ -646,7 +728,7 @@ class TaskRepository {
   Stream<List<TimeLogModel>> watchTimeLogs(String taskId) {
     return _supabase.from('time_logs').stream(primaryKey: ['id']).eq('task_id', taskId)
         .order('start_time', ascending: false)
-        .map((list) => list.map(_fromTimeLog).toList())
+        .tenantScoped().map((list) => list.map(_fromTimeLog).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 

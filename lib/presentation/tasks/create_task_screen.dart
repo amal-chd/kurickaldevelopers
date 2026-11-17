@@ -16,7 +16,6 @@ import '../../data/models/role_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/audit_service.dart';
-import '../../providers/admin_provider.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/task_provider.dart';
@@ -46,7 +45,13 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   String? _selectedRoleId;
   final List<String> _selectedRoleIds = [];
   TaskPriority _priority = TaskPriority.medium;
-  DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
+  DateTime _dueDate = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day + 3,
+    18,
+    0,
+  );
   int _estimatedHours = 4;
   bool _isLoading = false;
   bool _isLoadingEdit = false;
@@ -103,7 +108,35 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
     );
-    if (picked != null && mounted) setState(() => _dueDate = picked);
+    if (picked != null && mounted) {
+      setState(() {
+        _dueDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _dueDate.hour,
+          _dueDate.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickDueTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_dueDate),
+    );
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _dueDate = DateTime(
+          _dueDate.year,
+          _dueDate.month,
+          _dueDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+      });
+    }
   }
 
   Future<void> _pickAssignees(List<UserModel> allUsers) async {
@@ -313,31 +346,13 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     final projectsAsync = ref.watch(projectsProvider);
     final usersAsync = ref.watch(allUsersProvider);
     final allRoles = ref.watch(allRolesProvider).value ?? [];
-    final myLevel = ref.watch(currentRoleLevelProvider);
-    final myRoleId = ref.watch(currentUserProvider).value?.roleId ?? '';
-    final assignConfig = ref.watch(taskAssignmentConfigProvider).value;
-    // Build roleId → level map
-    final roleLevelMap = {for (final r in allRoles) r.id: r.level};
-    // Eligible assignees:
-    //  • If the Director has configured assignment rules for my role, those are
-    //    authoritative — I can assign only to the roles they allow.
-    //  • Otherwise fall back to the authority-level rule (lower level than mine).
+    // Anyone can assign tasks to anyone (task assignment rules removed per requirement)
     final eligibleUsers =
-        usersAsync.value?.where((u) {
-          if (assignConfig != null && assignConfig.isRestricted(myRoleId)) {
-            return assignConfig.allows(myRoleId, u.roleId);
-          }
-          return (roleLevelMap[u.roleId] ?? 0) < myLevel;
-        }).toList() ??
+        usersAsync.value?.where((u) => u.isActive).toList() ??
+        usersAsync.value?.toList() ??
         [];
 
-    final eligibleRoles =
-        allRoles.where((r) {
-          if (assignConfig != null && assignConfig.isRestricted(myRoleId)) {
-            return assignConfig.allows(myRoleId, r.id);
-          }
-          return r.level < myLevel;
-        }).toList();
+    final eligibleRoles = allRoles;
 
     final milestones = _selectedProjectId != null
         ? (ref.watch(milestonesProvider(_selectedProjectId!)).value ?? [])
@@ -533,31 +548,88 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     .toList(),
               ),
               const Divider(height: 24),
-              _SectionLabel(label: 'Due Date'),
-              InkWell(
-                onTap: _pickDueDate,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 18,
-                        color: AppTheme.textMuted,
+              _SectionLabel(label: 'Due Date & Time'),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: _pickDueDate,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 16,
+                              color: AppTheme.textMuted,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                DateFormat('EEE, dd MMM yyyy').format(_dueDate),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        DateFormat('EEE, dd MMM yyyy').format(_dueDate),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppTheme.textLight,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: _pickDueTime,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.divider),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time_rounded,
+                              size: 16,
+                              color: AppTheme.textMuted,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                DateFormat('hh:mm a').format(_dueDate),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const Divider(height: 24),
               _SectionLabel(label: 'Estimated Hours'),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../data/services/storage_service.dart';
+import '../../data/services/audit_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +14,7 @@ import '../../data/models/site_diary_model.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/site_diary_provider.dart';
 import '../../providers/user_provider.dart';
+import '../shared/widgets/cached_image_widget.dart';
 import '../shared/widgets/empty_state_widget.dart';
 import '../shared/widgets/error_widget.dart';
 import '../shared/widgets/loading_widget.dart';
@@ -91,7 +93,6 @@ class _SiteDiaryScreenState extends ConsumerState<SiteDiaryScreen> {
   Future<void> _openCreateEntry(BuildContext ctx, String projectId) async {
     final user = ref.read(currentUserProvider).value;
     if (user == null) return;
-    final today = AppDateUtils.toYMD(DateTime.now());
     final existing = await ref
         .read(siteDiaryRepositoryProvider)
         .getDiaryForDate(projectId, DateTime.now());
@@ -145,16 +146,18 @@ class _DiaryList extends ConsumerWidget {
   }
 }
 
-class _DiaryCard extends StatelessWidget {
+class _DiaryCard extends ConsumerWidget {
   final SiteDiaryModel entry;
   const _DiaryCard({required this.entry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = DateFormat(
       'EEEE, dd MMM yyyy',
     ).format(DateTime.parse(entry.date));
     final isToday = entry.date == AppDateUtils.toYMD(DateTime.now());
+    final currentUser = ref.watch(currentUserProvider).value;
+    final canManage = currentUser?.uid == entry.authorId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -258,6 +261,93 @@ class _DiaryCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (canManage) ...[
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppTheme.textMuted),
+                    onSelected: (val) async {
+                      if (val == 'edit') {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (_) => _CreateDiaryEntrySheet(
+                            projectId: entry.projectId,
+                            authorId: entry.authorId,
+                            existing: entry,
+                          ),
+                        );
+                      } else if (val == 'delete') {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Entry'),
+                            content: Text('Delete site diary entry for ${entry.date}?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Delete', style: TextStyle(color: AppTheme.error)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          try {
+                            await ref.read(siteDiaryRepositoryProvider).deleteDiary(entry.id);
+                            ref.read(auditServiceProvider).log(
+                              action: 'site_diary.deleted',
+                              category: AuditCategory.siteDiary,
+                              targetId: entry.id,
+                              targetName: 'Site Diary (${entry.date})',
+                              description: 'Deleted site diary entry for ${entry.date}',
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Diary entry deleted')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to delete: $e')),
+                              );
+                            }
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 16),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.error),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: AppTheme.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -498,6 +588,13 @@ class _CreateDiaryEntrySheetState
           'safetyNotes': _safetyCtrl.text.trim(),
           'photoUrls': _photoUrls,
         });
+        ref.read(auditServiceProvider).log(
+          action: 'site_diary.updated',
+          category: AuditCategory.siteDiary,
+          targetId: widget.existing!.id,
+          targetName: 'Site Diary (${widget.existing!.date})',
+          description: 'Updated site diary entry for date ${widget.existing!.date}',
+        );
       } else {
         final entry = SiteDiaryModel(
           id: '',
@@ -513,7 +610,14 @@ class _CreateDiaryEntrySheetState
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
-        await repo.createDiary(entry);
+        final newId = await repo.createDiary(entry);
+        ref.read(auditServiceProvider).log(
+          action: 'site_diary.created',
+          category: AuditCategory.siteDiary,
+          targetId: newId,
+          targetName: 'Site Diary ($today)',
+          description: 'Created site diary entry for date $today',
+        );
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -775,14 +879,13 @@ class _CreateDiaryEntrySheetState
                       ..._photoUrls.map(
                         (url) => Stack(
                           children: [
-                            ClipRRect(
+                            CachedImageWidget(
+                              imageUrl: url,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              memCacheWidth: 160,
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                url,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                              ),
                             ),
                             Positioned(
                               top: 4,

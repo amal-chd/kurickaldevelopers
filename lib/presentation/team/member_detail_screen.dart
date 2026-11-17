@@ -365,7 +365,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen> {
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    task.dueDate.formatted,
+                                                    task.dueDate.compactDateTime,
                                                     style: TextStyle(
                                                       fontSize: 12,
                                                       color: task.isOverdue

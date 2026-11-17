@@ -12,6 +12,29 @@ import '../shared/widgets/loading_widget.dart';
 import '../shared/widgets/error_widget.dart';
 import '../shared/widgets/empty_state_widget.dart';
 
+/// Groups notifications about the same thing (same relatedId) into stacks,
+/// preserving newest-first order. Each returned list is one stack; its first
+/// item is the latest. Notifications without a relatedId stay on their own.
+List<List<NotificationModel>> _stackNotifications(List<NotificationModel> list) {
+  final stacks = <List<NotificationModel>>[];
+  final byRelated = <String, List<NotificationModel>>{};
+  for (final n in list) {
+    if (n.relatedId.isNotEmpty) {
+      final existing = byRelated[n.relatedId];
+      if (existing != null) {
+        existing.add(n);
+      } else {
+        final s = <NotificationModel>[n];
+        byRelated[n.relatedId] = s;
+        stacks.add(s);
+      }
+    } else {
+      stacks.add([n]);
+    }
+  }
+  return stacks;
+}
+
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
@@ -108,7 +131,8 @@ class NotificationsScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  ...entry.value.map((n) {
+                  ..._stackNotifications(entry.value).map((stack) {
+                    final n = stack.first; // newest in the stack
                     return Dismissible(
                       key: Key(n.id),
                       background: Container(
@@ -161,22 +185,26 @@ class NotificationsScreen extends ConsumerWidget {
                         ),
                       ),
                       onDismissed: (direction) {
-                        if (direction == DismissDirection.startToEnd) {
-                          repo.markAsRead(n.id, currentUid);
-                        } else if (n.userId.isEmpty) {
-                          // Broadcast: a shared doc — dismiss for THIS user only
-                          // (mark read). Deleting it would remove it for everyone
-                          // and is blocked by the security rules anyway.
-                          repo.markAsRead(n.id, currentUid);
-                        } else {
-                          // Targeted notification (their own) — safe to delete.
-                          repo.deleteNotification(n.id);
+                        // Acts on every notification in the stack.
+                        for (final s in stack) {
+                          if (direction == DismissDirection.startToEnd) {
+                            repo.markAsRead(s.id, currentUid);
+                          } else if (s.userId.isEmpty) {
+                            // Broadcast: mark read for THIS user (delete would
+                            // remove it for everyone and is blocked by rules).
+                            repo.markAsRead(s.id, currentUid);
+                          } else {
+                            repo.deleteNotification(s.id);
+                          }
                         }
                       },
                       child: _NotificationTile(
                         notification: n,
+                        stackCount: stack.length,
                         onTap: () {
-                          repo.markAsRead(n.id, currentUid);
+                          for (final s in stack) {
+                            repo.markAsRead(s.id, currentUid);
+                          }
                           _navigate(context, n);
                         },
                       ),
@@ -225,7 +253,17 @@ class NotificationsScreen extends ConsumerWidget {
 class _NotificationTile extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
-  const _NotificationTile({required this.notification, required this.onTap});
+  final int stackCount; // >1 = this tile represents a stack of related notifications
+  const _NotificationTile({
+    required this.notification,
+    required this.onTap,
+    this.stackCount = 1,
+  });
+
+  String get _cleanTitle => notification.title
+      .replaceAll('New Comment on ', '')
+      .replaceAll('Task Status Updated on ', '')
+      .replaceAll('New Comment on Task', 'Task');
 
   IconData get _icon {
     switch (notification.type) {
@@ -330,18 +368,59 @@ class _NotificationTile extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                notification.title,
-                                style: TextStyle(
-                                  fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-                                  fontSize: 14,
-                                  color: AppTheme.onSurface,
-                                  fontFamily: 'Plus Jakarta Sans',
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      stackCount > 1
+                                          ? 'Updates to: $_cleanTitle'
+                                          : notification.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: isUnread
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                        fontSize: 14,
+                                        color: AppTheme.onSurface,
+                                        fontFamily: 'Plus Jakarta Sans',
+                                      ),
+                                    ),
+                                  ),
+                                  if (stackCount > 1) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary
+                                            .withValues(alpha: 0.10),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.layers_rounded,
+                                              size: 11, color: AppTheme.primary),
+                                          const SizedBox(width: 3),
+                                          Text('$stackCount',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppTheme.primary,
+                                                  fontFamily:
+                                                      'Plus Jakarta Sans')),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                notification.body,
+                                stackCount > 1
+                                    ? 'Latest: ${notification.body}'
+                                    : notification.body,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

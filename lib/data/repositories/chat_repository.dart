@@ -8,6 +8,7 @@ import '../services/push_sender.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -70,11 +71,11 @@ class ChatRepository {
 
   Stream<List<ChatChannelModel>> watchUserChannels(String uid, [int attempt = 0]) {
     final mine = _supabase.from('chat_channels').stream(primaryKey: ['id'])
-        .map((list) => list.where((data) => (data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false).map(_fromChannel).toList());
+        .tenantScoped().map((list) => list.where((data) => (data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false).map(_fromChannel).toList());
 
     final announcements = _supabase.from('chat_channels').stream(primaryKey: ['id'])
         .eq('type', 'announcement')
-        .map((list) => list.map(_fromChannel).toList())
+        .tenantScoped().map((list) => list.map(_fromChannel).toList())
         .onErrorReturn(<ChatChannelModel>[]);
 
     final combined = Rx.combineLatest2<List<ChatChannelModel>, List<ChatChannelModel>, List<ChatChannelModel>>(
@@ -101,7 +102,7 @@ class ChatRepository {
   Stream<ChatChannelModel?> watchChannel(String channelId, [int attempt = 0]) {
     return _supabase.from('chat_channels').stream(primaryKey: ['id'])
         .eq('id', channelId)
-        .map((list) => list.isEmpty ? null : _fromChannel(list.first))
+        .tenantScoped().map((list) => list.isEmpty ? null : _fromChannel(list.first))
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -239,7 +240,7 @@ class ChatRepository {
         .eq('channel_id', channelId)
         .order('created_at', ascending: false)
         .limit(limit)
-        .map((list) => list.map(_fromMessage).toList())
+        .tenantScoped().map((list) => list.map(_fromMessage).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -408,7 +409,7 @@ class ChatRepository {
   Stream<List<String>> watchTypingNames(String channelId, String myUid, [int attempt = 0]) {
     return _supabase.from('chat_typing').stream(primaryKey: ['channel_id', 'user_id'])
         .eq('channel_id', channelId)
-        .map((list) => list.where((d) => d['user_id'] != myUid).map((d) => (d['name'] as String?) ?? '').where((n) => n.isNotEmpty).toSet().toList())
+        .tenantScoped().map((list) => list.where((d) => d['user_id'] != myUid).map((d) => (d['name'] as String?) ?? '').where((n) => n.isNotEmpty).toSet().toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -529,7 +530,7 @@ class ChatRepository {
 
   Stream<int> watchTotalUnread(String uid, [int attempt = 0]) {
     return _supabase.from('chat_channels').stream(primaryKey: ['id'])
-        .map((list) {
+        .tenantScoped().map((list) {
           final filtered = list.where((data) => ((data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false) && data['is_archived'] == false);
           int total = 0;
           for (final doc in filtered) {

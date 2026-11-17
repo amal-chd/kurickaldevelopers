@@ -1381,7 +1381,10 @@ class _UserHistorySheetState extends ConsumerState<_UserHistorySheet> {
     List<AttendanceModel> records,
   ) {
     // Stats
-    final presentDays = records.length;
+    // Count DISTINCT calendar dates, not rows: a user may have one attendance
+    // row per project (row id = userId_projectId_date), so multi-site days would
+    // otherwise inflate "Days Present" past the days in the month (e.g. 41).
+    final presentDays = records.map((r) => r.date).toSet().length;
     final totalMinutes = records.fold<int>(
       0,
       (acc, r) => acc + r.durationMinutes,
@@ -1898,8 +1901,13 @@ Future<void> _showEditAttendanceSheet(
 }) async {
   DateTime checkIn = record.checkInTime;
   DateTime? checkOut = record.checkOutTime;
+  // Overtime override is entered in HOURS (stored as minutes). Show whole
+  // hours as an integer (e.g. "2") and part-hours as a decimal (e.g. "1.5").
+  final otMin = record.overtimeOverrideMinutes;
   final otController = TextEditingController(
-    text: record.overtimeOverrideMinutes?.toString() ?? '',
+    text: otMin == null
+        ? ''
+        : (otMin % 60 == 0 ? (otMin ~/ 60).toString() : (otMin / 60).toString()),
   );
 
   await showModalBottomSheet(
@@ -2041,15 +2049,15 @@ Future<void> _showEditAttendanceSheet(
                 const SizedBox(height: 16),
                 // Overtime Override
                 const Text(
-                  'Overtime Override (Minutes)',
+                  'Overtime Override (Hours)',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.onSurface),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: otController,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    hintText: 'e.g. 60 (leave empty for auto 8h calculation)',
+                    hintText: 'e.g. 1.5 (leave empty for auto 8h calculation)',
                     hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                     filled: true,
                     fillColor: AppTheme.surfaceAlt,
@@ -2096,9 +2104,10 @@ Future<void> _showEditAttendanceSheet(
                             updates['checkOutTime'] = AppDateUtils.toTimestamp(checkOut!);
                           }
                           if (otController.text.trim().isNotEmpty) {
-                            final ot = int.tryParse(otController.text.trim());
-                            if (ot != null) {
-                              updates['overtimeOverrideMinutes'] = ot;
+                            final otHours = double.tryParse(otController.text.trim());
+                            if (otHours != null) {
+                              // Stored in minutes; entered in hours.
+                              updates['overtimeOverrideMinutes'] = (otHours * 60).round();
                             }
                           } else {
                             // Supabase clears a column with null (FieldValue is
@@ -2206,13 +2215,16 @@ class _OvertimeStaffRow extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (records) {
         int totalOvertimeMins = 0;
-        int daysWithOt = 0;
+        // Distinct dates with overtime — a user may have one row per project on
+        // the same day, so counting rows would overcount the days-with-overtime.
+        final otDates = <String>{};
         for (final r in records) {
           if (r.overtimeMinutes > 0) {
             totalOvertimeMins += r.overtimeMinutes;
-            daysWithOt++;
+            otDates.add(r.date);
           }
         }
+        final daysWithOt = otDates.length;
 
         // Don't show staff with zero overtime
         if (totalOvertimeMins == 0) return const SizedBox.shrink();

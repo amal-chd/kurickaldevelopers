@@ -6,6 +6,7 @@ import '../models/project_model.dart';
 import '../models/milestone_model.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -75,14 +76,14 @@ class ProjectRepository {
   Stream<List<ProjectModel>> watchUserProjects(List<String> projectIds) {
     if (projectIds.isEmpty) return Stream.value([]);
     return _supabase.from(_projects).stream(primaryKey: ['id']).inFilter('id', projectIds)
-        .map((list) => list.map((data) => ProjectModel.fromMap(_toCamelCase(data), data['id'])).toList())
+        .tenantScoped().map((list) => list.map((data) => ProjectModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<ProjectModel>> watchMyProjects(String uid, [int attempt = 0]) async* {
     try {
       yield* _supabase.from(_projects).stream(primaryKey: ['id'])
-          .map((list) {
+          .tenantScoped().map((list) {
             final models = list
                 .where((data) => (data['member_ids'] as List<dynamic>?)?.contains(uid) ?? false)
                 .map((data) => ProjectModel.fromMap(_toCamelCase(data), data['id']))
@@ -98,7 +99,7 @@ class ProjectRepository {
   Stream<List<ProjectModel>> watchAllProjects([int attempt = 0]) async* {
     try {
       yield* _supabase.from(_projects).stream(primaryKey: ['id']).order('created_at', ascending: false)
-          .map((list) => list.map((data) => ProjectModel.fromMap(_toCamelCase(data), data['id'])).toList());
+          .tenantScoped().map((list) => list.map((data) => ProjectModel.fromMap(_toCamelCase(data), data['id'])).toList());
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -106,7 +107,7 @@ class ProjectRepository {
 
   Stream<ProjectModel?> watchProject(String projectId, [int attempt = 0]) async* {
     try {
-      yield* _supabase.from(_projects).stream(primaryKey: ['id']).eq('id', projectId).map((list) {
+      yield* _supabase.from(_projects).stream(primaryKey: ['id']).eq('id', projectId).tenantScoped().map((list) {
         if (list.isEmpty) return null;
         return ProjectModel.fromMap(_toCamelCase(list.first), list.first['id']);
       });
@@ -148,9 +149,13 @@ class ProjectRepository {
 
   Future<String> createMilestone(String projectId, MilestoneModel milestone) async {
     try {
-      var map = _toSnakeCase(milestone.toFirestore());
-      map['project_id'] = projectId;
-      final ref = await FirebaseFirestore.instance.collection('projects').doc(projectId).collection('milestones').add(map); return ref.id;
+      // Milestones live in Firestore (camelCase, like the reader + the
+      // orderBy('dueDate')). Do NOT snake_case here — that wrote `due_date`,
+      // which orderBy('dueDate') silently excludes, hiding the milestone.
+      final map = milestone.toFirestore();
+      map['projectId'] = projectId;
+      final ref = await FirebaseFirestore.instance.collection('projects').doc(projectId).collection('milestones').add(map);
+      return ref.id;
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }

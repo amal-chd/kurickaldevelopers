@@ -4,6 +4,7 @@ import '../models/attendance_model.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp, GeoPoint;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -106,7 +107,7 @@ class AttendanceRepository {
     final today = AppDateUtils.toYMD(DateTime.now());
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .map((list) {
+        .tenantScoped().map((list) {
           final filtered = list.where((data) => data['project_id'] == projectId && data['date'] == today);
           return filtered.isEmpty ? null : _fromSupabase(filtered.first);
         })
@@ -116,7 +117,7 @@ class AttendanceRepository {
   Stream<List<AttendanceModel>> watchMonthAttendance(String userId, String month) {
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .map((list) => list.where((data) {
+        .tenantScoped().map((list) => list.where((data) {
           final d = data['date'] as String;
           return d.compareTo('$month-01') >= 0 && d.compareTo('$month-31') <= 0;
         }).map(_fromSupabase).toList())
@@ -128,13 +129,35 @@ class AttendanceRepository {
     try {
       final existing = await _supabase.from(_table).select().eq('id', id).maybeSingle();
       if (existing != null) {
+        // Already on site (checked in, not out) — nothing to do.
         if (existing['check_out_time'] == null) return id;
+
+        // Re-check-in after a check-out (2nd/3rd session of the day): bank the
+        // just-completed session into worked_minutes so total time is the SUM of
+        // sessions (the gap between them is not counted), then start a fresh
+        // session from the new check-in time/location.
+        final prevWorked = (existing['worked_minutes'] as num?)?.toInt() ?? 0;
+        int sessionMin = 0;
+        final ci = existing['check_in_time'] != null
+            ? DateTime.tryParse(existing['check_in_time'] as String)
+            : null;
+        final co = existing['check_out_time'] != null
+            ? DateTime.tryParse(existing['check_out_time'] as String)
+            : null;
+        if (ci != null && co != null) {
+          sessionMin = co.difference(ci).inMinutes;
+          if (sessionMin < 0) sessionMin = 0;
+        }
         await _supabase.from(_table).update({
+          'worked_minutes': prevWorked + sessionMin,
+          'check_in_time': record.checkInTime.toUtc().toIso8601String(),
+          'check_in_lat': record.checkInLocation.latitude,
+          'check_in_lng': record.checkInLocation.longitude,
+          'check_in_address': record.checkInAddress,
           'check_out_time': null,
           'check_out_lat': null,
           'check_out_lng': null,
           'check_out_address': null,
-          
         }).eq('id', id);
         return id;
       }
@@ -184,7 +207,7 @@ class AttendanceRepository {
   Stream<List<AttendanceModel>> watchTodayProjectAttendance(String projectId) {
     final today = AppDateUtils.toYMD(DateTime.now());
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId)
-        .map((list) => list.where((data) => data['date'] == today).map(_fromSupabase).toList())
+        .tenantScoped().map((list) => list.where((data) => data['date'] == today).map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -197,14 +220,14 @@ class AttendanceRepository {
 
   Stream<List<AttendanceModel>> watchAllAttendanceForDate(String date) {
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('date', date)
-        .map((list) => list.map(_fromSupabase).toList())
+        .tenantScoped().map((list) => list.map(_fromSupabase).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AttendanceModel>> watchUserAttendanceRange(String userId, String startDate, String endDate) {
     return _supabase.from(_table).stream(primaryKey: ['id'])
         .eq('user_id', userId)
-        .map((list) {
+        .tenantScoped().map((list) {
           final filtered = list.where((data) {
             final d = data['date'] as String;
             return d.compareTo(startDate) >= 0 && d.compareTo(endDate) <= 0;

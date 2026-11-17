@@ -258,13 +258,8 @@ class RoleDetailScreen extends ConsumerWidget {
   }
 
   bool _canEdit(WidgetRef ref, RoleModel role) {
-    if (role.isSystem) return false;
-    final myRole = ref.watch(currentRoleProvider).value;
-    if (myRole == null) return false;
-    // Admins (Lv 100) can edit all non-system roles
-    if (myRole.level >= 100) return true;
-    // Others can only edit roles below them
-    return role.level < myRole.level;
+    // No hierarchy — every non-system role is editable by role managers.
+    return !role.isSystem;
   }
 }
 

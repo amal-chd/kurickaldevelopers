@@ -15,6 +15,7 @@ import 'core/utils/navigator_key.dart';
 import 'data/services/fcm_service.dart';
 import 'data/services/offline_sync_service.dart';
 import 'firebase_options.dart';
+import 'core/tenant/tenant.dart';
 
 /// Background/terminated push handler. Must be a top-level function and
 /// initialise Firebase itself, since it runs in its own isolate. Alert
@@ -69,6 +70,9 @@ void main() async {
         accessToken: useFirebaseAuth
             ? () async => await FirebaseAuth.instance.currentUser?.getIdToken()
             : null,
+        // Multi-tenancy: stamps x-org-id (the user's organisation) on every
+        // REST / storage / functions request so RLS scopes data per company.
+        httpClient: TenantHttpClient(),
       );
     } catch (e) {
       debugPrint('Supabase init failed (uploads will be unavailable): $e');

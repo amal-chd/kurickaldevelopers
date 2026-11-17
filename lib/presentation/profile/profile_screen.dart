@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 import '../../core/enums/task_status.dart';
@@ -301,6 +302,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      _SectionCard(
+                        title: 'Help & Learning',
+                        children: [
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.info.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              ),
+                              child: const Icon(Icons.school_rounded, color: AppTheme.info, size: 20),
+                            ),
+                            title: const Text(
+                              'App Tutorial',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: AppTheme.onSurface,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'How to use Task Pilot — tasks, attendance, chat & more',
+                              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+                            onTap: () => context.push('/tutorial'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
@@ -519,9 +552,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       setStateDialog(() => loading = true);
                       try {
                         final user = fb_auth.FirebaseAuth.instance.currentUser;
+                        // Reauthenticate against the AUTH account's own email —
+                        // not the profile email, which can differ and makes the
+                        // credential invalid (the common "it doesn't work" case).
+                        final authEmail = (user?.email?.isNotEmpty ?? false) ? user!.email! : email;
                         if (user != null) {
                           final cred = fb_auth.EmailAuthProvider.credential(
-                            email: email,
+                            email: authEmail,
                             password: currentCtrl.text.trim(),
                           );
                           await user.reauthenticateWithCredential(cred);

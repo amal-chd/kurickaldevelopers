@@ -39,7 +39,8 @@ class TaskCard extends ConsumerWidget {
             }
             final now = DateTime.now();
             final isSameDay = task.dueDate.year == now.year && task.dueDate.month == now.month && task.dueDate.day == now.day;
-            if (now.isAfter(task.dueDate) && !isSameDay) {
+            final isMidnight = task.dueDate.hour == 0 && task.dueDate.minute == 0 && task.dueDate.second == 0;
+            if (now.isAfter(task.dueDate) && (!isSameDay || !isMidnight)) {
               return Border.all(color: AppTheme.error.withValues(alpha: 0.3), width: 1.0);
             }
             if (isSameDay) {
@@ -138,7 +139,7 @@ class TaskCard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    task.dueDate.formatted,
+                    task.dueDate.compactDateTime,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -146,8 +147,8 @@ class TaskCard extends ConsumerWidget {
                       fontFamily: 'Inter',
                     ),
                   ),
+                  const Spacer(),
                   if (task.assigneeIds.isNotEmpty) ...[
-                    const Spacer(),
                     Icon(
                       Icons.people_alt_rounded,
                       size: 14,
@@ -156,7 +157,7 @@ class TaskCard extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${task.assigneeIds.length}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textMuted,
                         fontFamily: 'Inter',
@@ -164,9 +165,9 @@ class TaskCard extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  if (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty) ...[
-                    const Spacer(),
-                    ref.watch(roleStreamProvider(task.assignedRoleId!)).when(
+                  if (task.assignedRoleIds.isNotEmpty || (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty)) ...[
+                    if (task.assigneeIds.isNotEmpty) const SizedBox(width: 6),
+                    ref.watch(roleStreamProvider(task.assignedRoleIds.isNotEmpty ? task.assignedRoleIds.first : task.assignedRoleId!)).when(
                           loading: () => const SizedBox(
                             width: 12,
                             height: 12,

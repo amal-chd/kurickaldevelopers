@@ -202,14 +202,6 @@ class _AdminHub extends ConsumerWidget {
                     iconColor: const Color(0xFF8B5CF6),
                     onTap: () => context.push('/admin/roles'),
                   ),
-                  const _RowDivider(),
-                  _AdminRow(
-                    icon: Icons.assignment_ind_rounded,
-                    title: 'Task Assignment Rules',
-                    subtitle: 'Determine task assignment paths & permissions',
-                    iconColor: const Color(0xFF0EA5E9),
-                    onTap: () => context.push('/admin/task-assignment'),
-                  ),
                 ],
               ),
 

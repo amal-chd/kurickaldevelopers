@@ -171,10 +171,8 @@ class _CreateRoleScreenState extends ConsumerState<CreateRoleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Cap creation to strictly below caller's level (custom roles max out at 99)
-    final myLevel = ref.watch(currentRoleProvider).value?.level ?? 100;
-    // Admins (Lv 100) can manage up to Lv 100
-    final maxLevel = myLevel >= 100 ? 100 : (myLevel - 1).clamp(1, 99);
+    // No hierarchy cap — roles can be created at any level up to 100.
+    const maxLevel = 100;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.roleId != null ? 'Edit Role' : 'Create Role'),

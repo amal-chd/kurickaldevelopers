@@ -386,19 +386,44 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen>
                     .toList(),
                 null,
               ),
-              // Done
+              // Done — use the CURRENT user's own progress, not the global task
+              // status. A task the user finished sits at `under_review` (awaiting
+              // a manager's verification) or `done`; both mean "done by me", so
+              // both belong here. (Global status only flips to done on verify,
+              // which is why completed tasks were vanishing from this tab.)
               _buildEmployeeList(
-                myTasks.where((t) => t.status == TaskStatus.done).toList(),
+                myTasks.where((t) {
+                  final s = t.statusForUser(currentUser?.uid ?? '');
+                  return s == TaskStatus.done || s == TaskStatus.underReview;
+                }).toList(),
                 null,
               ),
-              // Overdue
+              // Overdue (for me) — past due AND I have not finished my part yet.
+              // A task I've submitted for review or completed must not nag me.
               _buildEmployeeList(
-                myTasks.where((t) => t.isOverdue).toList(),
+                myTasks.where((t) {
+                  final s = t.statusForUser(currentUser?.uid ?? '');
+                  return t.dueDate.isBefore(DateTime.now()) &&
+                      s != TaskStatus.done &&
+                      s != TaskStatus.underReview;
+                }).toList(),
                 'overdue',
               ),
             ],
           );
         },
+      ),
+      floatingActionButton: PermissionGate(
+        permission: 'tasks_create',
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/tasks/create'),
+          backgroundColor: AppTheme.primary,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'New Task',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
     );
   }
@@ -597,7 +622,7 @@ class _ManagerTaskRow extends ConsumerWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          task.dueDate.formatted,
+                          task.dueDate.compactDateTime,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -623,6 +648,13 @@ class _ManagerTaskRow extends ConsumerWidget {
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.w600,
                             ),
+                          ),
+                        ] else if (task.assignedRoleIds.isNotEmpty || (task.assignedRoleId != null && task.assignedRoleId!.isNotEmpty)) ...[
+                          const SizedBox(width: 12),
+                          const Icon(
+                            Icons.shield_outlined,
+                            size: 14,
+                            color: AppTheme.primary,
                           ),
                         ],
                       ],
@@ -796,7 +828,7 @@ class _EmployeeTaskCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        task.dueDate.formatted,
+                        task.dueDate.compactDateTime,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

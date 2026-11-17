@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/utils/error_translator.dart';
+import '../../core/tenant/tenant.dart';
 
 class AuthRepository {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -203,6 +204,7 @@ class AuthRepository {
       }
     } catch (_) {}
 
+    Tenant.reset();
     if (kIsWeb) {
       await _auth.signOut();
     } else {

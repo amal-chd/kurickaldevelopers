@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme.dart';
 import '../../core/constants/app_strings.dart';
-import '../../core/enums/approval_status.dart';
 import '../shared/widgets/app_logo.dart';
 import '../../core/extensions/datetime_ext.dart';
 import '../../core/utils/responsive.dart';
@@ -17,9 +16,10 @@ import '../../providers/task_provider.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/role_provider.dart';
+import '../../providers/attendance_provider.dart';
+import '../../data/models/attendance_model.dart';
 import '../shared/widgets/loading_widget.dart';
 import '../shared/widgets/avatar_widget.dart';
-import '../tasks/widgets/task_card.dart';
 import '../../core/enums/task_status.dart';
 import '../../core/utils/date_utils.dart';
 import '../../core/constants/app_colors.dart';
@@ -61,7 +61,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final roleAsync = ref.watch(currentRoleProvider);
-    final tasksAsync = ref.watch(userTasksProvider);
+    // Managers/owners (tasks_view_all) see org-wide metrics; everyone else sees
+    // their own tasks. Without this the dashboard counted only the viewer's
+    // personal tasks, so an owner saw "Total 1 / Overdue 0 / Awaiting Review 0".
+    final canViewAllTasks = ref.watch(hasPermissionProvider('tasks_view_all'));
+    final tasksAsync = canViewAllTasks
+        ? ref.watch(allTasksProvider)
+        : ref.watch(userTasksProvider);
     final projectsAsync = ref.watch(projectsProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final isWide = Responsive.isWide(context);
@@ -83,6 +89,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onRefresh: () async {
               HapticFeedback.lightImpact();
               ref.invalidate(userTasksProvider);
+              ref.invalidate(allTasksProvider);
               ref.invalidate(projectsProvider);
             },
             child: CustomScrollView(
@@ -201,16 +208,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       // Analytics + Team Member Statistics are owner-only.
                       final isOwner =
                           (ref.watch(currentRoleProvider).value?.level ?? 0) >= 100;
+                      final todayStr = AppDateUtils.toYMD(DateTime.now());
+                      final attendanceAsync = isOwner 
+                          ? ref.watch(allAttendanceDateProvider(todayStr)) 
+                          : const AsyncData(<AttendanceModel>[]);
 
                       return tasksAsync.when(
                         loading: () => const ShimmerList(count: 4),
                         error: (_, __) => const SizedBox.shrink(),
                         data: (tasks) {
+                          // The personal KPI tiles (Due Today / Overdue / Total)
+                          // count ONLY tasks assigned to this user — directly or
+                          // via their role — not org-wide totals. (The owner
+                          // analytics below still use the full `tasks` list.)
+                          final myTasks = tasks.where((t) =>
+                              t.assigneeIds.contains(user.uid) ||
+                              (user.roleId.isNotEmpty &&
+                                  t.assignedRoleIds.contains(user.roleId))).toList();
                           final today =
-                              tasks.where((t) => t.dueDate.isToday).length;
+                              myTasks.where((t) => t.dueDate.isToday).length;
                           final overdue =
-                              tasks.where((t) => t.isOverdue).length;
-                          final totalTasks = tasks.length;
+                              myTasks.where((t) => t.isOverdue).length;
+                          final totalTasks = myTasks.length;
 
                           return projectsAsync.when(
                             loading: () => const SizedBox.shrink(),
@@ -268,33 +287,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                               // Build permission-aware KPI list
                               final kpiCards = <_KpiCardData>[
+                                if (isOwner)
+                                  _KpiCardData(
+                                    title: 'Present Today',
+                                    value: '${attendanceAsync.value?.map((a) => a.userId).toSet().length ?? 0}',
+                                    icon: Icons.how_to_reg_rounded,
+                                    accent: AppTheme.success,
+                                    badge: 'staff',
+                                    route: '/team',
+                                    subtitle: 'Staff checked in',
+                                  ),
                                 _KpiCardData(
                                   title: AppStrings.tasksDueToday,
                                   value: '$today',
                                   icon: Icons.today_rounded,
-                                  color: AppTheme.pastelBlue,
+                                  accent: AppTheme.info,
+                                  badge: 'today',
                                   route: '/tasks',
-                                  subtitle: 'Due today',
+                                  subtitle: 'Due before end of day',
                                 ),
                                 _KpiCardData(
                                   title: AppStrings.overdueTasks,
                                   value: '$overdue',
                                   icon: Icons.warning_amber_rounded,
-                                  color: overdue > 0
-                                      ? AppTheme.pastelPink
-                                      : AppTheme.pastelGreen,
+                                  accent: overdue > 0
+                                      ? AppTheme.error
+                                      : AppTheme.success,
+                                  badge: overdue > 0 ? 'needs action' : 'on track',
                                   route: '/tasks',
                                   subtitle: overdue > 0
-                                      ? 'Need attention'
+                                      ? 'Past their due date'
                                       : 'All on track',
                                 ),
                                 _KpiCardData(
                                   title: 'Total Tasks',
                                   value: '$totalTasks',
                                   icon: Icons.assignment_rounded,
-                                  color: AppTheme.pastelYellow,
+                                  accent: AppTheme.accent,
+                                  badge: 'all',
                                   route: '/tasks',
-                                  subtitle: 'All assigned tasks',
+                                  subtitle: canViewAllTasks
+                                      ? 'Across all projects'
+                                      : 'Assigned to you',
                                 ),
                                 if (canApprove)
                                   _KpiCardData(
@@ -302,7 +336,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     value:
                                         '${tasks.where((t) => t.status == TaskStatus.underReview).length}',
                                     icon: Icons.fact_check_rounded,
-                                    color: AppTheme.pastelPurple,
+                                    accent: AppTheme.statusReview,
+                                    badge: 'your review',
                                     route: '/tasks',
                                     subtitle: 'Pending your approval',
                                   ),
@@ -311,7 +346,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     title: AppStrings.activeProjects,
                                     value: '${activeProjects.length}',
                                     icon: Icons.business_rounded,
-                                    color: AppTheme.pastelPurple,
+                                    accent: AppTheme.success,
+                                    badge: 'active',
                                     route: '/projects',
                                     subtitle: 'Sites running',
                                   ),
@@ -396,34 +432,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                               context.go('/tasks');
                                             },
                                           ),
-                                          SizedBox(
-                                            height: 220,
-                                            child: ListView.builder(
-                                              scrollDirection: Axis.horizontal,
-                                              padding: Responsive.screenPadding(
-                                                context,
-                                              ),
-                                              itemCount: tasks.length > 6
-                                                  ? 6
-                                                  : tasks.length,
-                                              itemBuilder: (_, i) => SizedBox(
-                                                width: 230,
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        right: 12,
-                                                      ),
-                                                  child: TaskCard(
-                                                    task: tasks[i],
+                                          Padding(
+                                            padding: Responsive.screenPadding(
+                                              context,
+                                            ).copyWith(top: 0),
+                                            child: Column(
+                                              children: [
+                                                for (final t in tasks.take(5))
+                                                  _MiniTaskRow(
+                                                    task: t,
+                                                    projects: projects,
                                                     onTap: () {
                                                       HapticFeedback.lightImpact();
                                                       context.push(
-                                                        '/tasks/${tasks[i].id}',
+                                                        '/tasks/${t.id}',
                                                       );
                                                     },
                                                   ),
-                                                ),
-                                              ),
+                                              ],
                                             ),
                                           ),
                                         ] else ...[
@@ -591,6 +617,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       color: AppTheme.statusReview,
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // On-time vs late completion split.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(100),
+                child: LinearProgressIndicator(
+                  value: (onTimeRate / 100).clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: AppTheme.error.withValues(alpha: 0.85),
+                  valueColor: const AlwaysStoppedAnimation(AppTheme.success),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('$onTimeRate% on time',
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.success)),
+                  Text('$lateRate% late',
+                      style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.error)),
                 ],
               ),
               const SizedBox(height: 24),
@@ -964,96 +1017,116 @@ class _HeroGreeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final greetingIcon = _getGreetingIcon();
-    final greetingText = AppStrings.greeting(user.name.trim().split(' ').first);
+    final firstName = user.name.trim().split(' ').first;
+    final greetingText = AppStrings.greeting(firstName);
     final commaIndex = greetingText.indexOf(',');
-    final greetingPhrase = commaIndex != -1 ? greetingText.substring(0, commaIndex) : greetingText;
+    final greetingPhrase =
+        commaIndex != -1 ? greetingText.substring(0, commaIndex) : greetingText;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
         Responsive.screenPadding(context).left,
-        12,
-        Responsive.screenPadding(context).right,
         8,
+        Responsive.screenPadding(context).right,
+        4,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.primary.withValues(alpha: 0.15),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primary, AppTheme.primaryMid],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(100),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.verified_rounded,
-                      color: AppTheme.primary,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      roleName,
-                      style: GoogleFonts.inter(
-                        color: AppTheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_rounded,
+                          color: AppTheme.accent, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        roleName,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(
-                greetingIcon,
-                color: AppTheme.accent,
-                size: 26,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '$greetingPhrase,',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.onSurface,
-                    height: 1.1,
-                    letterSpacing: -0.5,
+                    ],
                   ),
                 ),
+                const Spacer(),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(greetingIcon, color: AppTheme.accent, size: 22),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(
+              '$greetingPhrase,',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: 0.72),
               ),
-            ],
-          ),
-          Text(
-            '${user.name.trim().split(' ').first}!',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.onSurface,
-              height: 1.1,
-              letterSpacing: -1.0,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: AppTheme.textMuted,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 2),
+            Text(
+              firstName,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                height: 1.05,
+                letterSpacing: -0.5,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today_rounded,
+                    size: 13, color: Colors.white.withValues(alpha: 0.55)),
+                const SizedBox(width: 6),
+                Text(
+                  DateFormat('EEEE, d MMMM').format(DateTime.now()),
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1064,14 +1137,16 @@ class _HeroGreeting extends StatelessWidget {
 class _KpiCardData {
   final String title, value, subtitle;
   final IconData icon;
-  final Color color;
+  final Color accent;   // saturated colour for the icon tile + trend pill
+  final String badge;   // short trend/status label
   final String route;
   const _KpiCardData({
     required this.title,
     required this.value,
     required this.subtitle,
     required this.icon,
-    required this.color,
+    required this.accent,
+    required this.badge,
     required this.route,
   });
 }
@@ -1272,12 +1347,12 @@ class _QuickActionsRow extends ConsumerWidget {
     ];
 
     return SizedBox(
-      height: 130,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: Responsive.screenPadding(context),
         itemCount: actions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (_, i) => _QuickActionTile(action: actions[i]),
       ),
     );
@@ -1313,35 +1388,44 @@ class _QuickActionTile extends StatelessWidget {
           context.go(action.route);
         }
       },
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-          boxShadow: AppTheme.softShadow,
-        ),
+      child: SizedBox(
+        width: 72,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              width: 58,
+              height: 58,
               decoration: BoxDecoration(
-                color: action.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    action.color,
+                    Color.lerp(action.color, Colors.black, 0.24) ?? action.color,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(19),
+                boxShadow: [
+                  BoxShadow(
+                    color: action.color.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              child: Icon(action.icon, color: action.color, size: 24),
+              child: Icon(action.icon, color: Colors.white, size: 24),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               action.label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.onSurface,
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textMuted,
               ),
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -1401,6 +1485,146 @@ class _SectionHeader extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── My Tasks · compact row ───────────────────────────────────────────────────
+
+class _MiniTaskRow extends StatelessWidget {
+  final TaskModel task;
+  final List<ProjectModel> projects;
+  final VoidCallback onTap;
+  const _MiniTaskRow({
+    required this.task,
+    required this.projects,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final prio = task.priority.color;
+    final statusColor = task.status.color;
+    final overdue = task.isOverdue;
+
+    String projectName = '';
+    for (final p in projects) {
+      if (p.id == task.projectId) {
+        projectName = p.name;
+        break;
+      }
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: prio,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(16),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          _tag(task.priority.label.toUpperCase(), prio),
+                          const Spacer(),
+                          _tag(task.status.label, statusColor, pill: true),
+                        ],
+                      ),
+                      const SizedBox(height: 9),
+                      Text(
+                        task.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: overdue ? AppTheme.error : AppTheme.textLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Due ${task.dueDate.compactDateTime}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: overdue ? AppTheme.error : AppTheme.textLight,
+                            ),
+                          ),
+                          if (projectName.isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            Container(width: 3, height: 3, decoration: BoxDecoration(color: AppTheme.textLight, shape: BoxShape.circle)),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                projectName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textLight,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tag(String text, Color color, {bool pill = false}) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: pill ? 9 : 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(pill ? 100 : 6),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: pill ? 10.5 : 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+          letterSpacing: pill ? 0 : 0.4,
+        ),
       ),
     );
   }
@@ -1770,7 +1994,7 @@ class _KpiGridDynamic extends StatelessWidget {
               children: [
                 Expanded(
                   child: AspectRatio(
-                    aspectRatio: 1.15,
+                    aspectRatio: 1.02,
                     child: _buildCard(context, cards[i]),
                   ),
                 ),
@@ -1778,7 +2002,7 @@ class _KpiGridDynamic extends StatelessWidget {
                 if (i + 1 < cards.length)
                   Expanded(
                     child: AspectRatio(
-                      aspectRatio: 1.15,
+                      aspectRatio: 1.02,
                       child: _buildCard(context, cards[i + 1]),
                     ),
                   )
@@ -1797,61 +2021,89 @@ class _KpiGridDynamic extends StatelessWidget {
         HapticFeedback.lightImpact();
         context.go(card.route);
       },
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: card.color,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: card.color.withValues(alpha: 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppTheme.softShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
+                    color: card.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(card.icon, color: AppTheme.onSurface.withValues(alpha: 0.8), size: 20),
+                  child: Icon(card.icon, color: card.accent, size: 18),
                 ),
                 const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 12,
-                  color: AppTheme.onSurface.withValues(alpha: 0.4),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: card.accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      card.badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: card.accent,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            const Spacer(),
-            Text(
-              card.value,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              card.title,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.onSurface,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  card.value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.onSurface,
+                    height: 1.0,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  card.title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  card.subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textMuted,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ],
         ),

@@ -465,6 +465,7 @@ class _MyCheckInCard extends ConsumerWidget {
         ),
         data: (record) {
           final isCheckedIn = record != null && record.checkOutTime == null;
+          final isCheckedOut = record != null && record.checkOutTime != null;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,7 +482,9 @@ class _MyCheckInCard extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                isCheckedIn ? 'Checked In' : 'Not Checked In',
+                isCheckedIn
+                    ? 'Checked In'
+                    : (isCheckedOut ? 'Checked Out' : 'Not Checked In'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -494,6 +497,17 @@ class _MyCheckInCard extends ConsumerWidget {
                   'Since ${DateFormat('h:mm a').format(record.checkInTime)}',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
+                if (record.workedMinutes > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '+ ${record.workedMinutes ~/ 60 > 0 ? '${record.workedMinutes ~/ 60}h ' : ''}${record.workedMinutes % 60}m logged from earlier session',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
                 if (record.checkInAddress != null) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -538,52 +552,6 @@ class _MyCheckInCard extends ConsumerWidget {
                     ],
                   ),
                 ],
-                if (record.checkOutTime != null) ...[
-                  if (record.checkOutAddress != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.logout_rounded,
-                          size: 12,
-                          color: Colors.white54,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Out: ${record.checkOutAddress!}',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else if (record.checkOutLocation != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.logout_rounded,
-                          size: 12,
-                          color: Colors.white38,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Out: ${record.checkOutLocation!.latitude.toStringAsFixed(4)}, '
-                          '${record.checkOutLocation!.longitude.toStringAsFixed(4)}',
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
                 if (!record.isWithinGeofence) ...[
                   const SizedBox(height: 6),
                   Container(
@@ -613,6 +581,52 @@ class _MyCheckInCard extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                ],
+              ] else if (isCheckedOut) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Total worked today: ${record.durationFormatted}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Last session: ${DateFormat('h:mm a').format(record.checkInTime)} – ${DateFormat('h:mm a').format(record.checkOutTime!)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                if (record.workedMinutes > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Includes ${record.workedMinutes ~/ 60 > 0 ? '${record.workedMinutes ~/ 60}h ' : ''}${record.workedMinutes % 60}m from earlier completed sessions',
+                    style: const TextStyle(color: Colors.white60, fontSize: 10),
+                  ),
+                ],
+                if (record.checkOutAddress != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.logout_rounded,
+                        size: 12,
+                        color: Colors.white54,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Out: ${record.checkOutAddress!}',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -652,7 +666,7 @@ class _MyCheckInCard extends ConsumerWidget {
                         ? 'Please wait…'
                         : isCheckedIn
                         ? AppStrings.checkOut
-                        : AppStrings.checkIn,
+                        : (isCheckedOut ? 'Check In Again' : AppStrings.checkIn),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -1097,12 +1111,15 @@ class _MyOvertimeSection extends ConsumerWidget {
         for (final r in otRecords) {
           totalOtMins += r.overtimeMinutes;
         }
-        
+
         if (totalOtMins == 0) return const SizedBox.shrink(); // Hide if no overtime
-        
+
+        // Distinct calendar dates with overtime (a user may have one row per
+        // project on the same day, so counting rows would overcount OT days).
+        final otDays = otRecords.map((r) => r.date).toSet().length;
         final oH = totalOtMins ~/ 60;
         final oM = totalOtMins % 60;
-        final avgOt = otRecords.isNotEmpty ? totalOtMins ~/ otRecords.length : 0;
+        final avgOt = otDays > 0 ? totalOtMins ~/ otDays : 0;
         final avgH = avgOt ~/ 60;
         final avgM = avgOt % 60;
         
@@ -1178,7 +1195,7 @@ class _MyOvertimeSection extends ConsumerWidget {
                           const Text('OT Days', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
                           const SizedBox(height: 4),
                           Text(
-                            '${otRecords.length}',
+                            '$otDays',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.warning),
                           ),
                         ],

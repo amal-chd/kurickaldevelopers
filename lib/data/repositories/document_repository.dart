@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/document_model.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -77,7 +78,7 @@ class DocumentRepository {
 
   Stream<List<DocumentModel>> watchProjectDocuments(String projectId) {
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('created_at', ascending: false)
-        .map((list) => list.map((data) => DocumentModel.fromMap(_toCamelCase(data), data['id'])).toList())
+        .tenantScoped().map((list) => list.map((data) => DocumentModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -93,7 +94,7 @@ class DocumentRepository {
 
   Stream<DocumentModel?> watchDocument(String documentId) {
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('id', documentId)
-        .map((list) => list.isEmpty ? null : DocumentModel.fromMap(_toCamelCase(list.first), list.first['id']))
+        .tenantScoped().map((list) => list.isEmpty ? null : DocumentModel.fromMap(_toCamelCase(list.first), list.first['id']))
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 

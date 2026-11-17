@@ -18,9 +18,6 @@ class RoleManagementScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rolesAsync = ref.watch(allRolesProvider);
     final repo = ref.watch(roleRepositoryProvider);
-    final myRole = ref.watch(currentRoleProvider).value;
-    final myLevel = myRole?.level ?? 0;
-
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -57,8 +54,8 @@ class RoleManagementScreen extends ConsumerWidget {
                 return _HierarchyLegend(roles: sorted);
               }
               final role = sorted[i - 1];
-              // Can manage roles below your level OR you are an Admin (Level 100)
-              final canManage = role.level < myLevel || myLevel >= 100;
+              // No hierarchy — any non-system role can be managed.
+              const canManage = true;
               return _RoleHierarchyCard(
                 role: role,
                 onEdit: (!role.isSystem && canManage)

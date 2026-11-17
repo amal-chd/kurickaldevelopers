@@ -6,6 +6,7 @@ import '../../core/utils/error_translator.dart';
 import '../../core/utils/date_utils.dart';
 import '../services/audit_service.dart';
 import 'package:rxdart/rxdart.dart';
+import '../../core/tenant/tenant.dart';
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
   final map = <String, dynamic>{};
@@ -292,7 +293,7 @@ class AdminRepository {
   final _supabase = Supabase.instance.client;
 
   Stream<OrgSettings> watchOrgSettings() {
-    return _supabase.from('settings').stream(primaryKey: ['id']).eq('id', 'org').map((list) {
+    return Stream.fromFuture(Tenant.ensureResolved()).asyncExpand((_) => _supabase.from('settings').stream(primaryKey: ['id']).eq('id', Tenant.settingsId('org')).tenantScoped()).map((list) {
       if (list.isEmpty) return const OrgSettings();
       return OrgSettings.fromMap(_toCamelCase(list.first));
     }).handleError((e) => throw ErrorTranslator.translate(e));
@@ -300,7 +301,8 @@ class AdminRepository {
 
   Future<OrgSettings> getOrgSettings() async {
     try {
-      final data = await _supabase.from('settings').select().eq('id', 'org').maybeSingle();
+      await Tenant.ensureResolved();
+      final data = await _supabase.from('settings').select().eq('id', Tenant.settingsId('org')).maybeSingle();
       if (data == null) return const OrgSettings();
       return OrgSettings.fromMap(_toCamelCase(data));
     } catch (e) {
@@ -311,7 +313,8 @@ class AdminRepository {
   Future<void> saveOrgSettings(OrgSettings settings) async {
     try {
       var data = _toSnakeCase(settings.toMap());
-      data['id'] = 'org';
+      await Tenant.ensureResolved();
+      data['id'] = Tenant.settingsId('org');
       await _supabase.from('settings').upsert(data);
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -319,15 +322,21 @@ class AdminRepository {
   }
 
   Stream<TaskAssignmentConfig> watchTaskAssignmentConfig() {
-    return _supabase.from('settings').stream(primaryKey: ['id']).eq('id', 'task_assignment').map((list) {
+    return Stream.fromFuture(Tenant.ensureResolved()).asyncExpand((_) => _supabase.from('settings').stream(primaryKey: ['id']).eq('id', Tenant.settingsId('task_assignment')).tenantScoped()).map((list) {
       if (list.isEmpty) return const TaskAssignmentConfig();
-      return TaskAssignmentConfig.fromMap(_toCamelCase(list.first));
+      // Config lives in the generic `config` jsonb column (shared with the web).
+      final cfg = list.first['config'];
+      if (cfg is Map) {
+        return TaskAssignmentConfig.fromMap(Map<String, dynamic>.from(cfg));
+      }
+      return const TaskAssignmentConfig();
     }).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Future<TaskAssignmentConfig> getTaskAssignmentConfig() async {
     try {
-      final data = await _supabase.from('settings').select().eq('id', 'task_assignment').maybeSingle();
+      await Tenant.ensureResolved();
+      final data = await _supabase.from('settings').select().eq('id', Tenant.settingsId('task_assignment')).maybeSingle();
       if (data == null) return const TaskAssignmentConfig();
       return TaskAssignmentConfig.fromMap(_toCamelCase(data));
     } catch (e) {
@@ -337,11 +346,14 @@ class AdminRepository {
 
   Future<void> saveTaskAssignmentConfig(TaskAssignmentConfig config, String updatedBy) async {
     try {
-      var data = _toSnakeCase(config.toMap());
-      data['id'] = 'task_assignment';
-      data['updated_by'] = updatedBy;
-      data['updated_at'] = DateTime.now().toUtc().toIso8601String();
-      await _supabase.from('settings').upsert(data);
+      // Store in the `config` jsonb column — settings has no enabled/matrix/
+      // updated_by columns, so the old top-level write 400'd.
+      await Tenant.ensureResolved();
+      await _supabase.from('settings').upsert({
+        'id': Tenant.settingsId('task_assignment'),
+        'config': config.toMap(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      });
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -384,13 +396,13 @@ class AdminRepository {
 
   Stream<List<AuditLogEntry>> watchAuditLogs({int limit = 100}) {
     return _supabase.from('audit_logs').stream(primaryKey: ['id']).order('created_at', ascending: false).limit(limit)
-        .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
+        .tenantScoped().map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<List<AuditLogEntry>> watchAuditLogsByType(String targetType) {
     return _supabase.from('audit_logs').stream(primaryKey: ['id']).eq('target_type', targetType).order('created_at', ascending: false).limit(50)
-        .map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
+        .tenantScoped().map((list) => list.map((d) => AuditLogEntry.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -405,7 +417,7 @@ class AdminRepository {
 
   Stream<List<UserInvitation>> watchInvitations() {
     return _supabase.from('invitations').stream(primaryKey: ['id']).eq('status', 'pending').order('invited_at', ascending: false)
-        .map((list) => list.map((d) => UserInvitation.fromMap(_toCamelCase(d), d['id'])).toList())
+        .tenantScoped().map((list) => list.map((d) => UserInvitation.fromMap(_toCamelCase(d), d['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 
@@ -431,6 +443,7 @@ class AdminRepository {
         'data': data,
         'sent_at': DateTime.now().toUtc().toIso8601String(),
         'status': 'queued',
+        'orgId': await Tenant.ensureResolved(),
       });
     } catch (e) {
       throw ErrorTranslator.translate(e);
@@ -438,7 +451,9 @@ class AdminRepository {
   }
 
   Stream<List<Map<String, dynamic>>> watchBroadcastHistory({int limit = 30}) {
-    return FirebaseFirestore.instance.collection('broadcast_notifications').orderBy('sentAt', descending: true).limit(limit).snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()).handleError((e) => throw ErrorTranslator.translate(e));
+    return FirebaseFirestore.instance.collection('broadcast_notifications').orderBy('sentAt', descending: true).limit(limit).snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id)
+        // Legacy docs have no orgId (they belong to the original workspace).
+        .where((d) => ((d['orgId'] as String?) ?? Tenant.legacyOrgId) == Tenant.orgId).toList()).handleError((e) => throw ErrorTranslator.translate(e));
   }
 
   Stream<Map<String, int>> watchAdminStats() {
@@ -450,11 +465,11 @@ class AdminRepository {
       List<Map<String, dynamic>>,
       Map<String, int>
     >(
-      FirebaseFirestore.instance.collection('users').snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
-      FirebaseFirestore.instance.collection('users').where('isActive', isEqualTo: true).snapshots().map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
-      _supabase.from('projects').stream(primaryKey: ['id']),
-      _supabase.from('tasks').stream(primaryKey: ['id']),
-      _supabase.from('roles').stream(primaryKey: ['id']),
+      Stream.fromFuture(Tenant.ensureResolved()).asyncExpand((org) => FirebaseFirestore.instance.collection('users').where('orgId', isEqualTo: org).snapshots()).map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
+      Stream.fromFuture(Tenant.ensureResolved()).asyncExpand((org) => FirebaseFirestore.instance.collection('users').where('orgId', isEqualTo: org).where('isActive', isEqualTo: true).snapshots()).map((s) => s.docs.map((d) => d.data()..['id'] = d.id).toList()),
+      _supabase.from('projects').stream(primaryKey: ['id']).tenantScoped(),
+      _supabase.from('tasks').stream(primaryKey: ['id']).tenantScoped(),
+      _supabase.from('roles').stream(primaryKey: ['id']).tenantScoped(),
       (users, activeUsers, projects, tasks, roles) {
         return {
           'totalUsers': users.length,

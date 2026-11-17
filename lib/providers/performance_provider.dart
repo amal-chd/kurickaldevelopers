@@ -1,44 +1,67 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/performance_score_model.dart';
 import '../providers/auth_provider.dart';
+import '../core/tenant/tenant.dart';
 
-final firestoreProvider = Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
+// Performance scores live in Supabase (the web recalc engine writes them there).
+// The mobile app previously read a Firestore `performance_scores` collection that
+// the migration left empty — so scores, the leaderboard and badges all showed up
+// blank. These providers now read Supabase.
 
-// Stream of individual member score
-final performanceScoreProvider = StreamProvider.family<PerformanceScoreModel?, String>((ref, userId) {
-  final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('performance_scores')
-      .doc(userId)
-      .snapshots()
-      .map((doc) => doc.exists ? PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null);
-});
+final _supabase = Supabase.instance.client;
 
-// Stream of current logged-in user's score (observes snapshots directly to avoid deprecated .stream)
-final myPerformanceScoreProvider = StreamProvider<PerformanceScoreModel?>((ref) {
-  final authState = ref.watch(authStateProvider);
-  final user = authState.value;
-  if (user == null) {
-    return const Stream.empty();
+/// Map a Supabase performance_scores row → model. Prefers the full camelCase
+/// `data` jsonb snapshot written by the recalc engine; falls back to the
+/// individual snake_case columns for legacy rows that predate the snapshot.
+PerformanceScoreModel _scoreFromRow(Map<String, dynamic> row) {
+  final id = (row['id'] ?? row['user_id'] ?? '').toString();
+  final data = row['data'];
+  if (data is Map) {
+    return PerformanceScoreModel.fromMap(Map<String, dynamic>.from(data), id);
   }
-  final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('performance_scores')
-      .doc(user.uid)
-      .snapshots()
-      .map((doc) => doc.exists ? PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id) : null);
+  return PerformanceScoreModel.fromMap(<String, dynamic>{
+    'userId': row['user_id'],
+    'totalTasksCompleted': row['total_tasks_completed'],
+    'totalTasksAssigned': row['total_tasks_assigned'],
+    'tasksCompletedOnTime': row['tasks_completed_on_time'],
+    'tasksCompletedLate': row['tasks_completed_late'],
+    'tasksOverdue': row['tasks_overdue'],
+    'tasksRejected': row['tasks_rejected'],
+    'qualityScore': row['quality_score'],
+    'reliabilityScore': row['reliability_score'],
+    'overallPerformanceIndex': row['overall_performance_index'],
+    'avgCompletionHours': row['average_completion_time_hrs'],
+  }, id);
+}
+
+// Individual member score (id == user_id on this table).
+final performanceScoreProvider =
+    StreamProvider.family<PerformanceScoreModel?, String>((ref, userId) {
+  return _supabase
+      .from('performance_scores')
+      .stream(primaryKey: ['id'])
+      .eq('id', userId)
+      .tenantScoped().map((rows) => rows.isEmpty ? null : _scoreFromRow(rows.first));
 });
 
-// Stream of all scores (for leaderboards) sorted by OPI descending
+// Current logged-in user's score.
+final myPerformanceScoreProvider =
+    StreamProvider<PerformanceScoreModel?>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return const Stream.empty();
+  return _supabase
+      .from('performance_scores')
+      .stream(primaryKey: ['id'])
+      .eq('id', user.uid)
+      .tenantScoped().map((rows) => rows.isEmpty ? null : _scoreFromRow(rows.first));
+});
+
+// All scores for the leaderboard, highest OPI first.
 final leaderboardProvider = StreamProvider<List<PerformanceScoreModel>>((ref) {
-  final firestore = ref.watch(firestoreProvider);
-  return firestore
-      .collection('performance_scores')
-      .snapshots()
-      .map((snap) {
-        final list = snap.docs.map((doc) => PerformanceScoreModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
-        list.sort((a, b) => (b.overallPerformanceIndex ?? 0.0).compareTo(a.overallPerformanceIndex ?? 0.0));
-        return list;
-      });
+  return _supabase.from('performance_scores').stream(primaryKey: ['id']).tenantScoped().map((rows) {
+    final list = rows.map(_scoreFromRow).toList();
+    list.sort((a, b) => b.overallPerformanceIndex.compareTo(a.overallPerformanceIndex));
+    return list;
+  });
 });

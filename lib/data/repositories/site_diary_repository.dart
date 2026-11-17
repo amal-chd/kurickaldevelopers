@@ -5,6 +5,7 @@ import '../models/site_diary_model.dart';
 import '../../core/utils/error_translator.dart';
 import '../../core/utils/date_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -50,7 +51,7 @@ class SiteDiaryRepository {
 
   Stream<List<SiteDiaryModel>> watchProjectDiaries(String projectId) {
     return _supabase.from(_table).stream(primaryKey: ['id']).eq('project_id', projectId).order('date', ascending: false)
-        .map((list) => list.map((data) => SiteDiaryModel.fromMap(_toCamelCase(data), data['id'])).toList())
+        .tenantScoped().map((list) => list.map((data) => SiteDiaryModel.fromMap(_toCamelCase(data), data['id'])).toList())
         .handleError((e) => throw ErrorTranslator.translate(e));
   }
 

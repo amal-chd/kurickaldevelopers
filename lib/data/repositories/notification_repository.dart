@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 import '../../core/utils/error_translator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show DocumentSnapshot, SnapshotMetadata, DocumentReference, Timestamp;
+import '../../core/tenant/tenant.dart';
 
 
 Map<String, dynamic> _toCamelCase(Map<String, dynamic> data) {
@@ -48,7 +49,7 @@ class NotificationRepository {
       // user_id '' = broadcast to everyone (admin broadcasts) — web shows these
       // too; matching only the user's id hid them on mobile.
       yield* _supabase.from(_table).stream(primaryKey: ['id']).inFilter('user_id', [userId, '']).order('created_at', ascending: false)
-          .map((list) => list.map((data) => NotificationModel.fromMap(_toCamelCase(data), data['id'])).toList());
+          .tenantScoped().map((list) => list.map((data) => NotificationModel.fromMap(_toCamelCase(data), data['id'])).toList());
     } catch (e) {
       throw ErrorTranslator.translate(e);
     }
@@ -58,7 +59,7 @@ class NotificationRepository {
     // `is_read` is a jsonb per-user map ({uid: true}); a notification is unread
     // for this user unless their entry is true.
     return _supabase.from(_table).stream(primaryKey: ['id']).inFilter('user_id', [userId, ''])
-        .map((list) => list.where((data) {
+        .tenantScoped().map((list) => list.where((data) {
               final ir = data['is_read'];
               return !(ir is Map && ir[userId] == true);
             }).length)

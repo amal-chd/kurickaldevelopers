@@ -157,8 +157,15 @@ class TaskModel {
     'delaySeconds': delaySeconds,
   };
 
-  bool get isOverdue =>
-      dueDate.isBefore(DateTime.now()) && status != TaskStatus.done;
+  bool get isOverdue {
+    if (status == TaskStatus.done) return false;
+    final isMidnight = dueDate.hour == 0 && dueDate.minute == 0 && dueDate.second == 0;
+    if (isMidnight) {
+      final endOfDueDay = DateTime(dueDate.year, dueDate.month, dueDate.day, 23, 59, 59, 999);
+      return DateTime.now().isAfter(endOfDueDay);
+    }
+    return DateTime.now().isAfter(dueDate);
+  }
 
   TaskStatus statusForUser(String userId) {
     if (memberProgress.containsKey(userId)) {

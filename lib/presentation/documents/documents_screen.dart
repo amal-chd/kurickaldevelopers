@@ -12,6 +12,7 @@ import '../../core/extensions/datetime_ext.dart';
 import '../../core/utils/file_utils.dart';
 import '../../data/models/document_model.dart';
 import '../../data/services/storage_service.dart';
+import '../../data/services/audit_service.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/project_provider.dart';
 import '../../providers/user_provider.dart';
@@ -83,6 +84,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         uploadedAt: DateTime.now(),
       );
       await ref.read(documentRepositoryProvider).createDocument(doc);
+      ref.read(auditServiceProvider).log(
+        action: 'document.uploaded',
+        category: AuditCategory.document,
+        targetId: _selectedProjectId!,
+        targetName: picked.name,
+        description: 'Uploaded document "${picked.name}" for project $_selectedProjectId',
+        meta: {'size': picked.size, 'projectId': _selectedProjectId},
+      );
       _snack('Document uploaded', color: AppTheme.success);
     } catch (e) {
       _snack('Upload failed: $e', color: AppTheme.error);

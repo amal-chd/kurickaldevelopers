@@ -159,9 +159,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     WidgetRef ref,
     List<RoleModel> roles,
   ) {
-    final myLevel = ref.read(currentRoleProvider).value?.level ?? 0;
-    // Only allow assigning roles at or below caller's clearance
-    final assignableRoles = roles.where((r) => r.level <= myLevel).toList();
+    // No role-level hierarchy — any role can be assigned.
+    final assignableRoles = roles;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -490,10 +489,9 @@ class _UserCard extends ConsumerWidget {
   }
 
   void _showRolePicker(BuildContext context, WidgetRef ref) {
-    final myLevel = ref.read(currentRoleProvider).value?.level ?? 0;
-    // Only allow assigning roles at or below caller's clearance, excluding current
+    // No role-level hierarchy — any role (except the current one) can be assigned.
     final others =
-        roles.where((r) => r.id != user.roleId && r.level <= myLevel).toList()
+        roles.where((r) => r.id != user.roleId).toList()
           ..sort((a, b) => b.level.compareTo(a.level));
 
     showModalBottomSheet(

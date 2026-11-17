@@ -6,6 +6,8 @@ extension DateTimeExt on DateTime {
       DateFormat('dd MMM yyyy, hh:mm a').format(this);
   String get dayMonth => DateFormat('dd MMM').format(this);
   String get timeOnly => DateFormat('hh:mm a').format(this);
+  String get compactDateTime =>
+      DateFormat('dd MMM, hh:mm a').format(this);
 
   bool get isToday {
     final now = DateTime.now();
@@ -26,7 +28,13 @@ extension DateTimeExt on DateTime {
         day == yesterday.day;
   }
 
-  bool get isOverdue => isBefore(DateTime.now()) && !isToday;
+  bool get isOverdue {
+    final isMidnight = hour == 0 && minute == 0 && second == 0;
+    if (isMidnight) {
+      return isBefore(DateTime.now()) && !isToday;
+    }
+    return isBefore(DateTime.now());
+  }
 
   bool get isThisWeek {
     final now = DateTime.now();
