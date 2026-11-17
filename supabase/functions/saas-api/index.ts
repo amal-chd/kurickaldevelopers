@@ -53,10 +53,14 @@ function firebase(): admin.app.App {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-async function q<T = any>(p: PromiseLike<{ data: T; error: any }>): Promise<T> {
+// Awaits a PostgREST query and throws on error. Typed loosely on purpose:
+// list queries never return null data without an error; single-row
+// lookups (.maybeSingle) are null-checked by the caller.
+// deno-lint-ignore no-explicit-any
+async function q<T = any>(p: PromiseLike<{ data: unknown; error: any }>): Promise<T> {
   const { data, error } = await p;
   if (error) throw new HttpError(500, error.message);
-  return data;
+  return data as T;
 }
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const slugify = (s: string) =>
@@ -261,7 +265,16 @@ async function attachUserToOrg(uid: string, email: string, name: string, orgId: 
 
 // ─── Actions ───────────────────────────────────────────────────────────────
 type Handler = (p: any, c: Caller | null, req: Request) => Promise<unknown>;
-const PUBLIC_ACTIONS = new Set(["public_plans", "get_invitation", "public_contact"]);
+const PUBLIC_ACTIONS = new Set(["public_plans", "get_invitation", "public_contact", "health"]);
+
+// Every tenant-scoped table — used for data export. Keep in sync with migrations.
+const TENANT_TABLES = [
+  "projects", "tasks", "subtasks", "comments", "time_logs", "documents", "site_diaries", "attendance",
+  "leave_requests", "salary_slips", "expenses", "assets", "asset_assignments", "asset_maintenance",
+  "chat_channels", "chat_messages", "app_notifications", "audit_logs", "performance_scores", "performance_reviews",
+  "roles", "settings", "boq_items", "materials", "material_movements", "material_requests", "contractors",
+  "labour_entries", "labour_payments", "inspection_templates", "inspections", "punch_items", "project_milestones",
+];
 
 const actions: Record<string, Handler> = {
   // ── Public ──
@@ -290,13 +303,69 @@ const actions: Record<string, Handler> = {
     return { ok: true };
   },
 
+  async health() {
+    const t0 = Date.now();
+    const { error } = await sb.from("plans").select("id").limit(1);
+    return { ok: !error, db: error ? error.message : "ok", latencyMs: Date.now() - t0, time: new Date().toISOString(), payments: !!(RZP_KEY_ID && RZP_KEY_SECRET) };
+  },
+
   // ── Session ──
   async me(_p, c) {
     const caller = c!;
     const platform = await platformRole(caller);
     const m = await membership(caller);
     const ctx = m ? await orgContext(m.org_id) : null;
-    return { uid: caller.uid, email: caller.email, emailVerified: caller.emailVerified, platformRole: platform, membership: m, context: ctx };
+    const maintenance = (await q(sb.from("platform_settings").select("value").eq("key", "maintenance").maybeSingle()))?.value ?? null;
+    return { uid: caller.uid, email: caller.email, emailVerified: caller.emailVerified, platformRole: platform, membership: m, context: ctx, maintenance };
+  },
+
+  // ── Data portability & deletion ──
+  async export_data(_p, c) {
+    const m = await requireOrgAdmin(c!);
+    const out: Record<string, unknown[]> = {};
+    for (const t of TENANT_TABLES) {
+      const rows: unknown[] = [];
+      for (let from = 0; from < 50000; from += 1000) {
+        const { data, error } = await sb.from(t).select("*").eq("org_id", m.org_id).range(from, from + 999);
+        if (error) break; // table may not exist in older schemas
+        rows.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      out[t] = rows;
+    }
+    out.organization = [await q(sb.from("organizations").select("*").eq("id", m.org_id).single())];
+    out.members = await q(sb.from("org_members").select("*").eq("org_id", m.org_id));
+    out.payments = await q(sb.from("payments").select("*").eq("org_id", m.org_id));
+    out.support_tickets = await q(sb.from("support_tickets").select("*").eq("org_id", m.org_id));
+    await audit(c, "org.data_exported", "organization", m.org_id, m.org_id, { tables: Object.keys(out).length });
+    return { exportedAt: new Date().toISOString(), orgId: m.org_id, data: out };
+  },
+  async request_workspace_deletion(p, c) {
+    const m = await requireMember(c!);
+    if (!m.is_owner) throw new HttpError(403, "Only the workspace owner can request deletion");
+    const org = await q(sb.from("organizations").select("*").eq("id", m.org_id).single());
+    if (org.is_legacy) throw new HttpError(400, "This workspace is under a custom agreement — contact support.");
+    if (str(p.confirm, 120) !== org.name) throw new HttpError(400, "Type the exact workspace name to confirm");
+    const settings = { ...(org.settings ?? {}), deletion_requested_at: new Date().toISOString(), deletion_requested_by: c!.email };
+    await q(sb.from("organizations").update({ settings, updated_at: new Date().toISOString() }).eq("id", m.org_id));
+    const t = await q(sb.from("support_tickets").insert({
+      org_id: m.org_id, subject: "Workspace deletion request", category: "account", priority: "high",
+      created_by_uid: c!.uid, created_by_email: c!.email, created_by_name: c!.name,
+    }).select("id").single());
+    await sb.from("support_ticket_messages").insert({ ticket_id: t.id, author_uid: c!.uid, author_name: c!.email, author_type: "customer",
+      body: `Please permanently delete the workspace "${org.name}" and all of its data. Reason: ${str(p.reason, 1000) || "not given"}` });
+    await audit(c, "org.deletion_requested", "organization", m.org_id, m.org_id, { reason: str(p.reason, 1000) });
+    return { ok: true };
+  },
+  async cancel_workspace_deletion(_p, c) {
+    const m = await requireMember(c!);
+    if (!m.is_owner) throw new HttpError(403, "Only the workspace owner can do this");
+    const org = await q(sb.from("organizations").select("settings").eq("id", m.org_id).single());
+    const settings = { ...(org.settings ?? {}) };
+    delete settings.deletion_requested_at; delete settings.deletion_requested_by;
+    await q(sb.from("organizations").update({ settings }).eq("id", m.org_id));
+    await audit(c, "org.deletion_cancelled", "organization", m.org_id, m.org_id);
+    return { ok: true };
   },
   async org_context(p, c) {
     const m = await requireMember(c!, p.orgId);
@@ -637,6 +706,36 @@ const actions: Record<string, Handler> = {
     const org = await q(sb.from("organizations").update(patch).eq("id", id).select("*").single());
     await audit(c, "platform.org_updated", "organization", id, id, patch);
     return { org };
+  },
+  async admin_delete_org(p, c) {
+    await requirePlatform(c!, ["owner"]);
+    const id = str(p.id, 60);
+    const org = await q(sb.from("organizations").select("*").eq("id", id).maybeSingle());
+    if (!org) throw new HttpError(404, "Workspace not found");
+    if (org.is_legacy || id === "main") throw new HttpError(400, "The legacy workspace cannot be deleted");
+    if (str(p.confirm, 120) !== org.name) throw new HttpError(400, "Type the exact workspace name to confirm");
+    // Stop billing first.
+    const subs = await q(sb.from("subscriptions").select("provider_subscription_id,status").eq("org_id", id));
+    for (const s of subs) {
+      if (s.provider_subscription_id && ["active", "authenticated", "pending", "halted", "created"].includes(s.status)) {
+        try { await razorpay(`/subscriptions/${s.provider_subscription_id}/cancel`, "POST", { cancel_at_cycle_end: 0 }); } catch (_) { /* best effort */ }
+      }
+    }
+    // Remove identities that belong only to this workspace.
+    const fs = firebase().firestore();
+    const members = await q(sb.from("org_members").select("user_uid").eq("org_id", id));
+    for (const mem of members) {
+      const other = await q(sb.from("org_members").select("id").eq("user_uid", mem.user_uid).neq("org_id", id).limit(1));
+      if (other.length) continue;
+      try { await fs.collection("users").doc(mem.user_uid).delete(); } catch (_) { /* ignore */ }
+      try { await firebase().auth().updateUser(mem.user_uid, { disabled: true }); } catch (_) { /* ignore */ }
+    }
+    const roleIds = (await q(sb.from("roles").select("id").eq("org_id", id))).map((r: any) => r.id);
+    for (const rid of roleIds) { try { await fs.collection("roles").doc(rid).delete(); } catch (_) { /* ignore */ } }
+    // All tenant rows cascade from organizations(id).
+    await q(sb.from("organizations").delete().eq("id", id));
+    await audit(c, "platform.org_deleted", "organization", id, null, { name: org.name, members: members.length });
+    return { ok: true };
   },
   async admin_list_payments(_p, c) {
     await requirePlatform(c!, ["owner", "admin", "finance"]);

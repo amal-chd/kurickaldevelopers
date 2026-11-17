@@ -173,6 +173,9 @@ const OrgDetail: React.FC = () => {
         </div>
       </Card>
 
+      {data.org.settings?.deletion_requested_at && (
+        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">Owner requested deletion on {new Date(data.org.settings.deletion_requested_at).toLocaleString()} ({data.org.settings.deletion_requested_by}).</div>
+      )}
       <div className="grid lg:grid-cols-2 gap-5">
         <Card title={`Members (${data.members.length})`}>
           <ul className="divide-y divide-slate-100 text-sm max-h-80 overflow-auto">{data.members.map((m: any) => <li key={m.id} className="px-5 py-2.5 flex justify-between gap-3"><span className="truncate">{m.name ?? m.email}<span className="block text-xs text-slate-400">{m.email}</span></span><span className="text-xs text-slate-500 shrink-0">{m.is_owner ? 'Owner' : m.status}</span></li>)}</ul>
@@ -183,6 +186,18 @@ const OrgDetail: React.FC = () => {
         <Card title="Payments">
           <ul className="divide-y divide-slate-100 text-sm max-h-80 overflow-auto">{data.payments.length === 0 ? <li className="px-5 py-3 text-slate-500">None</li> : data.payments.map((p: any) => <li key={p.id} className="px-5 py-2.5 flex justify-between"><span>{p.invoice_number}<span className="block text-xs text-slate-400">{d(p.paid_at)}</span></span><span className="font-semibold">{formatMoney(p.amount, p.currency)}</span></li>)}</ul>
         </Card>
+        {!data.org.is_legacy && (
+          <Card title="Danger zone" className="lg:col-span-2 border-red-200">
+            <div className="p-5 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-slate-600 flex-1 min-w-[240px]">Permanently delete this workspace: cancels billing, disables its users and deletes all of its data. This cannot be undone — export first if needed.</p>
+              <button onClick={async () => {
+                const confirm = window.prompt(`Type the workspace name "${data.org.name}" to permanently delete it`);
+                if (confirm === null) return;
+                try { await saasApi('admin_delete_org', { id, confirm }); toast.success('Workspace deleted'); window.location.assign('/platform/orgs'); } catch (e: any) { toast.error(e.message); }
+              }} className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold">Delete workspace</button>
+            </div>
+          </Card>
+        )}
         <Card title="Activity">
           <ul className="divide-y divide-slate-100 text-sm max-h-80 overflow-auto">{data.logs.length === 0 ? <li className="px-5 py-3 text-slate-500">None</li> : data.logs.map((l: any) => <li key={l.id} className="px-5 py-2.5"><span className="font-mono text-xs">{l.action}</span><span className="block text-xs text-slate-400">{l.actor_email ?? 'system'} · {new Date(l.created_at).toLocaleString()}</span></li>)}</ul>
         </Card>
@@ -415,6 +430,13 @@ const PlatformSettings: React.FC = () => {
           {Field('general', 'default_trial_days', 'Default trial days', 'number')}{Field('general', 'grace_period_days', 'Grace period after failed payment (days)', 'number')}{Field('general', 'signups_enabled', 'Public sign-ups enabled', 'checkbox')}
         </div>
         <div className="px-5 pb-5"><button onClick={() => saveKey('general')} className="h-9 px-4 rounded-lg bg-slate-900 text-white text-sm font-semibold">Save</button></div>
+      </Card>
+      <Card title="Maintenance banner">
+        <div className="p-5 grid sm:grid-cols-[auto_1fr] gap-4 items-end">
+          {Field('maintenance', 'enabled', 'Show banner to all users', 'checkbox')}
+          {Field('maintenance', 'message', 'Message')}
+        </div>
+        <div className="px-5 pb-5"><button onClick={() => saveKey('maintenance')} className="h-9 px-4 rounded-lg bg-slate-900 text-white text-sm font-semibold">Save</button></div>
       </Card>
       <Card title="Tax & invoicing">
         <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

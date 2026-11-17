@@ -61,6 +61,7 @@ const MaterialsPage = React.lazy(() => import('./pages/construction/MaterialsPag
 const LabourPage = React.lazy(() => import('./pages/construction/LabourPage'));
 const InspectionsPage = React.lazy(() => import('./pages/construction/InspectionsPage'));
 const TimelinePage = React.lazy(() => import('./pages/construction/TimelinePage'));
+const NotFoundPage = React.lazy(() => import('./pages/misc/NotFoundPage'));
 const PlatformConsole = React.lazy(() => import('./pages/platform/PlatformConsole'));
 
 // The company website stays at "/" unless this deployment is the SaaS site.
@@ -268,7 +269,7 @@ function App() {
             </Route>
 
             {/* Catch-all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </React.Suspense>
       </BrowserRouter>

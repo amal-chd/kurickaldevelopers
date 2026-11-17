@@ -6,6 +6,14 @@ import { useTenantStore, trialDaysLeft, isReadOnlyStatus } from '../../lib/tenan
 /** Subscription status strip shown above every app page for SaaS tenants. */
 const BillingBanner: React.FC = () => {
   const ctx = useTenantStore((s) => s.context);
+  const maintenance = useTenantStore((s) => s.maintenance);
+  if (maintenance?.enabled) {
+    return (
+      <div role="status" className="bg-slate-900 text-white text-sm px-4 py-2 text-center">
+        {maintenance.message || 'Scheduled maintenance in progress — some features may be briefly unavailable.'}
+      </div>
+    );
+  }
   if (!ctx || ctx.org.is_legacy) return null;
   const { org, subscription } = ctx;
 

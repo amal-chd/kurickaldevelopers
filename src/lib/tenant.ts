@@ -92,7 +92,7 @@ export interface Organization {
   status: 'trialing' | 'active' | 'past_due' | 'suspended' | 'cancelled' | 'expired';
   plan_id: string | null; billing_cycle: 'monthly' | 'yearly'; trial_ends_at?: string; current_period_end?: string;
   enabled_modules: string[] | null; feature_overrides: Record<string, boolean>; limit_overrides: Record<string, number>;
-  onboarding_completed: boolean; is_legacy: boolean; created_at: string;
+  onboarding_completed: boolean; is_legacy: boolean; created_at: string; settings?: Record<string, any>;
 }
 export interface Subscription {
   id: string; plan_id: string; billing_cycle: string; status: string; provider_subscription_id?: string;
@@ -108,6 +108,8 @@ export interface OrgContext {
 interface TenantState {
   context: OrgContext | null;
   platformRole: string | null;
+  maintenance: { enabled: boolean; message: string } | null;
+  setMaintenance: (m: { enabled: boolean; message: string } | null) => void;
   needsOnboarding: boolean;
   loaded: boolean;
   setContext: (c: OrgContext | null) => void;
@@ -120,6 +122,8 @@ interface TenantState {
 export const useTenantStore = create<TenantState>((set) => ({
   context: null,
   platformRole: null,
+  maintenance: null,
+  setMaintenance: (maintenance) => set({ maintenance }),
   needsOnboarding: false,
   loaded: false,
   setContext: (context) => {

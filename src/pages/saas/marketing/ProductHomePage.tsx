@@ -4,8 +4,20 @@ import { ArrowRight, CheckCircle2, ShieldCheck, Smartphone, IndianRupee, Zap } f
 import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
 import { FEATURES, INDUSTRIES, TESTIMONIALS } from './content';
 import { PricingCards } from './PricingPage';
+import { useSeo } from '../../../lib/seo';
 
-const ProductHomePage: React.FC = () => (
+const ProductHomePage: React.FC = () => {
+  useSeo({
+    title: 'Task Pilot — Construction project & site management software',
+    description: 'Tasks, approvals, GPS attendance, daily site diary, BOQ & cost control, materials, labour, inspections and Gantt timelines for construction teams. Start a 14-day free trial.',
+    path: '/product',
+    jsonLd: {
+      '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Task Pilot',
+      applicationCategory: 'BusinessApplication', operatingSystem: 'Web, Android, iOS',
+      offers: { '@type': 'AggregateOffer', priceCurrency: 'INR', lowPrice: '1499', offerCount: 4 },
+    },
+  });
+  return (
   <MarketingLayout>
     {/* Hero */}
     <div className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white">
@@ -145,6 +157,7 @@ const ProductHomePage: React.FC = () => (
       </div>
     </Section>
   </MarketingLayout>
-);
+  );
+};
 
 export default ProductHomePage;

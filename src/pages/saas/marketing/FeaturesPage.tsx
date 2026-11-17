@@ -3,8 +3,11 @@ import { Link, useParams, Navigate } from 'react-router-dom';
 import { ArrowRight, X, Check } from 'lucide-react';
 import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
 import { FEATURES, INDUSTRIES } from './content';
+import { useSeo } from '../../../lib/seo';
 
-export const FeaturesPage: React.FC = () => (
+export const FeaturesPage: React.FC = () => {
+  useSeo({ title: 'Features', description: 'Every module construction teams need: tasks & approvals, GPS attendance, site diary, BOQ & cost control, materials, labour, inspections, Gantt timeline, documents and chat.', path: '/features' });
+  return (
   <MarketingLayout>
     <Section className="pt-16 pb-12 text-center">
       <Eyebrow>Features</Eyebrow>
@@ -32,11 +35,13 @@ export const FeaturesPage: React.FC = () => (
       </div>
     </Section>
   </MarketingLayout>
-);
+  );
+};
 
 export const IndustryPage: React.FC = () => {
   const { slug } = useParams();
   const ind = INDUSTRIES.find((i) => i.slug === slug);
+  useSeo({ title: ind ? `${ind.name} software` : 'Industries', description: ind ? `${ind.headline}. ${ind.gains.join('. ')}.` : 'Task Pilot for construction and field teams.', path: `/industries/${slug}` });
   if (!ind) return <Navigate to="/features" replace />;
   const I = ind.icon;
   return (

@@ -3,11 +3,13 @@ import { CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
 import { saasApi } from '../../../lib/saasApi';
+import { useSeo } from '../../../lib/seo';
 
 const field = 'w-full h-11 px-3 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none text-sm';
 
 const ContactSalesPage: React.FC = () => {
   const [f, setF] = useState({ name: '', email: '', phone: '', company: '', teamSize: '11-50', interest: 'Demo', message: '' });
+  useSeo({ title: 'Book a demo', description: 'See Task Pilot on your own projects. Book a 30-minute walkthrough with our team.', path: '/contact-sales' });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const on = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [e.target.name]: e.target.value });

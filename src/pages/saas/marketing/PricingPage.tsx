@@ -5,6 +5,7 @@ import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
 import { COMPARISON, FAQS, PRICING_NOTE } from './content';
 import { saasApi } from '../../../lib/saasApi';
 import { Plan, MODULES, formatMoney } from '../../../lib/tenant';
+import { useSeo } from '../../../lib/seo';
 
 let plansCache: Plan[] | null = null;
 export function usePlans() {
@@ -126,7 +127,9 @@ export const Faq: React.FC = () => {
   );
 };
 
-const PricingPage: React.FC = () => (
+const PricingPage: React.FC = () => {
+  useSeo({ title: 'Pricing', description: 'Flat team pricing in INR — not per seat. Starter, Professional, Business and Enterprise plans with a 14-day free trial, no card required.', path: '/pricing' });
+  return (
   <MarketingLayout>
     <Section className="pt-16 pb-10 text-center">
       <Eyebrow>Pricing</Eyebrow>
@@ -170,6 +173,7 @@ const PricingPage: React.FC = () => (
       <Faq />
     </Section>
   </MarketingLayout>
-);
+  );
+};
 
 export default PricingPage;

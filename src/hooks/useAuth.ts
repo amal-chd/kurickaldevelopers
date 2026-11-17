@@ -237,6 +237,7 @@ export async function loadTenantContext(): Promise<void> {
   try {
     const me = await saasApi<any>('me');
     t.setPlatformRole(me.platformRole ?? null);
+    t.setMaintenance(me.maintenance ?? null);
     if (me.context) {
       t.setContext(me.context);
       t.setNeedsOnboarding(false);

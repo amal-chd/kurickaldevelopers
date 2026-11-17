@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /platform/
+Disallow: /invite/
+Disallow: /onboarding
+
+Sitemap: https://taskpilot.app/sitemap.xml

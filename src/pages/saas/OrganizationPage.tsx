@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Copy, Loader2, Send, Trash2, MessageCircle, Building } from 'lucide-react';
+import { Copy, Loader2, Send, Trash2, MessageCircle, Building, Download, ShieldAlert } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { saasApi } from '../../lib/saasApi';
 import { useTenantStore, MODULES, OrgContext } from '../../lib/tenant';
 import { getAllRoles } from '../../lib/firestore';
 import { Role } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 
 const input = 'w-full h-10 px-3 rounded-lg border border-slate-300 bg-white focus:border-slate-900 outline-none text-sm';
 
@@ -19,6 +21,28 @@ const OrganizationPage: React.FC = () => {
   const [inv, setInv] = useState({ email: '', name: '', roleId: '' });
   const [inviting, setInviting] = useState(false);
   const [modules, setModules] = useState<string[] | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const exportAll = async (format: 'xlsx' | 'json') => {
+    setExporting(true);
+    try {
+      const r = await saasApi<{ exportedAt: string; data: Record<string, any[]> }>('export_data');
+      const stamp = r.exportedAt.slice(0, 10);
+      if (format === 'json') {
+        const blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `taskpilot-export-${stamp}.json`; a.click(); URL.revokeObjectURL(a.href);
+      } else {
+        const wb = XLSX.utils.book_new();
+        for (const [table, rows] of Object.entries(r.data)) {
+          if (!rows.length) continue;
+          const flat = rows.map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v !== null && typeof v === 'object' ? JSON.stringify(v) : v])));
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flat), table.slice(0, 31));
+        }
+        XLSX.writeFile(wb, `taskpilot-export-${stamp}.xlsx`);
+      }
+      toast.success('Export ready');
+    } catch (e: any) { toast.error(e.message); } finally { setExporting(false); }
+  };
 
   useEffect(() => {
     if (!ctx) return;
@@ -135,6 +159,36 @@ const OrganizationPage: React.FC = () => {
           <p className="mt-4 text-xs text-slate-500">You can also create accounts with a password directly from Admin → User Management.</p>
         </section>
       )}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+        <h2 className="text-lg font-bold">Data & privacy</h2>
+        <p className="text-sm text-slate-500">Your data belongs to you. Download a complete copy of everything in this workspace at any time.</p>
+        <div className="flex flex-wrap gap-2">
+          <button disabled={exporting} onClick={() => exportAll('xlsx')} className="h-10 px-4 rounded-lg bg-slate-900 text-white text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-60"><Download className="w-4 h-4" />{exporting ? 'Preparing…' : 'Export to Excel'}</button>
+          <button disabled={exporting} onClick={() => exportAll('json')} className="h-10 px-4 rounded-lg border border-slate-300 text-sm font-medium inline-flex items-center gap-2 disabled:opacity-60"><Download className="w-4 h-4" />Export JSON</button>
+        </div>
+        {!ctx.org.is_legacy && ctx.org.owner_uid === useAuthStore.getState().firebaseUser?.uid && (
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-sm font-semibold flex items-center gap-2 text-red-700"><ShieldAlert className="w-4 h-4" />Delete workspace</p>
+            {ctx.org.settings?.deletion_requested_at ? (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                <span className="text-slate-600">Deletion requested on {new Date(ctx.org.settings.deletion_requested_at).toLocaleDateString()}. Our team will confirm by email before anything is removed.</span>
+                <button onClick={async () => { try { await saasApi('cancel_workspace_deletion'); useTenantStore.getState().setContext(await saasApi<OrgContext>('org_context')); toast.success('Deletion request cancelled'); } catch (e: any) { toast.error(e.message); } }} className="underline font-medium">Cancel request</button>
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-slate-500 flex-1 min-w-[240px]">Permanently removes all projects, tasks, files and users of this workspace. Export your data first.</p>
+                <button onClick={async () => {
+                  const confirm = window.prompt(`Type your workspace name "${ctx.org.name}" to request permanent deletion`);
+                  if (confirm === null) return;
+                  const reason = window.prompt('Optional: why are you leaving?') ?? '';
+                  try { await saasApi('request_workspace_deletion', { confirm, reason }); useTenantStore.getState().setContext(await saasApi<OrgContext>('org_context')); toast.success('Deletion requested'); } catch (e: any) { toast.error(e.message); }
+                }} className="h-10 px-4 rounded-lg border border-red-300 text-red-700 text-sm font-semibold hover:bg-red-50">Request deletion</button>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
