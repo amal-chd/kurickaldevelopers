@@ -32,7 +32,16 @@ const sb = createClient(
 
 const RZP_KEY_ID = Deno.env.get("RAZORPAY_KEY_ID") ?? "";
 const RZP_KEY_SECRET = Deno.env.get("RAZORPAY_KEY_SECRET") ?? "";
-const APP_URL = (Deno.env.get("APP_URL") ?? "https://taskpilot.app").replace(/\/$/, "");
+// Base URL for links we hand out (invitations). APP_URL wins when set;
+// otherwise use the https origin the admin is working on, so links always
+// point at the domain the product is actually served from.
+const APP_URL_ENV = (Deno.env.get("APP_URL") ?? "").replace(/\/$/, "");
+function appUrl(req: Request): string {
+  if (APP_URL_ENV) return APP_URL_ENV;
+  const origin = req.headers.get("origin") ?? "";
+  if (/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin)) return origin;
+  return "https://kurickaldevelopers.vercel.app";
+}
 
 class HttpError extends Error {
   constructor(public status: number, message: string, public code?: string) { super(message); }
@@ -458,7 +467,7 @@ const actions: Record<string, Handler> = {
   },
 
   // ── Team invitations ──
-  async invite_member(p, c) {
+  async invite_member(p, c, req) {
     const m = await requireOrgAdmin(c!, undefined, "team_manage");
     const email = str(p.email, 160).toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, "Enter a valid email address");
@@ -473,12 +482,12 @@ const actions: Record<string, Handler> = {
     await sb.from("org_invitations").update({ status: "revoked" }).eq("org_id", m.org_id).eq("email", email).eq("status", "pending");
     const inv = await q(sb.from("org_invitations").insert({ org_id: m.org_id, email, name: str(p.name, 120) || null, role_id: roleId, invited_by: c!.uid }).select("*").single());
     await audit(c, "member.invited", "invitation", inv.id, m.org_id, { email, roleId });
-    return { invitation: inv, link: `${APP_URL}/invite/${inv.token}` };
+    return { invitation: inv, link: `${appUrl(req)}/invite/${inv.token}` };
   },
-  async list_invitations(_p, c) {
+  async list_invitations(_p, c, req) {
     const m = await requireOrgAdmin(c!, undefined, "team_manage");
     const rows = await q(sb.from("org_invitations").select("id,email,name,role_id,status,expires_at,created_at,token").eq("org_id", m.org_id).eq("status", "pending").order("created_at", { ascending: false }));
-    return { invitations: rows.map((r: any) => ({ ...r, link: `${APP_URL}/invite/${r.token}` })) };
+    return { invitations: rows.map((r: any) => ({ ...r, link: `${appUrl(req)}/invite/${r.token}` })) };
   },
   async revoke_invitation(p, c) {
     const m = await requireOrgAdmin(c!, undefined, "team_manage");
