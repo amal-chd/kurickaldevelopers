@@ -17,7 +17,7 @@
 
 -- ─── Org resolution ────────────────────────────────────────────────────────
 create or replace function public.request_header(name text)
-returns text language sql stable as $$
+returns text language sql stable set search_path = public as $$
   select nullif(
     (nullif(current_setting('request.headers', true), '')::json ->> lower(name)),
     ''
@@ -28,8 +28,9 @@ create or replace function public.current_org_id()
 returns text language plpgsql stable security definer set search_path = public as $$
 declare
   hdr text := public.request_header('x-org-id');
-  sub text := nullif(coalesce(current_setting('request.jwt.claims', true), '')::json ->> 'sub', '');
-  iss text := coalesce(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'iss', '');
+  claims json := nullif(current_setting('request.jwt.claims', true), '')::json;
+  sub text := nullif(claims ->> 'sub', '');
+  iss text := coalesce(claims ->> 'iss', '');
   resolved text;
 begin
   -- Firebase-authenticated request: trust only memberships.
@@ -42,7 +43,7 @@ begin
      limit 1;
     return resolved;               -- null ⇒ no tenant rows visible
   end if;
-  -- Anonymous / legacy client: header, else the legacy org.
+  -- Anonymous / legacy client (or no request context): header, else legacy org.
   return coalesce(hdr, 'main');
 end $$;
 
@@ -152,7 +153,7 @@ create table if not exists public.org_invitations (
   email        text not null,
   name         text,
   role_id      text,
-  token        text not null unique default encode(gen_random_bytes(24), 'hex'),
+  token        text not null unique default encode(extensions.gen_random_bytes(24), 'hex'),
   invited_by   text,
   status       text not null default 'pending' check (status in ('pending','accepted','revoked','expired')),
   expires_at   timestamptz not null default now() + interval '14 days',
@@ -423,7 +424,9 @@ end $$;
 
 revoke execute on function public.run_subscription_lifecycle() from anon, authenticated, public;
 revoke execute on function public.org_effective_limit(text, text) from anon, authenticated, public;
+revoke execute on function public.enforce_org_writable() from anon, authenticated, public;
+revoke execute on function public.enforce_project_limit() from anon, authenticated, public;
 
-create extension if not exists pg_cron;
+create extension if not exists pg_cron with schema pg_catalog;
 select cron.unschedule(jobid) from cron.job where jobname = 'taskpilot_subscription_lifecycle';
 select cron.schedule('taskpilot_subscription_lifecycle', '15 * * * *', 'select public.run_subscription_lifecycle()');
