@@ -119,7 +119,13 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Own profile, or a colleague in the same organisation.
-      allow read: if isOwner(userId) || (isAuthenticated() && sameOrg(resource.data));
+      // STAGED: legacy-workspace users ('main') keep unrestricted reads because
+      // the shipped mobile app lists users without an orgId filter (Firestore
+      // rejects such queries outright otherwise). Other tenants are fully
+      // isolated. Drop the myOrg() == 'main' clause once the org-aware mobile
+      // build is live.
+      allow read: if isOwner(userId) ||
+                  (isAuthenticated() && (myOrg() == 'main' || sameOrg(resource.data)));
 
       // A new user can create their own profile on sign-up — but may only
       // self-assign the role bootstrapped for their email (usually none).
