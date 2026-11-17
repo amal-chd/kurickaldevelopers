@@ -71,6 +71,19 @@ const ProjectDetailPage: React.FC = () => {
     load();
   }, [projectId]);
 
+  const financeSummary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const e of expenses) {
+      if (e.type === 'income') income += e.amount || 0;
+      else expense += e.amount || 0;
+    }
+    const budget = project?.budget || 0;
+    const remaining = budget > 0 ? Math.max(0, budget - expense) : 0;
+    const spentPercent = budget > 0 ? Math.round((expense / budget) * 100) : 0;
+    return { income, expense, net: income - expense, budget, remaining, spentPercent };
+  }, [expenses, project?.budget]);
+
   if (loading) return <div className="flex items-center justify-center h-full min-h-[50vh]"><Spinner size="lg" /></div>;
   if (!project) return <div className="text-center py-16 text-slate-500">Project not found</div>;
 
@@ -98,19 +111,6 @@ const ProjectDetailPage: React.FC = () => {
     { name: 'Under Review', value: tasksByStatus.under_review },
     { name: 'Done', value: tasksByStatus.done },
   ].filter(d => d.value > 0);
-
-  const financeSummary = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    for (const e of expenses) {
-      if (e.type === 'income') income += e.amount || 0;
-      else expense += e.amount || 0;
-    }
-    const budget = project?.budget || 0;
-    const remaining = budget > 0 ? Math.max(0, budget - expense) : 0;
-    const spentPercent = budget > 0 ? Math.round((expense / budget) * 100) : 0;
-    return { income, expense, net: income - expense, budget, remaining, spentPercent };
-  }, [expenses, project?.budget]);
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Dashboard', icon: TrendingUp },
