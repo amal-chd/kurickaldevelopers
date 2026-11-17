@@ -233,7 +233,28 @@ export const recalculatePerformanceScore = async (userId: string): Promise<Perfo
             description: d.description,
             projectId: d.project_id,
             milestoneId: d.milestone_id,
-            assigneeIds: d.assigned_to ? JSON.parse(d.assigned_to) : (d.assignee_ids || []),
+            assigneeIds: (() => {
+              if (Array.isArray(d.assignee_ids)) return d.assignee_ids;
+              if (Array.isArray(d.assigned_to)) return d.assigned_to;
+              if (typeof d.assigned_to === 'string' && d.assigned_to.trim()) {
+                try {
+                  const p = JSON.parse(d.assigned_to);
+                  if (Array.isArray(p)) return p;
+                  if (typeof p === 'string') return [p];
+                } catch {
+                  return [d.assigned_to];
+                }
+              }
+              if (typeof d.assignee_ids === 'string' && d.assignee_ids.trim()) {
+                try {
+                  const p = JSON.parse(d.assignee_ids);
+                  if (Array.isArray(p)) return p;
+                } catch {
+                  return [d.assignee_ids];
+                }
+              }
+              return [];
+            })(),
             assignedRoleId: d.assigned_role_id,
             assignedRoleIds: d.assigned_role_ids || [],
             createdBy: d.created_by,

@@ -216,14 +216,22 @@ export function calculatePerformanceScore(
     // On-time check
     const due = toDate(t.dueDate);
     if (due) {
-      const comp = toDate(t.updatedAt) ?? new Date();
+      const memberProg = (t as any).memberProgress?.[userId];
+      const memberStatus = memberProg?.completionStatus;
+      const comp = toDate(memberProg?.completedAt) ?? toDate((t as any).completedAt) ?? toDate(t.updatedAt) ?? new Date();
 
-      if (comp > due) {
+      // If the due date was set at midnight (00:00:00), give grace until end of day (23:59:59)
+      const isMidnight = due.getHours() === 0 && due.getMinutes() === 0 && due.getSeconds() === 0;
+      const effectiveDue = isMidnight ? new Date(due.getFullYear(), due.getMonth(), due.getDate(), 23, 59, 59, 999) : due;
+
+      const isLate = memberStatus === 'late' || (memberStatus !== 'on_time' && comp > effectiveDue);
+
+      if (isLate) {
         // Late Completion
         tasksCompletedLate++;
         consecutiveSuccesses = 0; // Break the streak
 
-        const daysLate = Math.ceil((comp.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+        const daysLate = Math.max(1, Math.ceil((comp.getTime() - effectiveDue.getTime()) / (1000 * 60 * 60 * 24)));
         const latePen = Math.min(daysLate * config.penalties.latePerDay, 30); // Max 30 points penalty
         penaltyBreakdown.lateCompletions += latePen;
         totalPenaltyPoints += latePen;

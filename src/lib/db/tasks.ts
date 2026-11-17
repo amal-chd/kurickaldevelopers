@@ -26,6 +26,29 @@ const logPermissionError = (actionName: string, error: any, context?: any) => {
 const toCamelCase = (str: string) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
 const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
+const safeParseAssigneeIds = (row: any): string[] => {
+  if (Array.isArray(row.assignee_ids)) return row.assignee_ids;
+  if (Array.isArray(row.assigned_to)) return row.assigned_to;
+  if (typeof row.assigned_to === 'string' && row.assigned_to.trim()) {
+    try {
+      const parsed = JSON.parse(row.assigned_to);
+      if (Array.isArray(parsed)) return parsed;
+      if (typeof parsed === 'string') return [parsed];
+    } catch {
+      return [row.assigned_to];
+    }
+  }
+  if (typeof row.assignee_ids === 'string' && row.assignee_ids.trim()) {
+    try {
+      const parsed = JSON.parse(row.assignee_ids);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [row.assignee_ids];
+    }
+  }
+  return [];
+};
+
 const convertRowToTask = (row: any): Task => {
   return {
     ...row,
@@ -34,7 +57,7 @@ const convertRowToTask = (row: any): Task => {
     description: row.description,
     projectId: row.project_id,
     milestoneId: row.milestone_id,
-    assigneeIds: row.assigned_to ? JSON.parse(row.assigned_to) : (row.assignee_ids || []),
+    assigneeIds: safeParseAssigneeIds(row),
     assignedRoleId: row.assigned_role_id,
     assignedRoleIds: row.assigned_role_ids || [],
     createdBy: row.created_by,

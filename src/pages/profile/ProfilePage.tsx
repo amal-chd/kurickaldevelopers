@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X, Bell, Megaphone, MessageSquare, CheckSquare, Key, Lock } from 'lucide-react';
+import { Camera, LogOut, Mail, Phone, Shield, Check, Edit3, Save, X, Bell, Megaphone, MessageSquare, CheckSquare, Key, Lock , ChevronDown, ChevronUp} from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -31,6 +31,7 @@ const ProfilePage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();

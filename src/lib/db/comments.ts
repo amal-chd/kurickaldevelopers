@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { TaskComment } from '../../types';
 import { notifyPush } from '../push';
+import { createNotification } from './notifications';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 const logPermissionError = (actionName: string, error: any, context?: any) => {
@@ -37,7 +38,11 @@ export const getComments = async (taskId: string): Promise<TaskComment[]> => {
       id: d.id,
       taskId: d.task_id,
       authorId: d.author_id,
+      text: d.text,
+      mentions: d.mentions || [],
+      attachmentUrls: d.attachment_urls || [],
       createdAt: d.created_at,
+      editedAt: d.edited_at,
     })) as unknown as TaskComment[];
   } catch (err: any) {
     console.warn('Gracefully handled getComments error:', err);
@@ -72,33 +77,47 @@ export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 
   try {
     const { data: taskData, error: taskError } = await supabase
       .from('tasks')
-      .select('assignee_ids, created_by, title')
+      .select('assignee_ids, assigned_role_ids, assigned_role_id, created_by, title')
       .eq('id', taskId)
       .single();
       
     if (!taskError && taskData) {
-      const assigneeIds: string[] = taskData.assignee_ids || [];
-      const createdBy: string = taskData.created_by || '';
       const title: string = taskData.title || 'Task';
+      const notifySet = new Set<string>();
+
+      if (Array.isArray(taskData.assignee_ids)) {
+        taskData.assignee_ids.forEach((id: string) => notifySet.add(id));
+      }
+      if (taskData.created_by) {
+        notifySet.add(taskData.created_by);
+      }
+
+      const roleIds: string[] = taskData.assigned_role_ids || [];
+      if (taskData.assigned_role_id) roleIds.push(taskData.assigned_role_id);
+      if (roleIds.length > 0) {
+        const { data: roleUsers } = await supabase
+          .from('users')
+          .select('id')
+          .in('role_id', roleIds)
+          .eq('is_active', true);
+        if (roleUsers) {
+          roleUsers.forEach((u: { id: string }) => notifySet.add(u.id));
+        }
+      }
 
       notifyPush({ event: 'task', taskId, kind: 'comment_added' });
 
-      const notifySet = new Set([...assigneeIds, ...(createdBy ? [createdBy] : [])].filter(Boolean));
       for (const uid of notifySet) {
         if (uid === effectiveAuthorId || !uid) continue;
-        // @ts-ignore
-        if (typeof createNotification !== 'undefined') {
-          // @ts-ignore
-          await createNotification({
-            userId: uid,
-            type: 'task_updated',
-            title: 'New Comment on Task',
-            body: `New comment on "${title}"`,
-            relatedId: taskId,
-            isRead: {},
-            createdAt: null as any,
-          });
-        }
+        await createNotification({
+          userId: uid,
+          type: 'task_updated',
+          title: 'New Comment on Task',
+          body: `New comment on "${title}"`,
+          relatedId: taskId,
+          isRead: {},
+          createdAt: null as any,
+        });
       }
     }
   } catch (_) {
@@ -106,6 +125,35 @@ export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 
   }
 
   return newId;
+};
+
+export const updateComment = async (taskId: string, commentId: string, text: string): Promise<void> => {
+  const { error } = await supabase
+    .from('comments')
+    .update({
+      text,
+      edited_at: new Date().toISOString(),
+    })
+    .eq('id', commentId)
+    .eq('task_id', taskId);
+
+  if (error) {
+    logPermissionError('updateComment', error, { taskId, commentId });
+    throw error;
+  }
+};
+
+export const deleteComment = async (taskId: string, commentId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('task_id', taskId);
+
+  if (error) {
+    logPermissionError('deleteComment', error, { taskId, commentId });
+    throw error;
+  }
 };
 
 export const subscribeComments = (taskId: string, cb: (comments: TaskComment[]) => void) => {

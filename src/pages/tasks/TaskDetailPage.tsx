@@ -15,10 +15,11 @@ import { usePermissions } from '../../hooks/usePermissions';
 import {
   getTask, getAllUsers, addSubtask, updateSubtask, deleteSubtask,
   updateTask, deleteTask, getProject, sendMessage, getChannel,
-  createNotification, getAllRoles, addComment, subscribeComments, subscribeSubtasks,
+  createNotification, getAllRoles, addComment, updateComment, deleteComment, subscribeComments, subscribeSubtasks,
 } from '../../lib/firestore';
 import { Task, Subtask, TaskComment, AppUser, Project, TaskStatus, Role } from '../../types';
 import { notifyPush } from '../../lib/push';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { formatDate, formatDateTime, taskStatusLabel, calculateCompletionDetails, formatDelay } from '../../lib/utils';
 import toast from 'react-hot-toast';
 import Input from '../../components/ui/Input';
@@ -59,6 +60,9 @@ const TaskDetailPage: React.FC = () => {
   const [addingComment, setAddingComment] = useState(false);
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState<string>('');
+  const [savingCommentEdit, setSavingCommentEdit] = useState<boolean>(false);
 
   useEffect(() => {
     if (!taskId) return;
@@ -127,7 +131,16 @@ const TaskDetailPage: React.FC = () => {
   // approve/reject gate.
   const canMarkDone = canEditStatus;
   const displayStatus = canMarkDone ? task.status : (task.memberProgress?.[appUser?.id ?? '']?.status ?? task.status);
-  const isOverdue = task.dueDate && isAfter(new Date(), task.dueDate.toDate()) && displayStatus !== 'done';
+  const isOverdue = (() => {
+    if (!task.dueDate || displayStatus === 'done') return false;
+    const d = task.dueDate.toDate();
+    const isMidnight = d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
+    if (isMidnight) {
+      const endOfDueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+      return new Date() > endOfDueDay;
+    }
+    return new Date() > d;
+  })();
   const completedSubtasks = subtasks.filter((s) => s.isDone).length;
   const subtaskProgress = subtasks.length > 0 ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
@@ -289,6 +302,14 @@ const TaskDetailPage: React.FC = () => {
           }
         } catch {}
       }
+      void logAudit({
+        action: 'task.status_changed',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task.title,
+        description: `Changed status to "${taskStatusLabel(nextGlobalStatus)}" on task "${task.title}"`,
+        changes: [{ field: 'status', from: task.status, to: nextGlobalStatus }],
+      });
       toast.success('Status updated');
     } catch {
       toast.error('Failed to update status');
@@ -298,15 +319,47 @@ const TaskDetailPage: React.FC = () => {
   const handleToggleSubtask = async (subtask: Subtask) => {
     if (!taskId || !appUser) return;
     try {
-      await updateSubtask(taskId, subtask.id, {
-        isDone: !subtask.isDone,
-        completedBy: !subtask.isDone ? appUser.id : undefined,
-      });
-      setSubtasks((prev) =>
-        prev.map((s) => s.id === subtask.id ? { ...s, isDone: !s.isDone } : s)
+      const nextDone = !subtask.isDone;
+      await updateSubtask(
+        taskId, 
+        subtask.id, 
+        {
+          isDone: nextDone,
+          completedBy: nextDone ? appUser.id : undefined,
+        },
+        appUser.id,
+        subtask.title
       );
+      setSubtasks((prev) =>
+        prev.map((s) => s.id === subtask.id ? { ...s, isDone: nextDone } : s)
+      );
+      void logAudit({
+        action: nextDone ? 'subtask.completed' : 'subtask.reopened',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `${nextDone ? 'Completed' : 'Reopened'} subtask "${subtask.title}" on task "${task?.title}"`,
+      });
     } catch {
       toast.error('Failed to update subtask');
+    }
+  };
+
+  const handleDeleteSubtask = async (subtaskId: string, subtaskTitle: string) => {
+    if (!taskId) return;
+    try {
+      await deleteSubtask(taskId, subtaskId);
+      setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
+      void logAudit({
+        action: 'subtask.deleted',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Deleted subtask "${subtaskTitle}" on task "${task?.title}"`,
+      });
+      toast.success('Subtask deleted');
+    } catch {
+      toast.error('Failed to delete subtask');
     }
   };
 
@@ -325,6 +378,13 @@ const TaskDetailPage: React.FC = () => {
           : [...prev, { id: newId, taskId, title, isDone: false, completedBy: null } as unknown as Subtask],
       );
       setNewSubtask('');
+      void logAudit({
+        action: 'subtask.created',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Added subtask "${title}" on task "${task?.title}"`,
+      });
     } catch (e) {
       console.error('addSubtask failed:', e);
       toast.error('Failed to add subtask');
@@ -355,6 +415,13 @@ const TaskDetailPage: React.FC = () => {
         { authorId: appUser.id, text: newComment.trim(), ...(attachmentUrls ? { attachmentUrls } : {}) },
         appUser.id,
       );
+      void logAudit({
+        action: 'comment.created',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Added comment on task "${task?.title}"`,
+      });
       setNewComment('');
       setCommentFiles([]);
     } catch (err: any) {
@@ -364,10 +431,75 @@ const TaskDetailPage: React.FC = () => {
     }
   };
 
+  const handleStartEditComment = (comment: TaskComment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.text || '');
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+
+  const handleSaveEditComment = async (commentId: string) => {
+    if (!taskId || !editingCommentText.trim()) return;
+    setSavingCommentEdit(true);
+    try {
+      await updateComment(taskId, commentId, editingCommentText.trim());
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, text: editingCommentText.trim(), editedAt: Timestamp.now() }
+            : c
+        )
+      );
+      void logAudit({
+        action: 'comment.updated',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Edited comment on task "${task?.title}"`,
+      });
+      toast.success('Comment updated');
+      setEditingCommentId(null);
+      setEditingCommentText('');
+    } catch {
+      toast.error('Failed to update comment');
+    } finally {
+      setSavingCommentEdit(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!taskId) return;
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+    try {
+      await deleteComment(taskId, commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      void logAudit({
+        action: 'comment.deleted',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Deleted comment on task "${task?.title}"`,
+      });
+      toast.success('Comment deleted');
+    } catch {
+      toast.error('Failed to delete comment');
+    }
+  };
+
   const handleDelete = async () => {
     if (!taskId) return;
     try {
       await deleteTask(taskId);
+      void logAudit({
+        action: 'task.deleted',
+        category: AuditCategory.task,
+        targetId: taskId,
+        targetName: task?.title,
+        description: `Deleted task "${task?.title}"`,
+      });
       toast.success('Task deleted');
       navigate('/app/tasks');
     } catch {
@@ -574,10 +706,9 @@ const TaskDetailPage: React.FC = () => {
                   </span>
                   {can('tasks_edit') && (
                     <button
-                      onClick={() => deleteSubtask(taskId!, subtask.id).then(() =>
-                        setSubtasks((prev) => prev.filter((s) => s.id !== subtask.id))
-                      )}
+                      onClick={() => handleDeleteSubtask(subtask.id, subtask.title)}
                       className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all p-2 hover:bg-rose-50 rounded-lg"
+                      title="Delete subtask"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -625,6 +756,8 @@ const TaskDetailPage: React.FC = () => {
                 const isAuthorCreator = comment.authorId === task.createdBy;
                 const authorRole = roles.find((r) => r.id === author?.roleId);
                 const isAuthorAuthority = Boolean(authorRole && (authorRole.level ?? 0) >= 60);
+                const canModifyComment = Boolean(appUser && (appUser.id === comment.authorId || isManager));
+                const isEditing = editingCommentId === comment.id;
 
                 return (
                   <div key={comment.id} className="p-4 bg-slate-50/70 rounded-2xl border border-slate-100 space-y-2">
@@ -648,10 +781,60 @@ const TaskDetailPage: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-400 font-medium">{formatDateTime(comment.createdAt)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400 font-medium">
+                          {formatDateTime(comment.createdAt)}
+                          {comment.editedAt && <span className="ml-1 text-[11px] text-slate-400 italic">(edited)</span>}
+                        </span>
+                        {canModifyComment && !isEditing && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleStartEditComment(comment)}
+                              className="p-1 text-slate-400 hover:text-primary hover:bg-slate-200/60 rounded transition-colors"
+                              title="Edit comment"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {comment.text && (
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-9">{comment.text}</p>
+                    {isEditing ? (
+                      <div className="space-y-2 pl-9 pt-1">
+                        <textarea
+                          value={editingCommentText}
+                          onChange={(e) => setEditingCommentText(e.target.value)}
+                          className="w-full text-sm border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y min-h-[70px]"
+                        />
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={handleCancelEditComment}
+                            disabled={savingCommentEdit}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveEditComment(comment.id)}
+                            loading={savingCommentEdit}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      comment.text && (
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-9">{comment.text}</p>
+                      )
                     )}
                     {comment.attachmentUrls && comment.attachmentUrls.length > 0 && (
                       <div className="flex flex-wrap gap-2 pl-9 pt-1">
@@ -760,9 +943,9 @@ const TaskDetailPage: React.FC = () => {
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-indigo-500 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Due Date</p>
+                  <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Due Date & Time</p>
                   <span className={isOverdue ? 'text-rose-600 font-bold' : 'text-slate-900 font-medium'}>
-                    {formatDate(task.dueDate)}
+                    {formatDateTime(task.dueDate)}
                   </span>
                 </div>
               </div>
@@ -771,9 +954,9 @@ const TaskDetailPage: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <Check className="w-5 h-5 text-emerald-500 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Completed</p>
+                    <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Completed Date & Time</p>
                     <span className="text-slate-900 font-medium">
-                      {formatDate(task.completedAt)}
+                      {formatDateTime(task.completedAt)}
                     </span>
                   </div>
                 </div>
@@ -823,8 +1006,8 @@ const TaskDetailPage: React.FC = () => {
               <div className="flex items-start gap-3">
                 <Calendar className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Created At</p>
-                  <span className="text-slate-900 font-medium">{formatDate(task.createdAt)}</span>
+                  <p className="font-semibold text-slate-500 text-xs uppercase tracking-wider mb-0.5">Created Date & Time</p>
+                  <span className="text-slate-900 font-medium">{formatDateTime(task.createdAt)}</span>
                 </div>
               </div>
             </div>

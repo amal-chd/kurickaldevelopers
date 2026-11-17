@@ -31,6 +31,12 @@ export function formatDateTime(ts: Timestamp | Date | string | undefined | null)
   return format(d, 'MMM d, yyyy h:mm a');
 }
 
+export function formatCompactDateTime(ts: Timestamp | Date | string | undefined | null): string {
+  const d = toDate(ts);
+  if (!d) return '—';
+  return format(d, 'MMM d, h:mm a');
+}
+
 export function formatRelative(ts: Timestamp | Date | string | undefined | null): string {
   const d = toDate(ts);
   if (!d) return '—';
@@ -51,13 +57,17 @@ export function formatTime(ts: Timestamp | Date | undefined | null): string {
   return format(d, 'h:mm a');
 }
 
-export function getDuration(start: Timestamp | null | undefined, end: Timestamp | null | undefined): string {
+export function getDuration(start: Timestamp | null | undefined, end: Timestamp | null | undefined, extraMinutes: number = 0): string {
   if (!start) return '—';
   const startDate = toDate(start)!;
   const endDate = end ? toDate(end)! : new Date();
   const diffMs = endDate.getTime() - startDate.getTime();
-  const hours = Math.floor(diffMs / 3600000);
-  const minutes = Math.floor((diffMs % 3600000) / 60000);
+  const totalMins = Math.max(0, Math.floor(diffMs / 60000) + (extraMinutes || 0));
+  const hours = Math.floor(totalMins / 60);
+  const minutes = totalMins % 60;
+  if (hours === 0 && minutes === 0) return '< 1m';
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
   return `${hours}h ${minutes}m`;
 }
 

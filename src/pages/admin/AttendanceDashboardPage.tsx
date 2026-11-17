@@ -35,14 +35,14 @@ const formatDuration = (minutes: number) => {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 };
 
-const LiveTimer: React.FC<{ checkInTime: any }> = ({ checkInTime }) => {
+const LiveTimer: React.FC<{ checkInTime: any; bankedMinutes?: number }> = ({ checkInTime, bankedMinutes = 0 }) => {
   const [elapsed, setElapsed] = useState('');
 
   useEffect(() => {
     const update = () => {
       try {
-        const start = checkInTime.toDate();
-        const secs = differenceInSeconds(new Date(), start);
+        const start = checkInTime.toDate ? checkInTime.toDate() : new Date(checkInTime);
+        const secs = Math.max(0, differenceInSeconds(new Date(), start) + (bankedMinutes * 60));
         const h = Math.floor(secs / 3600);
         const m = Math.floor((secs % 3600) / 60);
         const s = secs % 60;
@@ -54,7 +54,7 @@ const LiveTimer: React.FC<{ checkInTime: any }> = ({ checkInTime }) => {
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [checkInTime]);
+  }, [checkInTime, bankedMinutes]);
 
   return <span className="font-mono text-sm text-green-600 font-semibold">{elapsed}</span>;
 };
@@ -233,9 +233,19 @@ const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ user, onClose, or
                         {duration && (
                           <span className="text-xs text-slate-500">{duration}</span>
                         )}
-                        {rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null && (
-                          <span className="text-xs font-semibold text-purple-600">OT: {formatOvertime(rec.overtimeOverrideMinutes)}</span>
-                        )}
+                        {(() => {
+                          const otMins = (rec.checkInTime && rec.checkOutTime)
+                            ? getOvertimeMinutes(rec.checkInTime.toDate(), rec.checkOutTime.toDate(), rec.overtimeOverrideMinutes, rec.workedMinutes)
+                            : (rec.overtimeOverrideMinutes ?? 0);
+                          if (otMins > 0) {
+                            return (
+                              <span className="text-xs font-semibold text-purple-600">
+                                OT: {formatOvertime(otMins)}{rec.overtimeOverrideMinutes !== undefined && rec.overtimeOverrideMinutes !== null ? ' (Override)' : ''}
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -316,21 +326,35 @@ const OvertimeReport: React.FC<{ month: string; users: any[] }> = ({ month, user
 
   // Calculate per-user overtime
   const userOvertimeMap = useMemo(() => {
-    const map = new Map<string, { totalOtMins: number; daysWithOt: number; totalMins: number; daysPresent: number }>();
+    const map = new Map<string, { totalOtMins: number; daysWithOt: number; totalMins: number; daysPresent: number; datesPresent: Set<string>; datesWithOt: Set<string> }>();
     
     for (const rec of records) {
       if (!rec.checkInTime || !rec.checkOutTime) continue;
       const checkIn = rec.checkInTime.toDate ? rec.checkInTime.toDate() : new Date(rec.checkInTime);
       const checkOut = rec.checkOutTime.toDate ? rec.checkOutTime.toDate() : new Date(rec.checkOutTime);
-      const totalMins = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60000);
+      const totalMins = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60000) + (rec.workedMinutes ?? 0);
       const otMins = getOvertimeMinutes(checkIn, checkOut, rec.overtimeOverrideMinutes, rec.workedMinutes);
       
-      const existing = map.get(rec.userId) || { totalOtMins: 0, daysWithOt: 0, totalMins: 0, daysPresent: 0 };
+      const existing = map.get(rec.userId) || {
+        totalOtMins: 0,
+        daysWithOt: 0,
+        totalMins: 0,
+        daysPresent: 0,
+        datesPresent: new Set<string>(),
+        datesWithOt: new Set<string>(),
+      };
       existing.totalMins += totalMins;
-      existing.daysPresent++;
+      if (rec.date) {
+        existing.datesPresent.add(rec.date);
+      }
+      existing.daysPresent = existing.datesPresent.size;
+
       if (otMins > 0) {
         existing.totalOtMins += otMins;
-        existing.daysWithOt++;
+        if (rec.date) {
+          existing.datesWithOt.add(rec.date);
+        }
+        existing.daysWithOt = existing.datesWithOt.size;
       }
       map.set(rec.userId, existing);
     }
@@ -467,7 +491,19 @@ const AttendanceDashboardPage: React.FC = () => {
     );
   }
 
-  const getRecord = (userId: string) => records.find((r) => r.userId === userId);
+  const getRecord = (userId: string) => {
+    const userRecs = records.filter((r) => r.userId === userId);
+    if (userRecs.length === 0) return undefined;
+    // If the user has an open (active on site) session, prefer that
+    const active = userRecs.find((r) => r.checkInTime && !r.checkOutTime);
+    if (active) return active;
+    // Otherwise return the latest by check-in time
+    return [...userRecs].sort((a, b) => {
+      const aT = a.checkInTime?.toDate ? a.checkInTime.toDate().getTime() : 0;
+      const bT = b.checkInTime?.toDate ? b.checkInTime.toDate().getTime() : 0;
+      return bT - aT;
+    })[0];
+  };
 
   const isOutsideGeofence = (rec: Attendance) => {
     if (!rec?.checkInLocation || !orgSettings) return false;
@@ -478,10 +514,16 @@ const AttendanceDashboardPage: React.FC = () => {
     return dist > orgSettings.geofenceRadius;
   };
 
-  const presentCount = records.filter((r) => r.checkInTime).length;
-  const checkedOutCount = records.filter((r) => r.checkOutTime).length;
-  const outsideCount = records.filter((r) => isOutsideGeofence(r)).length;
-  const absentCount = users.filter((u) => !getRecord(u.id)?.checkInTime).length;
+  const presentCount = new Set(records.filter((r) => r.checkInTime).map((r) => r.userId)).size;
+  const checkedOutCount = users.filter((u) => {
+    const r = getRecord(u.id);
+    return r?.checkInTime && r?.checkOutTime;
+  }).length;
+  const outsideCount = users.filter((u) => {
+    const r = getRecord(u.id);
+    return r && isOutsideGeofence(r);
+  }).length;
+  const absentCount = users.filter((u) => u.isActive !== false && !getRecord(u.id)?.checkInTime).length;
 
   // Export the FULL attendance report (last 90 days for every staff member)
   // as an Excel workbook.
@@ -538,7 +580,7 @@ const AttendanceDashboardPage: React.FC = () => {
       // 3. Build Sheet 1: Overview & KPI Summary
       const staffSummaries = users.map((u) => {
         const hist = staffHistoryMap.get(u.id) || [];
-        const presentDays = hist.filter((h) => h.checkInTime).length;
+        const presentDays = new Set(hist.filter((h) => h.checkInTime).map((h) => h.date)).size;
         const noCheckoutDays = hist.filter((h) => h.checkInTime && !h.checkOutTime).length;
         const outsideGeofenceDays = hist.filter((h) => isOutsideGeofence(h)).length;
 
@@ -549,7 +591,7 @@ const AttendanceDashboardPage: React.FC = () => {
             try {
               const inT = rec.checkInTime.toDate();
               const outT = rec.checkOutTime.toDate();
-              totalMins += differenceInMinutes(outT, inT);
+              totalMins += differenceInMinutes(outT, inT) + (rec.workedMinutes ?? 0);
               totalOvertimeMins += getOvertimeMinutes(inT, outT, rec.overtimeOverrideMinutes, rec.workedMinutes);
             } catch {
               // Ignore invalid dates
@@ -610,7 +652,7 @@ const AttendanceDashboardPage: React.FC = () => {
         for (const rec of hist) {
           const inT = rec.checkInTime?.toDate?.();
           const outT = rec.checkOutTime?.toDate?.();
-          const mins = inT && outT ? differenceInMinutes(outT, inT) : null;
+          const mins = inT && outT ? differenceInMinutes(outT, inT) + (rec.workedMinutes ?? 0) : null;
 
           dailyRecords.push({
             'Date': rec.date ?? (inT ? format(inT, 'yyyy-MM-dd') : ''),
@@ -890,7 +932,7 @@ const AttendanceDashboardPage: React.FC = () => {
               if (!rec?.checkInTime) return null;
               const end = rec.checkOutTime ? rec.checkOutTime.toDate() : new Date();
               try {
-                const mins = differenceInMinutes(end, rec.checkInTime.toDate());
+                const mins = differenceInMinutes(end, rec.checkInTime.toDate()) + (rec.workedMinutes ?? 0);
                 return formatDuration(mins);
               } catch { return null; }
             };
@@ -939,7 +981,7 @@ const AttendanceDashboardPage: React.FC = () => {
                     ) : (
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-slate-500">Duration</span>
-                        {rec?.checkInTime && <LiveTimer checkInTime={rec.checkInTime} />}
+                        {rec?.checkInTime && <LiveTimer checkInTime={rec.checkInTime} bankedMinutes={rec.workedMinutes ?? 0} />}
                       </div>
                     )}
                     {getDur() && checkedOut && (

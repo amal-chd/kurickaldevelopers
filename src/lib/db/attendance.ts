@@ -43,6 +43,9 @@ const convertRowToAttendance = (row: any): Attendance => {
   if (row.check_out_lat != null && row.check_out_lng != null) {
     attendance.checkOutLocation = { latitude: row.check_out_lat, longitude: row.check_out_lng };
   }
+
+  // Ensure workedMinutes is safely numeric
+  attendance.workedMinutes = row.worked_minutes != null ? Number(row.worked_minutes) : 0;
   
   return attendance as Attendance;
 };
@@ -67,6 +70,9 @@ const convertAttendanceToRow = (attendance: any): any => {
   if (attendance.checkOutLocation) {
     row.check_out_lat = attendance.checkOutLocation.latitude;
     row.check_out_lng = attendance.checkOutLocation.longitude;
+  }
+  if (attendance.workedMinutes !== undefined) {
+    row.worked_minutes = Number(attendance.workedMinutes) || 0;
   }
   return row;
 };
@@ -122,6 +128,7 @@ export const getUserAttendanceHistory = async (userId: string, limit2 = 30): Pro
       .select('*')
       .eq('user_id', userId)
       .order('date', { ascending: false })
+      .order('check_in_time', { ascending: false })
       .limit(limit2);
       
     if (error) throw error;

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, Users, CheckSquare, FileText, BookOpen,
-  Calendar, DollarSign, TrendingUp, ArrowLeft
+  Calendar, DollarSign, TrendingUp, ArrowLeft, Wallet, ArrowUpRight, ArrowDownRight, Plus
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import Button from '../../components/ui/Button';
@@ -13,15 +13,15 @@ import Badge from '../../components/ui/Badge';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
 import {
-  getProject, getTasks, getAllUsers, getDocuments, getSiteDiary,
+  getProject, getTasks, getAllUsers, getDocuments, getSiteDiary, getProjectExpenses,
   deleteProject,
 } from '../../lib/firestore';
 import { logAudit, AuditCategory } from '../../lib/auditLog';
-import { Project, Task, AppUser, Document as TDocument, SiteDiaryEntry } from '../../types';
-import { formatDate } from '../../lib/utils';
+import { Project, Task, AppUser, Document as TDocument, SiteDiaryEntry, Expense } from '../../types';
+import { formatDate, formatCompactDateTime } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
-type Tab = 'overview' | 'tasks' | 'documents' | 'sitediary' | 'team';
+type Tab = 'overview' | 'tasks' | 'documents' | 'sitediary' | 'team' | 'finances';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#22c55e']; // blue, amber, green
 
@@ -36,6 +36,7 @@ const ProjectDetailPage: React.FC = () => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [documents, setDocuments] = useState<TDocument[]>([]);
   const [diary, setDiary] = useState<SiteDiaryEntry[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
 
@@ -46,18 +47,20 @@ const ProjectDetailPage: React.FC = () => {
         const p = await getProject(projectId);
         setProject(p);
         if (p) {
-          const [t, u, d, s] = await Promise.all([
+          const [t, u, d, s, exp] = await Promise.all([
             // Scoped fetch + client filter: staff see only THEIR tasks in this
             // project (visibility policy); view_all roles see everything.
             getTasks().then((all) => all.filter((tk) => tk.projectId === projectId)).catch(() => []),
             getAllUsers().catch(() => []),
             getDocuments(projectId).catch(() => []),
             getSiteDiary(projectId).catch(() => []),
+            getProjectExpenses(projectId).catch(() => []),
           ]);
           setTasks(t);
           setUsers(u);
           setDocuments(d);
           setDiary(s);
+          setExpenses(exp);
         }
       } catch (err) {
         console.error('Failed to load project details:', err);
@@ -96,12 +99,26 @@ const ProjectDetailPage: React.FC = () => {
     { name: 'Done', value: tasksByStatus.done },
   ].filter(d => d.value > 0);
 
+  const financeSummary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const e of expenses) {
+      if (e.type === 'income') income += e.amount || 0;
+      else expense += e.amount || 0;
+    }
+    const budget = project?.budget || 0;
+    const remaining = budget > 0 ? Math.max(0, budget - expense) : 0;
+    const spentPercent = budget > 0 ? Math.round((expense / budget) * 100) : 0;
+    return { income, expense, net: income - expense, budget, remaining, spentPercent };
+  }, [expenses, project?.budget]);
+
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Dashboard', icon: TrendingUp },
     { id: 'tasks', label: `Tasks (${tasks.length})`, icon: CheckSquare },
     { id: 'documents', label: `Docs (${documents.length})`, icon: FileText },
     { id: 'sitediary', label: 'Site Diary', icon: BookOpen },
     { id: 'team', label: `Team (${members.length})`, icon: Users },
+    { id: 'finances', label: `Finances (${expenses.length})`, icon: Wallet },
   ];
 
   return (
@@ -277,7 +294,7 @@ const ProjectDetailPage: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Budget</p>
-                      <p className="font-medium text-slate-900">${project.budget.toLocaleString()}</p>
+                      <p className="font-medium text-slate-900">₹{(project.budget || 0).toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 )}
@@ -315,10 +332,17 @@ const ProjectDetailPage: React.FC = () => {
                   <div className="flex-1">
                     <p className="text-base font-semibold text-slate-900 mb-1">{task.title}</p>
                     <div className="flex items-center gap-3 text-sm text-slate-500">
-                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5"/> Due {formatDate(task.dueDate)}</span>
-                      {task.assigneeIds?.length > 0 && (
-                        <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> {task.assigneeIds.length} assignees</span>
-                      )}
+                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5"/> Due {formatCompactDateTime(task.dueDate)}</span>
+                      {(() => {
+                        const explicitUids = task.assigneeIds ?? [];
+                        const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+                        const roleUids = users.filter((u) => assignedRolesList.includes(u.roleId) && u.isActive).map(u => u.id);
+                        const allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+                        if (allAssigneeIds.length === 0) return null;
+                        return (
+                          <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5"/> {allAssigneeIds.length} assignees</span>
+                        );
+                      })()}
                     </div>
                   </div>
                   <TaskStatusChip status={getTaskStatus(task)} />
@@ -426,6 +450,161 @@ const ProjectDetailPage: React.FC = () => {
                 <p className="text-slate-500 font-medium">No team members assigned</p>
               </div>
             )}
+          </div>
+        )}
+
+        {tab === 'finances' && (
+          <div className="space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project Budget</p>
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                    ₹{(financeSummary.budget || 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-2xl text-primary">
+                  <DollarSign className="w-6 h-6" />
+                </div>
+              </Card>
+
+              <Card className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Client Income</p>
+                  <p className="text-2xl font-extrabold text-emerald-600 mt-1">
+                    ₹{financeSummary.income.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
+                  <ArrowDownRight className="w-6 h-6" />
+                </div>
+              </Card>
+
+              <Card className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Expenses</p>
+                  <p className="text-2xl font-extrabold text-rose-600 mt-1">
+                    ₹{financeSummary.expense.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="p-3 bg-rose-50 rounded-2xl text-rose-600">
+                  <ArrowUpRight className="w-6 h-6" />
+                </div>
+              </Card>
+
+              <Card className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Cash Flow</p>
+                  <p className={`text-2xl font-extrabold mt-1 ${financeSummary.net >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    ₹{financeSummary.net.toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-2xl ${financeSummary.net >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  <Wallet className="w-6 h-6" />
+                </div>
+              </Card>
+            </div>
+
+            {/* Budget Utilization bar */}
+            {financeSummary.budget > 0 && (
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Budget Consumption</h4>
+                    <p className="text-xs text-slate-500">
+                      ₹{financeSummary.expense.toLocaleString('en-IN')} spent of ₹{financeSummary.budget.toLocaleString('en-IN')} allocated budget
+                    </p>
+                  </div>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                    financeSummary.spentPercent > 100 ? 'bg-rose-100 text-rose-700' : 'bg-blue-50 text-blue-700'
+                  }`}>
+                    {financeSummary.spentPercent}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden shadow-inner">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      financeSummary.spentPercent > 100 ? 'bg-rose-500' : 'bg-primary'
+                    }`}
+                    style={{ width: `${Math.min(100, financeSummary.spentPercent)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-slate-500 mt-2">
+                  <span>Available Balance: <strong className="text-slate-800">₹{financeSummary.remaining.toLocaleString('en-IN')}</strong></span>
+                  <span>{financeSummary.spentPercent > 100 ? 'Budget Overrun' : 'Within Budget'}</span>
+                </div>
+              </Card>
+            )}
+
+            {/* Transactions List */}
+            <Card padding={false} className="overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Project Transactions</h3>
+                  <p className="text-xs text-slate-500">All income and expense logs for this project</p>
+                </div>
+                <Button size="sm" onClick={() => navigate('/app/expenses')}>
+                  Manage in Expenses
+                </Button>
+              </div>
+
+              {expenses.length === 0 ? (
+                <div className="text-center py-12">
+                  <Wallet className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500 font-medium">No expenses or income logged for this project yet</p>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/app/expenses')}>
+                    Log First Transaction
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b border-slate-100 bg-slate-50/60">
+                        <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase">Type</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Title</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Category</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase">Date</th>
+                        <th className="px-4 py-3 font-semibold text-slate-500 text-xs uppercase text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {expenses.map((e) => {
+                        const isInc = e.type === 'income';
+                        return (
+                          <tr key={e.id} className="hover:bg-slate-50/60">
+                            <td className="px-5 py-3.5">
+                              <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                isInc ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                              }`}>
+                                {isInc ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                                {isInc ? 'Income' : 'Expense'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <p className="font-semibold text-slate-900">{e.title}</p>
+                              {e.note && <p className="text-xs text-slate-500 line-clamp-1">{e.note}</p>}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full capitalize">
+                                {e.category}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{e.date}</td>
+                            <td className="px-4 py-3.5 text-right font-bold whitespace-nowrap">
+                              <span className={isInc ? 'text-emerald-700' : 'text-slate-900'}>
+                                {isInc ? `+₹${e.amount.toLocaleString('en-IN')}` : `-₹${e.amount.toLocaleString('en-IN')}`}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
           </div>
         )}
       </div>

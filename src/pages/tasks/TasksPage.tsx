@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { getTasks, getAllUsers, getProjects, getAllRoles } from '../../lib/firestore';
 import { Task, AppUser, Project, TaskStatus, Role } from '../../types';
-import { formatDate } from '../../lib/utils';
+import { formatDate, formatCompactDateTime } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
 type ViewMode = 'kanban' | 'list';
@@ -78,7 +78,16 @@ const TasksPage: React.FC = () => {
     if (isManager || !appUser) return t.status;
     return t.memberProgress?.[appUser.id]?.status ?? t.status;
   };
-  const isOverdue = (t: Task) => !!(t.dueDate && isAfter(new Date(), t.dueDate.toDate()) && getTaskStatus(t) !== 'done');
+  const isOverdue = (t: Task) => {
+    if (!t.dueDate || getTaskStatus(t) === 'done') return false;
+    const d = t.dueDate.toDate();
+    const isMidnight = d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
+    if (isMidnight) {
+      const endOfDueDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+      return new Date() > endOfDueDay;
+    }
+    return new Date() > d;
+  };
 
   const filteredTasks = tasks.filter((t) => {
     // A non-manager sees a task if they're an assignee, their role is assigned,
@@ -109,7 +118,15 @@ const TasksPage: React.FC = () => {
   const KanbanCard: React.FC<{ task: Task }> = ({ task }) => {
     const project = projects.find((p) => p.id === task.projectId);
     const overdue = isOverdue(task);
-    const assignees = (task.assigneeIds ?? []).slice(0, 3).map(getUser).filter(Boolean) as AppUser[];
+    const explicitUids = task.assigneeIds ?? [];
+    const assignedRolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+    const roleUids = users.filter((u) => assignedRolesList.includes(u.roleId) && u.isActive).map(u => u.id);
+    let allAssigneeIds = Array.from(new Set([...explicitUids, ...roleUids]));
+    // Fallback: show creator when no one is assigned
+    if (allAssigneeIds.length === 0 && task.createdBy) {
+      allAssigneeIds = [task.createdBy];
+    }
+    const assignees = allAssigneeIds.slice(0, 3).map(getUser).filter(Boolean) as AppUser[];
 
     return (
       <div
@@ -155,7 +172,7 @@ const TasksPage: React.FC = () => {
           {task.dueDate && (
             <span className={`flex items-center gap-1 text-xs font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
               <Calendar className="w-3 h-3" />
-              {formatDate(task.dueDate)}
+              {formatCompactDateTime(task.dueDate)}
             </span>
           )}
         </div>
@@ -308,15 +325,22 @@ const TasksPage: React.FC = () => {
                           />
                         </td>
                         <td className={`px-4 py-3.5 hidden lg:table-cell text-xs font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
-                          {formatDate(task.dueDate)}
+                          {formatCompactDateTime(task.dueDate)}
                         </td>
                         <td className="px-4 py-3.5 hidden lg:table-cell">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <div className="flex -space-x-1.5">
-                              {(task.assigneeIds ?? []).slice(0, 3).map((uid) => {
-                                const u = getUser(uid);
-                                return u ? <Avatar key={uid} name={u.name} src={u.avatarUrl} size="xs" /> : null;
-                              })}
+                              {(() => {
+                                const eUids = task.assigneeIds ?? [];
+                                const rList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);
+                                const rUids = users.filter((u) => rList.includes(u.roleId) && u.isActive).map(u => u.id);
+                                let ids = Array.from(new Set([...eUids, ...rUids]));
+                                if (ids.length === 0 && task.createdBy) ids = [task.createdBy];
+                                return ids.slice(0, 3).map((uid) => {
+                                  const u = getUser(uid);
+                                  return u ? <Avatar key={uid} name={u.name} src={u.avatarUrl} size="xs" /> : null;
+                                });
+                              })()}
                             </div>
                             {(() => {
                               const rolesList = task.assignedRoleIds ?? (task.assignedRoleId ? [task.assignedRoleId] : []);

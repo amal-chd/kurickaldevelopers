@@ -10,7 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import { TaskStatusChip } from '../../components/ui/StatusChip';
 import { getUser, getAllRoles, getTasks, getUserAttendanceHistory, getPerformanceScore } from '../../lib/firestore';
 import { AppUser, Role, Task, Attendance, PerformanceScore } from '../../types';
-import { formatDate, formatTime, getDuration, getOvertimeMinutes, formatOvertime } from '../../lib/utils';
+import { formatDate, formatCompactDateTime, formatTime, getDuration, getOvertimeMinutes, formatOvertime } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { getDmChannelId } from '../../lib/utils';
 
@@ -259,7 +259,7 @@ const MemberDetailPage: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 truncate mb-1">{task.title}</p>
-                        <p className="text-sm text-slate-500">Due {formatDate(task.dueDate)}</p>
+                        <p className="text-sm text-slate-500">Due {formatCompactDateTime(task.dueDate)}</p>
                       </div>
                       <TaskStatusChip status={task.memberProgress?.[userId || '']?.status ?? task.status} />
                     </div>
@@ -289,17 +289,23 @@ const MemberDetailPage: React.FC = () => {
                         <p className="font-semibold text-slate-900 mb-1">{a.date}</p>
                         <div className="flex items-center gap-3 text-sm text-slate-500">
                           <span>In: <strong className="text-slate-700">{formatTime(a.checkInTime)}</strong></span>
-                          {a.checkOutTime && (
+                          {a.checkOutTime ? (
                             <>
                               <span>Out: <strong className="text-slate-700">{formatTime(a.checkOutTime)}</strong></span>
-                              <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">{getDuration(a.checkInTime, a.checkOutTime)}</span>
+                              <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-semibold">{getDuration(a.checkInTime, a.checkOutTime, a.workedMinutes)}</span>
                               {(() => {
                                 if (!a.checkInTime || !a.checkOutTime) return null;
-                                const ot = getOvertimeMinutes(a.checkInTime.toDate(), a.checkOutTime.toDate(), a.overtimeOverrideMinutes);
+                                const ot = getOvertimeMinutes(a.checkInTime.toDate(), a.checkOutTime.toDate(), a.overtimeOverrideMinutes, a.workedMinutes);
                                 if (ot > 0) return <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">OT: {formatOvertime(ot)}</span>;
                                 return null;
                               })()}
                             </>
+                          ) : (
+                            (a.workedMinutes ?? 0) > 0 && (
+                              <span className="text-xs text-blue-600 font-medium">
+                                + {Math.floor(a.workedMinutes! / 60) > 0 ? `${Math.floor(a.workedMinutes! / 60)}h ` : ''}{a.workedMinutes! % 60}m banked earlier
+                              </span>
+                            )
                           )}
                         </div>
                       </div>

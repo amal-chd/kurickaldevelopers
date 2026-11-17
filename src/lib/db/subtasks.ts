@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { Subtask } from '../../types';
 import { notifyPush } from '../push';
+import { createNotification } from './notifications';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 const logPermissionError = (actionName: string, error: any, context?: any) => {
@@ -69,31 +70,47 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
     try {
       const { data: taskData, error: taskError } = await supabase
         .from('tasks')
-        .select('assignee_ids, title')
+        .select('assignee_ids, assigned_role_ids, assigned_role_id, created_by, title')
         .eq('id', taskId)
         .single();
         
       if (!taskError && taskData) {
-        const assigneeIds: string[] = taskData.assignee_ids || [];
         const title: string = taskData.title || 'Task';
+        const recipients = new Set<string>();
+
+        if (Array.isArray(taskData.assignee_ids)) {
+          taskData.assignee_ids.forEach((id: string) => recipients.add(id));
+        }
+        if (taskData.created_by) {
+          recipients.add(taskData.created_by);
+        }
+
+        const roleIds: string[] = taskData.assigned_role_ids || [];
+        if (taskData.assigned_role_id) roleIds.push(taskData.assigned_role_id);
+        if (roleIds.length > 0) {
+          const { data: roleUsers } = await supabase
+            .from('users')
+            .select('id')
+            .in('role_id', roleIds)
+            .eq('is_active', true);
+          if (roleUsers) {
+            roleUsers.forEach((u: { id: string }) => recipients.add(u.id));
+          }
+        }
 
         notifyPush({ event: 'task', taskId, kind: 'subtask_added' });
 
-        for (const uid of new Set(assigneeIds)) {
+        for (const uid of recipients) {
           if (uid === addedByUid || !uid) continue;
-          // @ts-ignore
-          if (typeof createNotification !== 'undefined') {
-            // @ts-ignore
-            await createNotification({
-              userId: uid,
-              type: 'task_updated',
-              title: 'New Subtask Added',
-              body: `A subtask "${data.title}" was added to: ${title}`,
-              relatedId: taskId,
-              isRead: {},
-              createdAt: null as any,
-            });
-          }
+          await createNotification({
+            userId: uid,
+            type: 'task_updated',
+            title: 'New Subtask Added',
+            body: `A subtask "${data.title}" was added to: ${title}`,
+            relatedId: taskId,
+            isRead: {},
+            createdAt: null as any,
+          });
         }
       }
     } catch (_) {
@@ -104,7 +121,13 @@ export const addSubtask = async (taskId: string, data: Omit<Subtask, 'id'>, adde
   return newId;
 };
 
-export const updateSubtask = async (taskId: string, subtaskId: string, data: Partial<Subtask>): Promise<void> => {
+export const updateSubtask = async (
+  taskId: string, 
+  subtaskId: string, 
+  data: Partial<Subtask>, 
+  updatedByUid?: string,
+  subtaskTitle?: string
+): Promise<void> => {
   // Only touch real columns — never spread the camelCase Partial wholesale.
   const payload: any = {};
   if (data.title !== undefined) payload.title = data.title;
@@ -118,6 +141,58 @@ export const updateSubtask = async (taskId: string, subtaskId: string, data: Par
     .eq('task_id', taskId);
     
   if (error) throw error;
+
+  if (data.isDone === true && updatedByUid) {
+    try {
+      const { data: taskData } = await supabase
+        .from('tasks')
+        .select('assignee_ids, assigned_role_ids, assigned_role_id, created_by, title')
+        .eq('id', taskId)
+        .single();
+        
+      if (taskData) {
+        const title: string = taskData.title || 'Task';
+        const recipients = new Set<string>();
+
+        if (Array.isArray(taskData.assignee_ids)) {
+          taskData.assignee_ids.forEach((id: string) => recipients.add(id));
+        }
+        if (taskData.created_by) {
+          recipients.add(taskData.created_by);
+        }
+
+        const roleIds: string[] = taskData.assigned_role_ids || [];
+        if (taskData.assigned_role_id) roleIds.push(taskData.assigned_role_id);
+        if (roleIds.length > 0) {
+          const { data: roleUsers } = await supabase
+            .from('users')
+            .select('id')
+            .in('role_id', roleIds)
+            .eq('is_active', true);
+          if (roleUsers) {
+            roleUsers.forEach((u: { id: string }) => recipients.add(u.id));
+          }
+        }
+
+        notifyPush({ event: 'task', taskId, kind: 'subtask_completed' });
+
+        for (const uid of recipients) {
+          if (uid === updatedByUid || !uid) continue;
+          await createNotification({
+            userId: uid,
+            type: 'task_updated',
+            title: 'Subtask Completed',
+            body: `Subtask "${subtaskTitle || 'Subtask'}" marked completed on: ${title}`,
+            relatedId: taskId,
+            isRead: {},
+            createdAt: null as any,
+          });
+        }
+      }
+    } catch (_) {
+      // Best effort notification
+    }
+  }
 };
 
 export const deleteSubtask = async (taskId: string, subtaskId: string): Promise<void> => {

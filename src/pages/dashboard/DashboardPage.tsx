@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { subscribeProjects, subscribeTasks, subscribeUsers, getPerformanceScore } from '../../lib/firestore';
 import { Task, Project, AppUser, PerformanceScore } from '../../types';
-import { formatDate, projectStatusColor, projectStatusLabel, formatDelay } from '../../lib/utils';
+import { formatDate, formatCompactDateTime, projectStatusColor, projectStatusLabel, formatDelay } from '../../lib/utils';
 import { isAfter } from 'date-fns';
 
 const DashboardPage: React.FC = () => {
@@ -445,7 +445,7 @@ const DashboardPage: React.FC = () => {
                         {task.dueDate && (
                           <p className={`text-xs mt-0.5 flex items-center gap-1 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`}>
                             <Calendar className="w-3 h-3" />
-                            {isOverdue ? 'Overdue · ' : ''}Due {formatDate(task.dueDate)}
+                            {isOverdue ? 'Overdue · ' : ''}Due {formatCompactDateTime(task.dueDate)}
                           </p>
                         )}
                       </div>

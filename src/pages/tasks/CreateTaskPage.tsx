@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Shield, Paperclip, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
@@ -9,7 +10,8 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { createTask, updateTask, getTask, getAllUsers, getProjects, getTaskAssignmentConfig, createNotification, getAllRoles } from '../../lib/firestore';
+import { createTask, updateTask, getTask, getAllUsers, getProjects, createNotification, getAllRoles } from '../../lib/firestore';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { notifyPush } from '../../lib/push';
 import { Task, AppUser, Project, TaskPriority, TaskStatus, TaskAssignmentConfig, Role } from '../../types';
 import toast from 'react-hot-toast';
@@ -29,7 +31,6 @@ const CreateTaskPage: React.FC = () => {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [assignConfig, setAssignConfig] = useState<TaskAssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
@@ -40,6 +41,7 @@ const CreateTaskPage: React.FC = () => {
     status: 'in_progress' as TaskStatus,
     priority: 'medium' as TaskPriority,
     dueDate: '',
+    dueTime: '',
     estimatedHours: '',
     tags: '',
     assigneeIds: [] as string[],
@@ -49,27 +51,27 @@ const CreateTaskPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [u, p, cfg, r] = await Promise.all([
+      const [u, p, r] = await Promise.all([
         getAllUsers(),
         getProjects(),
-        getTaskAssignmentConfig(),
         getAllRoles(),
       ]);
       setUsers(u);
       setProjects(p);
-      setAssignConfig(cfg);
       setRoles(r);
 
       if (isEdit && taskId) {
         const task = await getTask(taskId);
         if (task) {
+          const d = task.dueDate ? task.dueDate.toDate() : null;
           setForm({
             title: task.title,
             description: task.description,
             projectId: task.projectId,
             status: task.status,
             priority: task.priority,
-            dueDate: task.dueDate ? task.dueDate.toDate().toISOString().split('T')[0] : '',
+            dueDate: d ? format(d, 'yyyy-MM-dd') : '',
+            dueTime: d ? format(d, 'HH:mm') : '',
             estimatedHours: String(task.estimatedHours ?? ''),
             tags: task.tags?.join(', ') ?? '',
             assigneeIds: task.assigneeIds ?? [],
@@ -82,40 +84,9 @@ const CreateTaskPage: React.FC = () => {
     load();
   }, [isEdit, taskId]);
 
-  // Which users the current user is allowed to assign this task to.
-  // Driven by the Director's assignment matrix; falls back to "everyone" when
-  // the rules are disabled or this role hasn't been configured. Already-selected
-  // assignees stay visible so editing never silently drops them.
-  const assignableUsers = (() => {
-    if (!assignConfig || !assignConfig.enabled) return users;
-    const myRole = appUser?.roleId ?? '';
-    const allowed = assignConfig.matrix?.[myRole];
-    if (!allowed) return users; // role not configured → unrestricted
-    return users.filter(
-      (u) => allowed.includes(u.roleId) || form.assigneeIds.includes(u.id),
-    );
-  })();
-
-  // Which roles the current user is allowed to assign this task to.
-  // Already-selected roles are always kept visible so editing a task never
-  // silently drops a role that was previously assigned.
-  const assignableRoles = (() => {
-    const keep = (r: Role) => form.assignedRoleIds.includes(r.id);
-    // No role-level hierarchy — any role can be assigned unless the Director has
-    // configured explicit assignment rules for the current user's role.
-    if (!assignConfig || !assignConfig.enabled) {
-      return roles;
-    }
-    const myRole = appUser?.roleId ?? '';
-    const allowed = assignConfig.matrix?.[myRole];
-    if (!allowed) {
-      return roles;
-    }
-    return roles.filter((r) => allowed.includes(r.id) || keep(r));
-  })();
-
-  const assignmentRestricted =
-    !!assignConfig?.enabled && !!assignConfig.matrix?.[appUser?.roleId ?? ''];
+  // Anyone can assign tasks to anyone — no role restrictions
+  const assignableUsers = users.filter((u) => u.isActive !== false);
+  const assignableRoles = roles;
 
   const toggleAssignee = (uid: string) => {
     setForm((prev) => ({
@@ -158,6 +129,7 @@ const CreateTaskPage: React.FC = () => {
       }
 
       const finalAttachmentUrls = [...form.attachmentUrls, ...uploadedUrls];
+      const timePart = form.dueTime ? `${form.dueTime}:00` : '23:59:59';
 
       const data: Omit<Task, 'id'> = {
         title: form.title.trim(),
@@ -169,7 +141,7 @@ const CreateTaskPage: React.FC = () => {
         // made the task overdue seconds after creation, unfairly counting it
         // as "completed late" in the performance point system.
         dueDate: form.dueDate
-          ? Timestamp.fromDate(new Date(`${form.dueDate}T23:59:59`))
+          ? Timestamp.fromDate(new Date(`${form.dueDate}T${timePart}`))
           : Timestamp.fromDate(new Date(new Date().setHours(23, 59, 59, 999))),
         estimatedHours: Number(form.estimatedHours) || 0,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
@@ -210,6 +182,15 @@ const CreateTaskPage: React.FC = () => {
           }
         });
 
+        void logAudit({
+          action: 'task.updated',
+          category: AuditCategory.task,
+          targetId: taskId,
+          targetName: form.title.trim(),
+          description: `Updated task "${form.title.trim()}"`,
+          meta: { projectId: form.projectId, priority: form.priority, status: form.status },
+        });
+
         toast.success('Task updated');
       } else {
         const id = await createTask(data);
@@ -244,6 +225,15 @@ const CreateTaskPage: React.FC = () => {
               });
           });
         }
+        void logAudit({
+          action: 'task.created',
+          category: AuditCategory.task,
+          targetId: id,
+          targetName: form.title.trim(),
+          description: `Created new task "${form.title.trim()}"`,
+          meta: { projectId: form.projectId, priority: form.priority, assigneeCount: form.assigneeIds.length },
+        });
+
         toast.success('Task created');
         navigate(`/app/tasks/${id}`);
         return;
@@ -335,12 +325,21 @@ const CreateTaskPage: React.FC = () => {
                 min="0"
               />
             </div>
-            <Input
-              label="Due Date"
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Due Date"
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
+              />
+              <Input
+                label="Due Time"
+                type="time"
+                value={form.dueTime}
+                onChange={(e) => setForm((p) => ({ ...p, dueTime: e.target.value }))}
+                hint="Optional (defaults to end of day)"
+              />
+            </div>
             <Input
               label="Tags"
               placeholder="design, urgent, review (comma-separated)"
@@ -434,16 +433,9 @@ const CreateTaskPage: React.FC = () => {
         </Card>
 
         <Card>
-          <h3 className="font-semibold text-slate-900 mb-3">Assignees</h3>
-          {assignmentRestricted && (
-            <p className="text-xs text-slate-500 mb-3 -mt-1">
-              You can assign this task only to the roles your Director has allowed.
-            </p>
-          )}
+          <h3 className="font-semibold text-slate-900 mb-3">Assignees (Individuals)</h3>
           {assignableUsers.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">
-              Your role isn't allowed to assign tasks to anyone. Ask your Director to update the assignment rules.
-            </p>
+            <p className="text-sm text-slate-400 py-4 text-center">No active users found.</p>
           ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
             {assignableUsers.map((user) => {

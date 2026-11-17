@@ -62,11 +62,36 @@ const increment = (n: number) => n;
 const arrayUnion = (...args: any[]) => args;
 const arrayRemove = (...args: any[]) => args;
 
+const mapExpenseRow = (d: any): Expense => {
+  const c = toCamelCase(d);
+  const rawNote = c.note || '';
+  const isIncome = rawNote.startsWith('[INCOME]') || rawNote.includes('[TYPE:INCOME]') || c.type === 'income';
+  const cleanNote = rawNote.replace(/^\[INCOME\]\s*/, '').replace(/\[TYPE:INCOME\]\s*/, '').trim();
+  return {
+    ...c,
+    type: isIncome ? 'income' : 'expense',
+    note: cleanNote || undefined,
+  } as Expense;
+};
+
 export const createExpense = async (
   data: Omit<Expense, 'id' | 'createdAt'>,
 ): Promise<string> => {
-  const insertData = toSnakeCase({ ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
-  //({ ...data, createdAt: new Date().toISOString() });
+  const isIncome = data.type === 'income';
+  let note = data.note ? data.note.trim() : '';
+  if (isIncome && !note.startsWith('[INCOME]')) {
+    note = `[INCOME] ${note}`.trim();
+  }
+
+  const payload: any = {
+    ...data,
+    note: note || null,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  delete payload.type; // strip 'type' column to prevent PostgREST 42703 error
+
+  const insertData = toSnakeCase(payload);
   const { data: result, error } = await supabase
     .from('expenses')
     .insert(insertData)
@@ -93,7 +118,7 @@ export const getMyExpenses = async (userId: string): Promise<Expense[]> => {
     }
     
     return (data || [])
-      .map((d: any) => toCamelCase(d) as Expense)
+      .map(mapExpenseRow)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   } catch (err: any) {
     console.warn('Gracefully handled getMyExpenses error:', err);
@@ -113,10 +138,31 @@ export const getAllExpenses = async (): Promise<Expense[]> => {
     }
 
     return (data || [])
-      .map((d: any) => toCamelCase(d) as Expense)
+      .map(mapExpenseRow)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   } catch (err: any) {
     console.warn('Gracefully handled getAllExpenses error:', err);
+    return [];
+  }
+};
+
+export const getProjectExpenses = async (projectId: string): Promise<Expense[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('project_id', projectId);
+    
+    if (error) {
+      logPermissionError('getProjectExpenses', error, { projectId });
+      return [];
+    }
+
+    return (data || [])
+      .map(mapExpenseRow)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  } catch (err: any) {
+    console.warn('Gracefully handled getProjectExpenses error:', err);
     return [];
   }
 };

@@ -97,11 +97,14 @@ export const CompletionStatusChip: React.FC<{
   }
 
   if (dueDate) {
-    const dueTime = (dueDate.toDate ? dueDate.toDate() : new Date(dueDate)).getTime();
-    const nowTime = new Date().getTime();
-    const isSameDay = new Date(dueTime).toDateString() === new Date().toDateString();
+    const dueObj = dueDate.toDate ? dueDate.toDate() : new Date(dueDate);
+    const dueTime = dueObj.getTime();
+    const now = new Date();
+    const nowTime = now.getTime();
+    const isSameDay = dueObj.toDateString() === now.toDateString();
+    const isMidnight = dueObj.getHours() === 0 && dueObj.getMinutes() === 0 && dueObj.getSeconds() === 0;
 
-    if (nowTime > dueTime && !isSameDay) {
+    if (nowTime > dueTime && (!isSameDay || !isMidnight)) {
       return (
         <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100', className)}>
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />

@@ -531,6 +531,7 @@ export interface Expense {
   projectId?: string;
   projectName?: string;
   note?: string;
+  type?: 'expense' | 'income';
   orgId?: string;
   createdAt?: Timestamp;
 }

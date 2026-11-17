@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { getDocuments, createDocument, deleteDocument, updateDocument, getProjects, getAllUsers } from '../../lib/firestore';
 import { uploadToSupabase, deleteFromSupabase, STORAGE_BUCKETS } from '../../lib/storage';
+import { logAudit, AuditCategory } from '../../lib/auditLog';
 import { Document as TDocument, Project, AppUser } from '../../types';
 import { formatFileSize, getMimeIcon } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -106,6 +107,14 @@ const DocumentsPage: React.FC = () => {
       };
       const id = await createDocument(docData);
       setDocuments((prev) => [{ id, ...docData }, ...prev]);
+      void logAudit({
+        action: 'document.uploaded',
+        category: AuditCategory.document,
+        targetId: id,
+        targetName: selectedFile.name,
+        description: `Uploaded document "${selectedFile.name}" to project ${getProjectName(uploadProjectId)}`,
+        meta: { size: selectedFile.size, projectId: uploadProjectId },
+      });
       setUploadModal(false);
       setSelectedFile(null);
       toast.success('Document uploaded successfully');
@@ -119,12 +128,26 @@ const DocumentsPage: React.FC = () => {
   const handleApprove = async (doc: TDocument) => {
     await updateDocument(doc.id, { approvalStatus: 'approved' });
     setDocuments((prev) => prev.map((d) => d.id === doc.id ? { ...d, approvalStatus: 'approved' } : d));
+    void logAudit({
+      action: 'document.approved',
+      category: AuditCategory.document,
+      targetId: doc.id,
+      targetName: doc.name,
+      description: `Approved document "${doc.name}"`,
+    });
     toast.success('Document approved');
   };
 
   const handleReject = async (doc: TDocument) => {
     await updateDocument(doc.id, { approvalStatus: 'rejected' });
     setDocuments((prev) => prev.map((d) => d.id === doc.id ? { ...d, approvalStatus: 'rejected' } : d));
+    void logAudit({
+      action: 'document.rejected',
+      category: AuditCategory.document,
+      targetId: doc.id,
+      targetName: doc.name,
+      description: `Rejected document "${doc.name}"`,
+    });
     toast.success('Document rejected');
   };
 
@@ -139,6 +162,14 @@ const DocumentsPage: React.FC = () => {
         deleteFromSupabase(target.storageBucket, target.storagePath).catch(() => {});
       }
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      void logAudit({
+        action: 'document.deleted',
+        category: AuditCategory.document,
+        targetId: docId,
+        targetName: target?.name || 'Document',
+        description: `Deleted document "${target?.name || docId}"`,
+        severity: 'warning',
+      });
       toast.success('Deleted');
     } catch (err: any) {
       console.error(err);
