@@ -26,6 +26,11 @@ const pageTitles: Record<string, string> = {
   '/app/admin/attendance': 'Attendance Dashboard',
   '/app/profile': 'Profile',
   '/app/organization': 'Organization',
+  '/app/timeline': 'Timeline',
+  '/app/inspections': 'Inspections & Punch List',
+  '/app/materials': 'Materials & Inventory',
+  '/app/labour': 'Labour & Contractors',
+  '/app/boq': 'BOQ & Cost Control',
   '/app/billing': 'Plan & Billing',
   '/app/support': 'Help & Support',
 };

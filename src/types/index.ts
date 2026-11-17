@@ -2,6 +2,12 @@ import { Timestamp } from 'firebase/firestore';
 
 // ─── Permissions ─────────────────────────────────────────────────────────────
 export interface Permissions {
+  // Construction suite (optional — roles without them fall back to project permissions)
+  boq_view?: boolean; boq_manage?: boolean;
+  materials_view?: boolean; materials_manage?: boolean; materials_approve?: boolean;
+  labour_view?: boolean; labour_manage?: boolean;
+  inspections_view?: boolean; inspections_manage?: boolean; inspections_approve?: boolean;
+  timeline_manage?: boolean;
   tasks_view?: boolean;
   tasks_view_all?: boolean;
   tasks_create?: boolean;

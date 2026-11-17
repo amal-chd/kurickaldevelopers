@@ -56,6 +56,11 @@ const BillingPage = React.lazy(() => import('./pages/saas/BillingPage'));
 const InvoicePage = React.lazy(() => import('./pages/saas/BillingPage').then((m) => ({ default: m.InvoicePage })));
 const OrganizationPage = React.lazy(() => import('./pages/saas/OrganizationPage'));
 const SupportPage = React.lazy(() => import('./pages/saas/SupportPage'));
+const BoqPage = React.lazy(() => import('./pages/construction/BoqPage'));
+const MaterialsPage = React.lazy(() => import('./pages/construction/MaterialsPage'));
+const LabourPage = React.lazy(() => import('./pages/construction/LabourPage'));
+const InspectionsPage = React.lazy(() => import('./pages/construction/InspectionsPage'));
+const TimelinePage = React.lazy(() => import('./pages/construction/TimelinePage'));
 const PlatformConsole = React.lazy(() => import('./pages/platform/PlatformConsole'));
 
 // The company website stays at "/" unless this deployment is the SaaS site.
@@ -242,6 +247,13 @@ function App() {
                 <Route path="admin/attendance" element={<AttendanceDashboardPage />} />
                 <Route path="admin/contact" element={<ContactInquiriesPage />} />
               </Route>
+
+              {/* Construction suite (plan-gated by ModuleGate) */}
+              <Route path="timeline" element={<RequirePerm perm="projects_view"><TimelinePage /></RequirePerm>} />
+              <Route path="inspections" element={<RequirePerm perm="projects_view"><InspectionsPage /></RequirePerm>} />
+              <Route path="materials" element={<RequirePerm perm="projects_view"><MaterialsPage /></RequirePerm>} />
+              <Route path="labour" element={<RequirePerm perm="projects_view"><LabourPage /></RequirePerm>} />
+              <Route path="boq" element={<RequirePerm perm="projects_view"><BoqPage /></RequirePerm>} />
 
               {/* Organisation, billing & support */}
               <Route path="organization" element={<OrgAdminGate><OrganizationPage /></OrgAdminGate>} />

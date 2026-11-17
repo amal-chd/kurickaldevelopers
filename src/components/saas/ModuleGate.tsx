@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
-import { useTenantStore, hasModule, moduleForPath, MODULES } from '../../lib/tenant';
+import { useTenantStore, hasModule, moduleForPath, MODULES, roleHidesModule } from '../../lib/tenant';
+import { useAuthStore } from '../../store/authStore';
 
 /**
  * Blocks pages whose module isn't in the tenant's plan, showing an upgrade
@@ -11,7 +12,12 @@ import { useTenantStore, hasModule, moduleForPath, MODULES } from '../../lib/ten
 const ModuleGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
   const ctx = useTenantStore((s) => s.context);
+  const perms = useAuthStore((s) => s.permissions) as Record<string, boolean | undefined>;
   const mod = moduleForPath(pathname);
+  // A role can explicitly hide a suite module (e.g. materials_view = false).
+  if (roleHidesModule(perms, mod)) {
+    return <div className="max-w-lg mx-auto mt-16 px-6 text-center"><h1 className="text-xl font-bold">No access</h1><p className="text-slate-500 mt-2 text-sm">Your role doesn't include this module. Ask an administrator.</p><Link to="/app/dashboard" className="inline-block mt-4 text-sm underline">Back to dashboard</Link></div>;
+  }
   if (!mod || hasModule(ctx, mod)) return <>{children}</>;
   const meta = MODULES.find((m) => m.key === mod);
   return (

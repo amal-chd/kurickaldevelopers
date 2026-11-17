@@ -25,7 +25,8 @@ export const scopedSettingsId = (key: string) =>
 export type ModuleKey =
   | 'tasks' | 'projects' | 'team' | 'documents' | 'chat' | 'site_diary' | 'attendance'
   | 'notifications' | 'expenses' | 'leave' | 'assets' | 'reports' | 'performance'
-  | 'salary' | 'audit_log' | 'advanced_roles' | 'priority_support' | 'sso' | 'api_access';
+  | 'salary' | 'audit_log' | 'advanced_roles' | 'priority_support' | 'sso' | 'api_access'
+  | 'timeline' | 'inspections' | 'materials' | 'labour' | 'boq';
 
 export const MODULES: { key: ModuleKey; label: string; description: string; core?: boolean }[] = [
   { key: 'tasks', label: 'Tasks & approvals', description: 'Assign, track and approve work with subtasks, comments and attachments.', core: true },
@@ -36,6 +37,11 @@ export const MODULES: { key: ModuleKey; label: string; description: string; core
   { key: 'documents', label: 'Documents & drawings', description: 'Versioned drawings, approvals and a built-in viewer.' },
   { key: 'chat', label: 'Team chat', description: 'Project channels, direct messages and announcements.' },
   { key: 'notifications', label: 'Notifications', description: 'Push, in-app alerts and broadcasts.' },
+  { key: 'timeline', label: 'Gantt timeline & milestones', description: 'Plan tasks and milestones on a Gantt chart with overdue tracking.' },
+  { key: 'inspections', label: 'Inspections & punch list', description: 'Quality & safety checklists, handover snags and defect tracking with photos.' },
+  { key: 'materials', label: 'Materials & inventory', description: 'Site stock, receipts, issues and material requests with approvals.' },
+  { key: 'labour', label: 'Labour & contractors', description: 'Daily labour register, wages, advances and contractor balances.' },
+  { key: 'boq', label: 'BOQ & cost control', description: 'BOQ with executed quantities, earned value and budget vs actual cost.' },
   { key: 'expenses', label: 'Purchase & expenses', description: 'Site expenses, purchase requests and approvals.' },
   { key: 'leave', label: 'Leave management', description: 'Leave requests and approvals.' },
   { key: 'assets', label: 'Assets & equipment', description: 'Equipment register, allocation and maintenance.' },
@@ -63,6 +69,11 @@ export const ROUTE_MODULES: [string, ModuleKey][] = [
   ['/app/expenses', 'expenses'],
   ['/app/admin/attendance', 'attendance'],
   ['/app/admin/audit-log', 'audit_log'],
+  ['/app/timeline', 'timeline'],
+  ['/app/inspections', 'inspections'],
+  ['/app/materials', 'materials'],
+  ['/app/labour', 'labour'],
+  ['/app/boq', 'boq'],
 ];
 export const moduleForPath = (path: string): ModuleKey | null =>
   ROUTE_MODULES.find(([p]) => path === p || path.startsWith(p + '/'))?.[1] ?? null;
@@ -161,3 +172,8 @@ export function tenantPoll(fetcher: () => unknown, intervalMs: number): () => vo
   }, intervalMs);
   return () => window.clearInterval(id);
 }
+
+/** New construction-suite modules whose `<module>_view` role key can hide them. */
+export const SUITE_MODULES = ['timeline', 'inspections', 'materials', 'labour', 'boq'];
+export const roleHidesModule = (perms: Record<string, boolean | undefined>, mod: string | null) =>
+  !!mod && SUITE_MODULES.includes(mod) && perms[`${mod}_view`] === false;

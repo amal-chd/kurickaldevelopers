@@ -5,8 +5,8 @@ import {
   MessageSquare, BookOpen, BarChart2, Shield, LogOut, X, Award,
   CalendarDays, Wallet, Receipt, Package, HelpCircle,
 } from 'lucide-react';
-import { Building, CreditCard, LifeBuoy, Globe2 } from 'lucide-react';
-import { useTenantStore, hasModule, moduleForPath } from '../../lib/tenant';
+import { Building, CreditCard, LifeBuoy, Globe2, GanttChart, ClipboardCheck, Boxes, HardHat, Calculator } from 'lucide-react';
+import { useTenantStore, hasModule, moduleForPath, roleHidesModule } from '../../lib/tenant';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -33,6 +33,16 @@ const NAV_GROUPS = [
       { to: '/app/reports', label: 'Reports', icon: BarChart2, perm: 'reports_view' as const },
       { to: '/app/performance', label: 'Performance & Points', icon: Award, requiresRole: true },
       { to: '/app/manual', label: 'Field Manual', icon: HelpCircle, always: true },
+    ],
+  },
+  {
+    label: 'Construction',
+    items: [
+      { to: '/app/timeline', label: 'Timeline', icon: GanttChart, perm: 'projects_view' as const },
+      { to: '/app/inspections', label: 'Inspections & Punch', icon: ClipboardCheck, perm: 'projects_view' as const },
+      { to: '/app/materials', label: 'Materials', icon: Boxes, perm: 'projects_view' as const },
+      { to: '/app/labour', label: 'Labour', icon: HardHat, perm: 'projects_view' as const },
+      { to: '/app/boq', label: 'BOQ & Costing', icon: Calculator, perm: 'projects_view' as const },
     ],
   },
   {
@@ -77,7 +87,7 @@ const NAV_GROUPS = [
 
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const { appUser, role } = useAuthStore();
-  const { can } = usePermissions();
+  const { can, permissions } = usePermissions();
   const navigate = useNavigate();
   const { channels } = useChannels();
   const tenant = useTenantStore((st) => st.context);
@@ -110,6 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     if (item.to) {
       const mod = moduleForPath(item.to);
       if (mod && !hasModule(tenant, mod)) return false;
+      if (roleHidesModule(permissions as Record<string, boolean | undefined>, mod)) return false;
     }
     if (item.saasOnly && (!tenant || tenant.org.is_legacy)) return false;
     if (item.always) return true;

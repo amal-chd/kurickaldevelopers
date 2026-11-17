@@ -30,6 +30,12 @@ const ALL_PERMISSIONS: (keyof Permissions)[] = [
   // HR & Finance — these were enforced in the pages but missing here, so they
   // could never be granted/revoked from the UI (only via level fallback).
   'leave_manage', 'payroll_manage', 'expense_manage',
+  // Construction suite — unset keys fall back to project permissions.
+  'timeline_manage',
+  'inspections_view', 'inspections_manage', 'inspections_approve',
+  'materials_view', 'materials_manage', 'materials_approve',
+  'labour_view', 'labour_manage',
+  'boq_view', 'boq_manage',
 ];
 
 const RoleManagementPage: React.FC = () => {

@@ -25,7 +25,7 @@ export const FeaturesPage: React.FC = () => (
         <h2 className="text-xl font-bold">On the roadmap</h2>
         <p className="text-sm text-slate-600 mt-1">Shipping next for construction teams:</p>
         <ul className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-slate-700">
-          {['BOQ & estimation', 'Material & inventory tracking', 'Labour & contractor management', 'Work orders', 'Inspections, checklists & safety', 'Gantt timelines & milestones', 'Client approvals portal', 'Project cost monitoring'].map((x) => (
+          {['RFIs & submittals', 'Work orders & subcontract billing', 'Purchase orders & vendor comparison', 'Client approvals portal', 'Offline-first mobile capture', 'Drawing markups', 'Public API & webhooks', 'SSO'].map((x) => (
             <li key={x} className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{x}</li>
           ))}
         </ul>

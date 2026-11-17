@@ -153,7 +153,27 @@ pg_cron (hourly) ──► run_subscription_lifecycle(): trial reminders, trial 
 - Transactional email (invites, receipts, trial reminders) through a provider such as Resend or SES. Today invites are shared as links (copy or WhatsApp) and reminders are sent in-app.
 - Storage-quota metering. The limit exists, but enforcement needs per-org storage usage.
 
-**Phase 2: construction modules** (each behind a module key, so other industries can turn them off)
+**Phase 2: construction suite — SHIPPED (2026-11-17, migration `20261117120000_construction_suite.sql`)**
+
+Competitor gap analysis that drove it:
+
+| Gap | Who has it | Task Pilot now |
+|---|---|---|
+| Material requests, receipts/issues, site stock | Powerplay, Onsite (core of their SMB pitch) | `/app/materials`: catalogue, signed movements, weighted-avg value, low-stock, request → approve → order → receive (auto stock-in) |
+| Daily labour attendance, wages, advances | Powerplay, Onsite | `/app/labour`: register by contractor and trade with OT, copy previous day, contractor balances, Excel report |
+| BOQ, actual vs planned cost | Powerplay ("Actual vs Planned"), Procore budgets | `/app/boq`: Excel import/export, executed qty, earned value, actual = materials + labour + expenses, CPI and forecast at completion |
+| Inspections, checklists, punch lists | Procore, Fieldwire (Fieldwire's strongest area) | `/app/inspections`: 4 default checklists, pass/fail/N/A runner, failed items → punch items with photos, owners, due dates, review-then-close |
+| Gantt scheduling | Procore. Fieldwire's is basic. | `/app/timeline`: Gantt by day/week/month, today line, overdue colouring, milestones, reschedule (`tasks.start_date`) |
+
+- Plan placement: Starter adds the timeline. Professional adds inspections, materials and labour. Business and Enterprise add BOQ and cost control. The legacy workspace has everything.
+- Role keys (`<module>_view/_manage/_approve`) are optional. Roles without them fall back to project permissions, so existing users keep access.
+
+**Phase 2b (next)**
+- RFIs and submittals, work orders and subcontractor RA bills, purchase orders and vendor comparison
+- Client approvals portal (the `client` role exists already), drawing markups, offline-first mobile capture
+- Mobile (Flutter) screens for labour register, material receipt/issue and punch items: the highest-frequency field actions
+
+**Phase 2 (original list)** (each behind a module key, so other industries can turn them off)
 - BOQ and estimation (items, rates, quantities, versions); project cost monitoring (budget vs. committed vs. actual from expenses and POs)
 - Material and inventory (stores, GRN, issue to site, stock alerts); purchase orders linked to expenses
 - Labour and contractor management (contractor register, daily labour count in the site diary, wage sheets); work orders
