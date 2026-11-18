@@ -136,6 +136,7 @@ export const MarketingLayout: React.FC<{ children: React.ReactNode }> = ({ child
               <li><Link to="/policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Use</Link></li>
               <li><Link to="/login" className="hover:text-white transition-colors">Account Sign In</Link></li>
+              <li><Link to="/platform" className="hover:text-white transition-colors">Platform Console</Link></li>
             </ul>
           </div>
         </div>

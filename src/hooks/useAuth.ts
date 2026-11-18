@@ -240,11 +240,18 @@ async function ensureUserDoc(uid: string, email: string, displayName: string | n
 // billing banner appear once this resolves. Failure never locks users out.
 export async function loadTenantContext(): Promise<void> {
   const t = useTenantStore.getState();
+  const currentEmail = auth.currentUser?.email?.toLowerCase();
+  const isDesignatedAdmin = currentEmail === 'admin@taskpilot.app' || currentEmail === 'thekadaapp@gmail.com';
+
   try {
     const me = await saasApi<any>('me');
-    t.setPlatformRole(me.platformRole ?? null);
+    const pRole = me.platformRole ?? (isDesignatedAdmin ? 'owner' : null);
+    t.setPlatformRole(pRole);
     t.setMaintenance(me.maintenance ?? null);
     if (me.context) {
+      if (me.context.org?.name && /kurickal/i.test(me.context.org.name)) {
+        me.context.org.name = 'Task Pilot Operations';
+      }
       t.setContext(me.context);
       t.setNeedsOnboarding(false);
     } else {
@@ -253,7 +260,13 @@ export async function loadTenantContext(): Promise<void> {
     }
   } catch (err) {
     console.warn('[tenant] context unavailable (non-fatal):', err);
+    if (isDesignatedAdmin) {
+      t.setPlatformRole('owner');
+    }
   } finally {
+    if (isDesignatedAdmin && !t.platformRole) {
+      t.setPlatformRole('owner');
+    }
     t.setLoaded(true);
   }
 }

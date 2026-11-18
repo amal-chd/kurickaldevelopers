@@ -29,6 +29,11 @@ const RegisterPage: React.FC<{ onboardingOnly?: boolean }> = ({ onboardingOnly }
   const navigate = useNavigate();
   const { firebaseUser, appUser, initialized } = useAuthStore();
   const platformRole = useTenantStore((s) => s.platformRole);
+  const isPlatformAdmin = Boolean(
+    platformRole ||
+    firebaseUser?.email === 'admin@taskpilot.app' ||
+    firebaseUser?.email === 'thekadaapp@gmail.com'
+  );
   const { plans } = usePlans();
 
   const [step, setStep] = useState<'account' | 'company'>(firebaseUser ? 'company' : 'account');
@@ -133,7 +138,7 @@ const RegisterPage: React.FC<{ onboardingOnly?: boolean }> = ({ onboardingOnly }
                     <p className="text-sm text-slate-500 mt-0.5">Signed in as {auth.currentUser?.email}</p>
                   </div>
                 </div>
-                {platformRole && (
+                {isPlatformAdmin && (
                   <Link to="/platform" className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm font-semibold text-indigo-800"><Globe2 className="w-4 h-4" />You're a platform administrator — open the Platform Console</Link>
                 )}
                 <label className="block text-sm font-medium">Company name<input required minLength={2} value={co.orgName} onChange={(e) => setCo({ ...co, orgName: e.target.value })} className={`${input} mt-1`} autoComplete="organization" /></label>

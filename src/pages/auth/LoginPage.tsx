@@ -12,6 +12,8 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
+import { useTenantStore } from '../../lib/tenant';
+import { loadTenantContext } from '../../hooks/useAuth';
 
 // ─── Left panel stats ─────────────────────────────────────────────────────────
 
@@ -33,13 +35,24 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading]   = useState(false);
   const navigate                = useNavigate();
   const [searchParams]          = useSearchParams();
-  const next = (searchParams.get('next') || '').startsWith('/') && !(searchParams.get('next') || '').startsWith('//') ? searchParams.get('next')! : '/app/dashboard';
+  const nextParam               = searchParams.get('next');
+  const explicitNext            = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
   const { firebaseUser }        = useAuthStore();
 
-  // Already logged in → straight to dashboard
+  // Already logged in → straight to platform console (if admin) or dashboard
   useEffect(() => {
-    if (firebaseUser) navigate(next);
-  }, [firebaseUser, navigate, next]);
+    if (firebaseUser) {
+      const emailLower = (firebaseUser.email || '').toLowerCase();
+      const pRole = useTenantStore.getState().platformRole;
+      const isPlatformAdmin = Boolean(
+        pRole ||
+        emailLower === 'admin@taskpilot.app' ||
+        emailLower === 'thekadaapp@gmail.com'
+      );
+      const target = explicitNext || (isPlatformAdmin ? '/platform' : '/app/dashboard');
+      navigate(target, { replace: true });
+    }
+  }, [firebaseUser, navigate, explicitNext]);
 
   // ── Error helper ────────────────────────────────────────────────────────────
   const toastAuthError = (code: string) => {
@@ -60,9 +73,22 @@ const LoginPage: React.FC = () => {
     if (!email.trim() || !password) return;
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       toast.success('Signed in!');
-      navigate(next);
+      const cleanEmail = (cred.user?.email || email).trim().toLowerCase();
+      try {
+        await loadTenantContext();
+      } catch {
+        // non-fatal
+      }
+      const pRole = useTenantStore.getState().platformRole;
+      const isPlatformAdmin = Boolean(
+        pRole ||
+        cleanEmail === 'admin@taskpilot.app' ||
+        cleanEmail === 'thekadaapp@gmail.com'
+      );
+      const target = explicitNext || (isPlatformAdmin ? '/platform' : '/app/dashboard');
+      navigate(target, { replace: true });
     } catch (err: unknown) {
       toastAuthError((err as { code?: string }).code ?? '');
     } finally {
@@ -187,6 +213,9 @@ const LoginPage: React.FC = () => {
 
             <p className="text-center text-sm text-slate-500 mt-6">
               New company? <Link to="/register" className="font-semibold text-slate-900 underline underline-offset-2">Start a free trial</Link>
+            </p>
+            <p className="text-center text-xs text-slate-400 mt-3">
+              Task Pilot Administrator? <Link to="/platform" className="font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2">Platform Console</Link>
             </p>
           </div>
 

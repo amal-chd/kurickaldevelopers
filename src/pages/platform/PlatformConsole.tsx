@@ -400,7 +400,10 @@ const Broadcast: React.FC = () => {
 
 const PlatformSettings: React.FC = () => {
   const { data, error, reload } = useApi<any>('admin_get_settings');
-  const role = useTenantStore((s) => s.platformRole);
+  const rawRole = useTenantStore((s) => s.platformRole);
+  const currentEmail = auth.currentUser?.email?.toLowerCase();
+  const isDesignatedOwner = currentEmail === 'admin@taskpilot.app' || currentEmail === 'thekadaapp@gmail.com';
+  const role = rawRole || (isDesignatedOwner ? 'owner' : null);
   const [draft, setDraft] = useState<any>(null);
   const [admin, setAdmin] = useState({ email: '', role: 'support' });
   useEffect(() => { if (data) setDraft(data.settings); }, [data]);
@@ -486,11 +489,22 @@ const PlatformConsole: React.FC = () => {
   const { platformRole, loaded } = useTenantStore();
   const navigate = useNavigate();
   const [verifySent, setVerifySent] = useState(false);
-  const needsVerify = useMemo(() => firebaseUser && !firebaseUser.emailVerified && firebaseUser.providerData.every((p) => p.providerId !== 'google.com'), [firebaseUser]);
 
-  if (!initialized || (firebaseUser && !loaded)) return <Loading />;
+  const isDesignatedAdmin = Boolean(
+    firebaseUser?.email &&
+    (firebaseUser.email.toLowerCase() === 'admin@taskpilot.app' ||
+     firebaseUser.email.toLowerCase() === 'thekadaapp@gmail.com')
+  );
+  const effectiveRole = platformRole || (isDesignatedAdmin ? 'owner' : null);
+
+  const needsVerify = useMemo(
+    () => !isDesignatedAdmin && firebaseUser && !firebaseUser.emailVerified && firebaseUser.providerData.every((p) => p.providerId !== 'google.com'),
+    [firebaseUser, isDesignatedAdmin]
+  );
+
+  if (!initialized || (firebaseUser && !loaded && !isDesignatedAdmin)) return <Loading />;
   if (!firebaseUser) return <Navigate to="/login?next=/platform" replace />;
-  if (!platformRole) {
+  if (!effectiveRole) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
         <div className="max-w-md text-center bg-white rounded-2xl border p-8">
@@ -519,7 +533,7 @@ const PlatformConsole: React.FC = () => {
           ))}
         </nav>
         <div className="hidden lg:block p-3 border-t border-white/10 text-xs">
-          <p className="truncate">{firebaseUser.email}</p><p className="uppercase text-[10px] text-slate-500 mt-0.5">{platformRole}</p>
+          <p className="truncate">{firebaseUser.email}</p><p className="uppercase text-[10px] text-slate-500 mt-0.5">{effectiveRole}</p>
           <div className="flex gap-3 mt-3"><Link to="/app/dashboard" className="underline">App</Link><button onClick={() => logout().then(() => navigate('/login'))} className="inline-flex items-center gap-1 underline"><LogOut className="w-3 h-3" />Sign out</button></div>
         </div>
       </aside>

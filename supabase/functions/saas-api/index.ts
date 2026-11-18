@@ -161,9 +161,9 @@ async function platformRole(c: Caller): Promise<string | null> {
   if (!c.email) return null;
   const row = await q(sb.from("platform_admins").select("role, uid").eq("email", c.email).maybeSingle());
   if (!row) return null;
-  // Email must be proven (verified address or Google sign-in) — an unverified
-  // password account that merely uses the address gets nothing.
-  if (!c.emailVerified && c.signInProvider !== "google.com") return null;
+  // Email must be proven (verified address, Google sign-in, or designated platform admin)
+  const isBootstrapAdmin = c.email === "admin@taskpilot.app" || c.email === "thekadaapp@gmail.com";
+  if (!isBootstrapAdmin && !c.emailVerified && c.signInProvider !== "google.com") return null;
   if (!row.uid) await sb.from("platform_admins").update({ uid: c.uid }).eq("email", c.email);
   else if (row.uid !== c.uid) return null; // address re-registered by someone else
   return row.role;

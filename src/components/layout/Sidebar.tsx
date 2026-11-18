@@ -86,12 +86,20 @@ const NAV_GROUPS = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
-  const { appUser, role } = useAuthStore();
+  const { appUser, role, firebaseUser } = useAuthStore();
   const { can, permissions } = usePermissions();
   const navigate = useNavigate();
   const { channels } = useChannels();
   const tenant = useTenantStore((st) => st.context);
   const platformRole = useTenantStore((st) => st.platformRole);
+  const isPlatformAdmin = Boolean(
+    platformRole ||
+    firebaseUser?.email === 'admin@taskpilot.app' ||
+    firebaseUser?.email === 'thekadaapp@gmail.com'
+  );
+  const displayOrgName = (!tenant || tenant.org.is_legacy || /kurickal/i.test(tenant.org.name))
+    ? 'Task Pilot Operations'
+    : tenant.org.name;
 
   const totalUnread = channels.reduce((sum, ch) => {
     if (!appUser) return sum;
@@ -162,7 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
             <img src="/logo.png" alt="Task Pilot" className="w-9 h-9 rounded-lg object-cover shadow-sm border border-slate-200/50" />
             <div>
               <p className="text-slate-900 font-bold text-sm leading-tight tracking-tight">Task Pilot</p>
-              <p className="text-slate-500 text-xs font-medium truncate max-w-[130px]" title={tenant?.org.name}>{tenant && !tenant.org.is_legacy ? tenant.org.name : 'Construction TMS'}</p>
+              <p className="text-slate-500 text-xs font-medium truncate max-w-[130px]" title={displayOrgName}>{displayOrgName}</p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors">
@@ -210,7 +218,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               </div>
             );
           })}
-          {platformRole && (
+          {isPlatformAdmin && (
             <NavLink to="/platform" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">
               <Globe2 className="w-4 h-4" />
               <span>Platform Console</span>
