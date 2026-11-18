@@ -65,7 +65,9 @@ const NotFoundPage = React.lazy(() => import('./pages/misc/NotFoundPage'));
 const PlatformConsole = React.lazy(() => import('./pages/platform/PlatformConsole'));
 
 // The company website stays at "/" unless this deployment is the SaaS site.
-const SITE_IS_SAAS = import.meta.env.VITE_SITE_MODE === 'saas';
+// Default to the Task Pilot SaaS product home at "/".
+// Set VITE_SITE_MODE=company only if a deployment specifically needs the legacy brochure at root.
+const SITE_IS_SAAS = import.meta.env.VITE_SITE_MODE !== 'company';
 import Spinner from './components/ui/Spinner';
 
 const queryClient = new QueryClient({

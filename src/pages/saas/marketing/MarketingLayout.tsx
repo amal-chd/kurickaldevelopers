@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { INDUSTRIES } from './content';
 
-export const SAAS_HOME = import.meta.env.VITE_SITE_MODE === 'saas' ? '/' : '/product';
+export const SAAS_HOME = import.meta.env.VITE_SITE_MODE === 'company' ? '/product' : '/';
 
 const NAV = [
   { to: '/features', label: 'Features' },

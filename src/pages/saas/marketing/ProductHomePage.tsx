@@ -10,7 +10,7 @@ const ProductHomePage: React.FC = () => {
   useSeo({
     title: 'Task Pilot — Construction project & site management software',
     description: 'Tasks, approvals, GPS attendance, daily site diary, BOQ & cost control, materials, labour, inspections and Gantt timelines for construction teams. Start a 14-day free trial.',
-    path: '/product',
+    path: '/',
     jsonLd: {
       '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Task Pilot',
       applicationCategory: 'BusinessApplication', operatingSystem: 'Web, Android, iOS',
