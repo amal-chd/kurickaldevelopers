@@ -249,9 +249,6 @@ export async function loadTenantContext(): Promise<void> {
     t.setPlatformRole(pRole);
     t.setMaintenance(me.maintenance ?? null);
     if (me.context) {
-      if (me.context.org?.name && /kurickal/i.test(me.context.org.name)) {
-        me.context.org.name = 'Task Pilot Operations';
-      }
       t.setContext(me.context);
       t.setNeedsOnboarding(false);
     } else {

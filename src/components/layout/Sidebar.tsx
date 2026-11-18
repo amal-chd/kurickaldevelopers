@@ -97,9 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
     firebaseUser?.email === 'admin@taskpilot.app' ||
     firebaseUser?.email === 'thekadaapp@gmail.com'
   );
-  const displayOrgName = (!tenant || tenant.org.is_legacy || /kurickal/i.test(tenant.org.name))
-    ? 'Task Pilot Operations'
-    : tenant.org.name;
+  const displayOrgName = tenant?.org?.name || 'Task Pilot';
 
   const totalUnread = channels.reduce((sum, ch) => {
     if (!appUser) return sum;
