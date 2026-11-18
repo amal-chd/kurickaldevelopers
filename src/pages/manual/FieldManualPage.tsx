@@ -39,7 +39,7 @@ const TOPICS: ManualTopic[] = [
     blocks: [
       {
         type: 'paragraph',
-        text: 'Task Pilot is the unified project management and field operations platform for Kurickal Developers. Your account is pre-provisioned by company administration—no self-registration is needed.'
+        text: 'Task Pilot is the unified project management and field operations platform for construction and field teams. Your account can be provisioned by your company administrator, or teams can start a self-serve workspace at taskpilot.app.'
       },
       {
         type: 'steps',
@@ -47,7 +47,7 @@ const TOPICS: ManualTopic[] = [
           '**Sign In**: Log in using your assigned corporate email and initial password provided by the administrator.',
           '**Grant Permissions**: On mobile, approve **Location** (necessary for site geofenced attendance) and **Notifications** (for task assignments and chat alerts).',
           '**Biometric Unlock**: On personal smartphones, enable Face ID or Fingerprint unlock in your Profile page for seamless 1-tap access without retyping passwords.',
-          '**Web Dashboard**: Access the full desktop management portal anytime at **https://kurikal-tms-app.web.app**.'
+          '**Web Dashboard**: Access the full desktop management portal anytime at **https://taskpilot.app**.'
         ]
       },
       {
@@ -346,7 +346,7 @@ const TOPICS: ManualTopic[] = [
         type: 'bullets',
         items: [
           '**On-Site Civil / Project Inquiries**: Contact your assigned **Project Manager** directly via the project chat channel.',
-          '**Password & Access Adjustments**: Request your department manager or email **thomas@kurickaldevelopers.com**.',
+          '**Password & Access Adjustments**: Request your department manager or email **support@taskpilot.app**.',
           '**Payroll & Expense Reconciliations**: Post questions to the **Accounts** team in the corporate chat.',
           '**Emergency Site Safety**: Call the safety officer or project director immediately.'
         ]
@@ -436,8 +436,8 @@ export default function FieldManualPage() {
                   <span className="font-bold text-lg sm:text-xl tracking-wide text-white uppercase block leading-none">
                     Task Pilot
                   </span>
-                  <span className="text-[10px] text-blue-200/70 uppercase tracking-wider font-semibold">
-                    Kurickal Developers Field Manual
+                  <span className="text-[10px] text-amber-400 uppercase tracking-wider font-semibold">
+                    Standard Operating Procedures
                   </span>
                 </div>
               </div>

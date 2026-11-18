@@ -26,6 +26,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 .vercel
+supabase/.temp/
 
 # keys & secrets
 *serviceAccount*
@@ -42,3 +43,8 @@ rewrite_*.cjs
 generate_*.cjs
 update_*.cjs
 check_*.ts
+debug_*.cjs
+patch_*.cjs
+query_*.cjs
+.firebase/
+.claude/

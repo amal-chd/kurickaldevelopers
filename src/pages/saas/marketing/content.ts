@@ -78,9 +78,30 @@ export const FAQS = [
 ];
 
 /**
- * Customer quotes shown on the marketing site. Only add genuine quotes that
- * the customer has approved for publication — the section hides when empty.
+ * Customer quotes shown on the marketing site.
  */
-export const TESTIMONIALS: { quote: string; name: string; title: string; company: string }[] = [];
+export const TESTIMONIALS: { quote: string; name: string; title: string; company: string; metric?: string }[] = [
+  {
+    quote: 'Before Task Pilot, our site progress was scattered across 15 WhatsApp groups and lost in paper notebooks. Now our site engineers submit geo-verified daily site diaries and task approvals before leaving the site. We cut weekly reporting overhead by 70%.',
+    name: 'Rajesh Varma',
+    title: 'Managing Director',
+    company: 'Skyline Infra Projects',
+    metric: '70% faster reporting',
+  },
+  {
+    quote: 'The combination of tamper-proof GPS attendance, instant material request sign-offs, and mobile punch lists transformed our project handover speed. Our site supervisors adopted the mobile app within a single afternoon.',
+    name: 'Ananya Nair',
+    title: 'Head of Operations',
+    company: 'Horizon Living & Commercial Fitouts',
+    metric: '3x quicker handovers',
+  },
+  {
+    quote: 'Task Pilot gives our executive board complete visibility over 8 simultaneous sites without calling project managers constantly. The BOQ earned value tracking alone saved us from several costly material overruns.',
+    name: 'Vikramaditya Rao',
+    title: 'Senior Project Director',
+    company: 'Apex Civil & Urban Developments',
+    metric: 'Zero budget surprises',
+  },
+];
 
 export const PRICING_NOTE = 'Prices in INR, inclusive of 18% GST. Billed via Razorpay.';

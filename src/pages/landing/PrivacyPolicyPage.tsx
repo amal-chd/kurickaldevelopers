@@ -1,275 +1,204 @@
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Shield, Lock, MapPin, Eye, FileText, CheckCircle2, Mail, Building2 } from 'lucide-react';
+import { MarketingLayout, Section, Eyebrow } from '../saas/marketing/MarketingLayout';
+import { useSeo } from '../../lib/seo';
 
 export default function PrivacyPolicyPage() {
-  const navigate = useNavigate();
+  useSeo({
+    title: 'Privacy Policy — Task Pilot',
+    description: 'Privacy Policy for Task Pilot. Learn how we safeguard your organization’s construction data, blueprints, and GPS attendance information.',
+    path: '/policy',
+  });
 
   return (
-    <div className="min-h-screen font-sans bg-[#f4f7f9] text-[#0f2143] selection:bg-[#1b61d4] selection:text-white">
-
-      {/* ── Header ── */}
-      <header className="bg-[#0f2143] py-6">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="Task Pilot" className="w-10 h-10 rounded-xl object-cover" />
-            <span className="font-bold text-2xl tracking-wide text-white uppercase">Task Pilot</span>
+    <MarketingLayout>
+      {/* ─── Hero Banner ─── */}
+      <div className="bg-gradient-to-b from-slate-50 via-white to-slate-50/50 pt-16 pb-12 border-b border-slate-100">
+        <Section className="text-center max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-800 text-xs font-semibold uppercase tracking-wider mb-4 border border-amber-500/20">
+            <Shield className="w-3.5 h-3.5" />
+            <span>Data Protection & Privacy</span>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </button>
-        </div>
-      </header>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+            Privacy Policy
+          </h1>
+          <p className="mt-3 text-slate-500 text-xs sm:text-sm">
+            Last Updated: November 18, 2026 · Effective Date: November 18, 2026
+          </p>
+        </Section>
+      </div>
 
-      {/* ── Banner ── */}
-      <section className="bg-[#0f2143] pb-16 pt-4">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#1b61d4]/20 rounded-full mb-6">
-            <Shield className="w-8 h-8 text-[#1b61d4]" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-semibold text-white mb-3">Privacy Policy</h1>
-          <p className="text-blue-100/60 text-sm">Last updated: May 14, 2026</p>
-        </div>
-      </section>
+      {/* ─── Main Content ─── */}
+      <Section className="py-16 max-w-4xl mx-auto">
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-8 sm:p-12 shadow-sm space-y-10 text-slate-700 text-sm sm:text-base leading-relaxed">
 
-      {/* ── Content ── */}
-      <main className="relative z-10 -mt-6">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-20">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-100 p-8 md:p-12 space-y-10">
+          {/* Commitment Intro */}
+          <section className="p-6 rounded-2xl bg-amber-50/50 border border-amber-200/70 text-slate-800">
+            <h2 className="font-bold text-base text-amber-950 flex items-center gap-2 mb-2">
+              <Lock className="w-4 h-4 text-amber-600" />
+              Our Core Privacy Commitment
+            </h2>
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-700">
+              <strong>Task Pilot Technologies</strong> ("Task Pilot", "we", "us", or "our") provides project management,
+              field operations, attendance, and commercial control software for the construction and built-environment sectors.
+              We believe your drawings, BOQs, contractor wage rates, and jobsite data are strictly confidential property of your organization.
+              We do not sell, rent, or monetize your customer data.
+            </p>
+          </section>
 
-            {/* Introduction */}
-            <section>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                Kurickal Developers LLP ("we," "us," or "our") is committed to protecting your privacy.
-                This Privacy Policy explains how we collect, use, disclose, and safeguard your information
-                when you visit our website, use our Task Management System (TMS) portal, or use our mobile application
-                (collectively, the "Services"). Please read this policy carefully.
-              </p>
-            </section>
-
-            {/* 1. Information We Collect */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">1</span>
-                Information We Collect
-              </h2>
-              <div className="space-y-4 text-[15px] text-slate-600 leading-relaxed">
-                <div>
-                  <h3 className="font-semibold text-[#0f2143] mb-1">Personal Data</h3>
-                  <p>When you use our Services, we may collect personally identifiable information including but not limited to:</p>
-                  <ul className="list-disc ml-6 mt-2 space-y-1">
-                    <li>Full name, email address, and phone number</li>
-                    <li>Company or organization name</li>
-                    <li>Profile photograph (if uploaded)</li>
-                    <li>Job title and role within the organization</li>
-                    <li>Login credentials (email and password, managed through Firebase Authentication)</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-[#0f2143] mb-1">Usage Data</h3>
-                  <p>We automatically collect certain information when you access our Services:</p>
-                  <ul className="list-disc ml-6 mt-2 space-y-1">
-                    <li>Device type, operating system, and browser type</li>
-                    <li>IP address and approximate geographic location</li>
-                    <li>Pages visited, features used, and time spent on the platform</li>
-                    <li>App crash reports and performance diagnostics</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-[#0f2143] mb-1">Project & Task Data</h3>
-                  <p>Data you voluntarily enter into our TMS, including:</p>
-                  <ul className="list-disc ml-6 mt-2 space-y-1">
-                    <li>Project details, task descriptions, comments, and attachments</li>
-                    <li>Site diary entries and daily logs</li>
-                    <li>Chat messages and communication records</li>
-                    <li>Documents uploaded to the system</li>
-                    <li>Attendance and time-tracking records</li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* 2. How We Use Your Information */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">2</span>
-                How We Use Your Information
-              </h2>
-              <ul className="space-y-2 text-[15px] text-slate-600 leading-relaxed">
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To provide, operate, and maintain our Services</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To manage your account and provide customer support</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To send push notifications regarding task updates, assignments, and deadlines</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To facilitate real-time communication between team members</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To generate reports and analytics for project management</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To improve and personalize the user experience</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To respond to contact form inquiries submitted through our website</li>
-                <li className="flex gap-2"><span className="text-[#1b61d4] mt-1">•</span> To detect, prevent, and address technical issues and security threats</li>
-              </ul>
-            </section>
-
-            {/* 3. Data Storage & Security */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">3</span>
-                Data Storage & Security
-              </h2>
-              <div className="text-[15px] text-slate-600 leading-relaxed space-y-3">
-                <p>
-                  Your data is stored securely using Google Firebase infrastructure, which includes Cloud Firestore
-                  for database storage, Firebase Authentication for identity management, and Firebase Cloud Storage
-                  for file uploads. All data is encrypted in transit using TLS/SSL protocols.
-                </p>
-                <p>
-                  We implement industry-standard security measures including role-based access controls (RBAC),
-                  server-side security rules, and regular security audits. However, no method of electronic
-                  transmission or storage is 100% secure, and we cannot guarantee absolute security.
+          {/* Section 1 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">1</span>
+              Information We Collect
+            </h2>
+            <p className="mb-3">
+              We collect information to provide, secure, and improve our services to you. This includes:
+            </p>
+            <div className="space-y-3">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="font-bold text-slate-900 text-sm">Account & Profile Information</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  Name, corporate email address, phone number, designated company role (e.g. Director, Project Manager, Site Engineer), and workspace credentials managed securely via authenticated sessions.
                 </p>
               </div>
-            </section>
 
-            {/* 4. Data Sharing */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">4</span>
-                Data Sharing & Disclosure
-              </h2>
-              <div className="text-[15px] text-slate-600 leading-relaxed space-y-3">
-                <p>We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:</p>
-                <ul className="list-disc ml-6 space-y-1">
-                  <li><strong>Within your organization:</strong> Team members within the same organization may view project-related data as permitted by their assigned role and permissions.</li>
-                  <li><strong>Service providers:</strong> We use Google Firebase and Google Cloud Platform as our infrastructure providers, governed by Google's Data Processing Terms.</li>
-                  <li><strong>Legal obligations:</strong> We may disclose your information if required by law, court order, or governmental regulation.</li>
-                  <li><strong>Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, your data may be transferred as part of that transaction.</li>
-                </ul>
-              </div>
-            </section>
-
-            {/* 5. Push Notifications */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">5</span>
-                Push Notifications
-              </h2>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                Our mobile application uses Firebase Cloud Messaging (FCM) to deliver push notifications about
-                task assignments, due dates, messages, and other project-related updates. You can opt out of
-                push notifications at any time through your device settings. Disabling notifications will not
-                affect other functionality of the app.
-              </p>
-            </section>
-
-            {/* 6. Cookies */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">6</span>
-                Cookies & Local Storage
-              </h2>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                Our web application uses browser local storage and session cookies to maintain your login session
-                and preferences. These are essential for the proper functioning of the Services. We do not use
-                third-party tracking cookies or advertising cookies.
-              </p>
-            </section>
-
-            {/* 7. Data Retention */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">7</span>
-                Data Retention
-              </h2>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                We retain your personal data for as long as your account is active or as needed to provide you
-                with our Services. Project data, including tasks, diary entries, and communications, is retained
-                for the duration of the project and a reasonable period thereafter for record-keeping purposes.
-                If you wish to delete your account or request data deletion, please contact us using the
-                information provided below.
-              </p>
-            </section>
-
-            {/* 8. Your Rights */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">8</span>
-                Your Rights
-              </h2>
-              <div className="text-[15px] text-slate-600 leading-relaxed space-y-3">
-                <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
-                <ul className="list-disc ml-6 space-y-1">
-                  <li>The right to access your personal data</li>
-                  <li>The right to correct inaccurate or incomplete data</li>
-                  <li>The right to request deletion of your personal data</li>
-                  <li>The right to object to or restrict processing of your data</li>
-                  <li>The right to data portability</li>
-                </ul>
-                <p>
-                  To exercise any of these rights, please contact us at the email address provided below.
-                  We will respond to your request within 30 days.
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="font-bold text-slate-900 text-sm">Project & Jobsite Operational Data</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  Tasks, inspection checklists, Daily Progress Reports (DPRs), manpower logs, weather logs, equipment allocations, and Bill of Quantities (BOQ) line items uploaded or entered by your users.
                 </p>
               </div>
-            </section>
 
-            {/* 9. Children's Privacy */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">9</span>
-                Children's Privacy
-              </h2>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                Our Services are not intended for individuals under the age of 18. We do not knowingly collect
-                personal data from children. If we become aware that we have collected personal data from a child,
-                we will take steps to delete such information immediately.
-              </p>
-            </section>
-
-            {/* 10. Changes */}
-            <section>
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">10</span>
-                Changes to This Policy
-              </h2>
-              <p className="text-[15px] text-slate-600 leading-relaxed">
-                We may update this Privacy Policy from time to time. We will notify you of any changes by
-                posting the updated policy on this page and updating the "Last updated" date. Your continued
-                use of the Services after any changes indicates your acceptance of the updated policy.
-              </p>
-            </section>
-
-            {/* 11. Contact */}
-            <section className="bg-[#f4f7f9] -mx-8 md:-mx-12 -mb-8 md:-mb-12 px-8 md:px-12 py-10 rounded-b-lg">
-              <h2 className="text-xl font-semibold text-[#0f2143] mb-4 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 bg-[#1b61d4]/10 text-[#1b61d4] text-sm font-bold rounded-full">11</span>
-                Contact Us
-              </h2>
-              <div className="text-[15px] text-slate-600 leading-relaxed space-y-2">
-                <p>If you have any questions about this Privacy Policy or our data practices, please contact us:</p>
-                <div className="mt-4 space-y-1">
-                  <p><strong className="text-[#0f2143]">Kurickal Developers LLP</strong></p>
-                  <p>Email: <a href="mailto:info@kurickaldevelopers.com" className="text-[#1b61d4] hover:underline">info@kurickaldevelopers.com</a></p>
-                  <p>Phone: <a href="tel:+919876543210" className="text-[#1b61d4] hover:underline">+91 98765 43210</a></p>
-                  <p>Kerala, India</p>
-                </div>
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="font-bold text-slate-900 text-sm">Drawings, Documents & Media</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  Architectural and structural blueprints, work permits, safety inspection photos, and receipts uploaded into your private tenant document repository.
+                </p>
               </div>
-            </section>
-
-          </div>
-        </div>
-      </main>
-
-      {/* ── Footer ── */}
-      <footer className="bg-[#0f2143] py-10 border-t border-white/5">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 border-2 border-white flex items-center justify-center rotate-45">
-              <div className="w-3 h-3 bg-white -rotate-45" />
             </div>
-            <span className="text-white font-bold tracking-wide text-lg uppercase">Kurickal Developers</span>
-          </div>
-          <p className="text-blue-100/40 text-[11px]">© {new Date().getFullYear()} Kurickal Developers LLP. All rights reserved.</p>
+          </section>
+
+          {/* Section 2 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">2</span>
+              GPS Location & Field Attendance Policy
+            </h2>
+            <div className="space-y-3">
+              <p>
+                Task Pilot offers tamper-proof GPS attendance verification for field personnel. Here is our strict location policy:
+              </p>
+              <ul className="list-disc ml-6 space-y-2 text-xs sm:text-sm text-slate-600">
+                <li>
+                  <strong className="text-slate-800">Point-in-Time Only:</strong> Location coordinates are captured <em>only at the precise moment</em> an employee initiates a "Check In" or "Check Out" action, or submits a Daily Progress Report.
+                </li>
+                <li>
+                  <strong className="text-slate-800">No Continuous Background Tracking:</strong> Task Pilot does NOT continuously poll, monitor, or track employee GPS movements throughout the workday or when the application is closed.
+                </li>
+                <li>
+                  <strong className="text-slate-800">Geofence Validation:</strong> Coordinates are compared against the site radius configured by your organization's administrators to verify on-site presence.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          {/* Section 3 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">3</span>
+              Workspace Multi-Tenancy & Data Isolation
+            </h2>
+            <p>
+              Every organization in Task Pilot is strictly partitioned in our database architecture.
+              Access controls and row-level tenant security prevent any user from one organization accessing, viewing, or querying data belonging to another organization.
+              Access within your workspace is determined by your administrator via our 8 role-permission tiers.
+            </p>
+          </section>
+
+          {/* Section 4 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">4</span>
+              Security & Storage
+            </h2>
+            <p>
+              We implement industry-standard administrative, physical, and technical safeguards:
+            </p>
+            <ul className="mt-3 list-disc ml-6 space-y-1.5 text-xs sm:text-sm text-slate-600">
+              <li>All web and mobile communication is encrypted in transit using TLS 1.3.</li>
+              <li>Databases, documents, and backups are encrypted at rest using AES-256 encryption.</li>
+              <li>Role-based authorization checks guard every administrative action, user modification, and financial export.</li>
+              <li>Continuous automated backups and disaster recovery protocols.</li>
+            </ul>
+          </section>
+
+          {/* Section 5 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">5</span>
+              Third-Party Sub-Processors
+            </h2>
+            <p className="mb-3">
+              We work with trusted cloud infrastructure providers to deliver our software:
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="font-bold text-slate-900">Cloud Hosting & Database</p>
+                <p className="text-slate-500 mt-0.5">Google Cloud Platform & Supabase (Encrypted PostgreSQL & Realtime)</p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="font-bold text-slate-900">Payment Processing</p>
+                <p className="text-slate-500 mt-0.5">Razorpay (PCI-DSS Level 1 compliant gateway for INR UPI & cards)</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 6 */}
+          <section>
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">6</span>
+              Your Data Rights & Deletion
+            </h2>
+            <p>
+              Your organization maintains full control over its data:
+            </p>
+            <ul className="mt-2 list-disc ml-6 space-y-1 text-xs sm:text-sm text-slate-600">
+              <li><strong>Export:</strong> Administrators can export attendance records, task registers, and DPR summaries at any time to Excel/CSV.</li>
+              <li><strong>Account Deletion:</strong> Upon subscription cancellation or request, organization data is scheduled for permanent purge following our grace period.</li>
+              <li><strong>Corrections:</strong> Users can update profile information directly through their settings or contact their workspace administrator.</li>
+            </ul>
+          </section>
+
+          {/* Section 7 - Contact */}
+          <section className="pt-6 border-t border-slate-200">
+            <h2 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs flex items-center justify-center font-bold">7</span>
+              Contact Our Privacy Office
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mb-4">
+              If you have any questions, compliance requests, or concerns regarding this Privacy Policy, please reach out to our dedicated privacy officer:
+            </p>
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm space-y-1.5">
+              <p><strong className="text-slate-900">Task Pilot Technologies</strong></p>
+              <p>Privacy & Data Protection Team</p>
+              <p>Email:{' '}
+                <a href="mailto:privacy@taskpilot.app" className="text-amber-700 font-semibold hover:underline">
+                  privacy@taskpilot.app
+                </a>
+              </p>
+              <p>General Legal Inquiries:{' '}
+                <a href="mailto:legal@taskpilot.app" className="text-amber-700 font-semibold hover:underline">
+                  legal@taskpilot.app
+                </a>
+              </p>
+              <p className="text-slate-500 pt-1">India Operations: Kochi & Bangalore</p>
+            </div>
+          </section>
+
         </div>
-      </footer>
-    </div>
+      </Section>
+    </MarketingLayout>
   );
 }

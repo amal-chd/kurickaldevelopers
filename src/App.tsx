@@ -64,10 +64,6 @@ const TimelinePage = React.lazy(() => import('./pages/construction/TimelinePage'
 const NotFoundPage = React.lazy(() => import('./pages/misc/NotFoundPage'));
 const PlatformConsole = React.lazy(() => import('./pages/platform/PlatformConsole'));
 
-// The company website stays at "/" unless this deployment is the SaaS site.
-// Default to the Task Pilot SaaS product home at "/".
-// Set VITE_SITE_MODE=company only if a deployment specifically needs the legacy brochure at root.
-const SITE_IS_SAAS = import.meta.env.VITE_SITE_MODE !== 'company';
 import Spinner from './components/ui/Spinner';
 
 const queryClient = new QueryClient({
@@ -166,9 +162,10 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>}>
           <Routes>
-            {/* Landing — company site by default; SaaS home on the SaaS domain */}
-            <Route path="/" element={SITE_IS_SAAS ? <ProductHomePage /> : <LandingPage />} />
+            {/* Marketing & Landing */}
+            <Route path="/" element={<ProductHomePage />} />
             <Route path="/company" element={<LandingPage />} />
+            <Route path="/about" element={<LandingPage />} />
 
             {/* SaaS marketing & onboarding */}
             <Route path="/product" element={<ProductHomePage />} />

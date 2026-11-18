@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/authStore';
 import { TaskComment } from '../../types';
 import { notifyPush } from '../push';
 import { createNotification } from './notifications';
+import { getAllUsers } from './users';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 const logPermissionError = (actionName: string, error: any, context?: any) => {
@@ -95,14 +96,11 @@ export const addComment = async (taskId: string, data: Omit<TaskComment, 'id' | 
       const roleIds: string[] = taskData.assigned_role_ids || [];
       if (taskData.assigned_role_id) roleIds.push(taskData.assigned_role_id);
       if (roleIds.length > 0) {
-        const { data: roleUsers } = await supabase
-          .from('users')
-          .select('id')
-          .in('role_id', roleIds)
-          .eq('is_active', true);
-        if (roleUsers) {
-          roleUsers.forEach((u: { id: string }) => notifySet.add(u.id));
-        }
+        // Users live in Firestore, not Supabase (`users` table does not exist in Postgres)
+        const allUsers = await getAllUsers();
+        allUsers
+          .filter((u) => u.isActive !== false && u.roleId && roleIds.includes(u.roleId))
+          .forEach((u) => notifySet.add(u.id));
       }
 
       notifyPush({ event: 'task', taskId, kind: 'comment_added' });

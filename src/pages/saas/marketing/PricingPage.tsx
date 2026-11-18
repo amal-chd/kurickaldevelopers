@@ -7,18 +7,88 @@ import { saasApi } from '../../../lib/saasApi';
 import { Plan, MODULES, formatMoney } from '../../../lib/tenant';
 import { useSeo } from '../../../lib/seo';
 
+const DEFAULT_PLANS: Plan[] = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    tagline: 'For independent contractors and small site crews getting organized.',
+    currency: 'INR',
+    price_monthly: 149900,
+    price_yearly: 1499000,
+    max_users: 10,
+    max_projects: 3,
+    max_storage_mb: 5120,
+    features: ['tasks', 'projects', 'attendance', 'site_diary', 'documents', 'chat', 'mobile', 'notifications'],
+    trial_days: 14,
+    highlight: false,
+    is_custom_pricing: false,
+    sort_order: 1,
+  },
+  {
+    id: 'professional',
+    name: 'Professional',
+    tagline: 'For growing builders managing multiple active sites and trades.',
+    currency: 'INR',
+    price_monthly: 399900,
+    price_yearly: 3999000,
+    max_users: 30,
+    max_projects: 10,
+    max_storage_mb: 25600,
+    features: ['tasks', 'projects', 'attendance', 'site_diary', 'documents', 'chat', 'mobile', 'notifications', 'boq', 'materials', 'labour', 'inspections', 'timeline', 'expenses'],
+    trial_days: 14,
+    highlight: true,
+    is_custom_pricing: false,
+    sort_order: 2,
+  },
+  {
+    id: 'business',
+    name: 'Business',
+    tagline: 'For established developers needing deep cost control and HR automation.',
+    currency: 'INR',
+    price_monthly: 799900,
+    price_yearly: 7999000,
+    max_users: 100,
+    max_projects: 30,
+    max_storage_mb: 102400,
+    features: ['tasks', 'projects', 'attendance', 'site_diary', 'documents', 'chat', 'mobile', 'notifications', 'boq', 'materials', 'labour', 'inspections', 'timeline', 'expenses', 'assets', 'leave', 'salary', 'reports', 'performance', 'roles'],
+    trial_days: 14,
+    highlight: false,
+    is_custom_pricing: false,
+    sort_order: 3,
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    tagline: 'For large EPCs and developers requiring custom integrations and dedicated support.',
+    currency: 'INR',
+    price_monthly: 0,
+    price_yearly: 0,
+    max_users: null,
+    max_projects: null,
+    max_storage_mb: null,
+    features: ['tasks', 'projects', 'attendance', 'site_diary', 'documents', 'chat', 'mobile', 'notifications', 'boq', 'materials', 'labour', 'inspections', 'timeline', 'expenses', 'assets', 'leave', 'salary', 'reports', 'performance', 'roles', 'team'],
+    trial_days: 14,
+    highlight: false,
+    is_custom_pricing: true,
+    sort_order: 4,
+  },
+];
+
 let plansCache: Plan[] | null = null;
 export function usePlans() {
-  const [plans, setPlans] = useState<Plan[] | null>(plansCache);
+  const [plans, setPlans] = useState<Plan[] | null>(plansCache || DEFAULT_PLANS);
   const [error, setError] = useState<string | null>(null);
   const load = () => {
     setError(null);
     saasApi<{ plans: Plan[] }>('public_plans', {}, { public: true })
       .then((r) => { plansCache = r.plans; setPlans(r.plans); })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        // Fall back gracefully to DEFAULT_PLANS so pricing page never breaks
+        setPlans(DEFAULT_PLANS);
+      });
   };
-  useEffect(() => { if (!plansCache) load(); }, []);
-  return { plans, error, reload: load };
+  useEffect(() => { load(); }, []);
+  return { plans: plans || DEFAULT_PLANS, error, reload: load };
 }
 
 const limitLabel = (n: number | null, unit: string) => (n === null ? `Unlimited ${unit}` : `Up to ${n} ${unit}`);

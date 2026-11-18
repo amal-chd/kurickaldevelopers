@@ -9,6 +9,7 @@ const NAV = [
   { to: '/features', label: 'Features' },
   { to: '/industries/construction', label: 'Industries' },
   { to: '/pricing', label: 'Pricing' },
+  { to: '/company', label: 'About' },
   { to: '/contact-sales', label: 'Book a demo' },
 ];
 
@@ -78,6 +79,7 @@ export const MarketingLayout: React.FC<{ children: React.ReactNode }> = ({ child
           <div>
             <p className="text-white font-semibold mb-3">Company</p>
             <ul className="space-y-2">
+              <li><Link to="/company" className="hover:text-white">About us</Link></li>
               <li><Link to="/contact-sales" className="hover:text-white">Contact sales</Link></li>
               <li><Link to="/policy" className="hover:text-white">Privacy policy</Link></li>
               <li><Link to="/terms" className="hover:text-white">Terms of use</Link></li>
