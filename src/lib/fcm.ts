@@ -3,6 +3,8 @@ import { doc, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { app, db } from '../firebase/config';
 
+import { FIREBASE_DEFAULTS } from '../firebase/config';
+
 // Web Push needs a VAPID key (Firebase Console → Project Settings → Cloud
 // Messaging → Web Push certificates → "Key pair"). Until it's set, web push
 // is disabled gracefully — in-app notifications still work.
@@ -30,11 +32,11 @@ export async function registerFcm(uid: string): Promise<void> {
 
     // Pass the public Firebase config to the service worker via query string.
     const cfg = {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
-      appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '',
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY || FIREBASE_DEFAULTS.apiKey,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || FIREBASE_DEFAULTS.authDomain,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || FIREBASE_DEFAULTS.projectId,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || FIREBASE_DEFAULTS.messagingSenderId,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || FIREBASE_DEFAULTS.appId,
     };
     const qs = new URLSearchParams(cfg).toString();
     const registration = await navigator.serviceWorker.register(

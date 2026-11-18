@@ -1,10 +1,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_DEFAULTS } from './supabaseClient';
 
 // Supabase is used ONLY as the storage backend (chat file uploads + documents).
 // Authentication and the database stay on Firebase. The client therefore runs
 // unauthenticated (anon key); bucket policies must allow the required access.
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || SUPABASE_DEFAULTS.url;
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || SUPABASE_DEFAULTS.anonKey;
 
 // Storage bucket names — create these in the Supabase dashboard.
 export const STORAGE_BUCKETS = {

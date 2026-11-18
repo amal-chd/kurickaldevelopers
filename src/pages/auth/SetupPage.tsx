@@ -16,7 +16,7 @@
 import React, { useState } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../../firebase/config';
+import { auth, db, FIREBASE_DEFAULTS } from '../../firebase/config';
 import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 
 // ─── Roles ──────────────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ const OTHER_USERS = [
 ];
 
 const DEFAULT_PASSWORD = 'Kurickal@2024';
-const API_KEY = import.meta.env.VITE_FIREBASE_API_KEY as string;
+const API_KEY = (import.meta.env.VITE_FIREBASE_API_KEY as string | undefined) || FIREBASE_DEFAULTS.apiKey;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

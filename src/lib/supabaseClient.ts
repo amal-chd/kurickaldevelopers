@@ -2,8 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import { auth } from '../firebase/config';
 import { getActiveOrgId } from './tenant';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const SUPABASE_DEFAULTS = {
+  url: 'https://ximaqbhnykyxxgiqbwoh.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpbWFxYmhueWt5eHhnaXFid29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3ODAyMzgsImV4cCI6MjA5NzM1NjIzOH0.5ZfmFsCt6VTNIQfESq5EAg9R8CxUl__NnKhwh8GSYKg',
+} as const;
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_DEFAULTS.url;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_DEFAULTS.anonKey;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Supabase credentials missing!");

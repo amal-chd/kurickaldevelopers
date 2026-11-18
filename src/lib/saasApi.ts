@@ -1,11 +1,12 @@
 import { auth } from '../firebase/config';
+import { SUPABASE_DEFAULTS } from './supabaseClient';
 
 // Typed client for the `saas-api` edge function (tenant onboarding, billing,
 // support and the platform console). Authorisation is enforced server-side
 // from the verified Firebase ID token — the client never decides access.
 const BASE = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '')
-  ?? 'https://ximaqbhnykyxxgiqbwoh.supabase.co';
-const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  ?? SUPABASE_DEFAULTS.url;
+const ANON = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || SUPABASE_DEFAULTS.anonKey;
 
 export class SaasApiError extends Error {
   constructor(message: string, public status: number, public code?: string) { super(message); }
