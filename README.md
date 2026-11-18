@@ -1,6 +1,6 @@
 # Task Pilot
 
-Construction Task Management System for **Kurickal Developers LLP** — a web
+Construction Task Management & Field Operations Operating System — a web
 dashboard and a Flutter mobile app (iOS + Android) sharing one backend.
 
 - **Web** — React + Vite + TypeScript (`/src`)

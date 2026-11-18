@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  BookOpen, Search, CheckSquare, Clock, MessageSquare, FileText,
+  Search, CheckSquare, Clock, MessageSquare, FileText,
   Package, Award, Wallet, Bell, Shield, HelpCircle, ChevronDown,
   ChevronRight, ArrowLeft, ExternalLink, Check, Copy, HardHat,
-  Smartphone, Monitor, Sparkles, AlertTriangle, Info, CheckCircle2,
-  Calendar, Layers, MapPin, Users, Flame, ChevronUp
+  Smartphone, Monitor, AlertTriangle, Info, ChevronUp
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -429,9 +428,7 @@ export default function FieldManualPage() {
                 className="flex items-center gap-3 cursor-pointer group"
                 onClick={() => navigate('/')}
               >
-                <div className="w-9 h-9 border-2 border-white flex items-center justify-center rotate-45 group-hover:bg-white transition-all">
-                  <div className="w-3.5 h-3.5 bg-white -rotate-45 group-hover:bg-[#0f2143] transition-all" />
-                </div>
+                <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg group-hover:scale-105 transition-transform" />
                 <div>
                   <span className="font-bold text-lg sm:text-xl tracking-wide text-white uppercase block leading-none">
                     Task Pilot
@@ -762,14 +759,16 @@ export default function FieldManualPage() {
         <footer className="bg-[#0f2143] py-10 border-t border-white/10 text-white/70 text-xs">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
             <div>
-              <p className="font-semibold text-white">Kurickal Developers LLP</p>
-              <p className="text-blue-100/50 text-[11px] mt-0.5">Task Pilot Enterprise Operations & Project Management</p>
+              <p className="font-semibold text-white">Task Pilot Technologies</p>
+              <p className="text-blue-100/50 text-[11px] mt-0.5">Field Operations Guide & Standard Operating Procedures</p>
             </div>
-            <div className="flex items-center gap-5 text-blue-100/70">
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-5 text-blue-100/70">
               <a href="/" className="hover:text-white transition-colors">Home</a>
+              <a href="/features" className="hover:text-white transition-colors">Features</a>
+              <a href="/pricing" className="hover:text-white transition-colors">Pricing</a>
+              <a href="/manual" className="text-white font-medium">Field Manual</a>
               <a href="/policy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Use</a>
-              <a href="/manual" className="text-white font-medium">Field Manual</a>
             </div>
           </div>
         </footer>

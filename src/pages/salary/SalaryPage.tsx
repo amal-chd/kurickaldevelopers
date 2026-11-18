@@ -14,6 +14,7 @@ import {
   getAllUsers, createNotification,
 } from '../../lib/firestore';
 import { logAudit, AuditCategory } from '../../lib/auditLog';
+import { useTenantStore } from '../../lib/tenant';
 import { SalarySlip, SalaryComponent, AppUser } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -34,6 +35,7 @@ function printSlip(slip: SalarySlip) {
     list.filter((c) => c.label || c.amount)
       .map((c) => `<tr><td>${c.label || '—'}</td><td style="text-align:right">${money(c.amount)}</td></tr>`)
       .join('');
+  const orgName = useTenantStore.getState().context?.org?.name || 'Task Pilot';
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payslip - ${slip.userName} - ${monthLabel(slip.month)}</title>
   <style>
     *{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;box-sizing:border-box}
@@ -51,7 +53,7 @@ function printSlip(slip: SalarySlip) {
     .foot{margin-top:32px;color:#94a3b8;font-size:11px;text-align:center}
   </style></head><body>
     <div class="head">
-      <div><div class="brand">Kurickal Developers</div><div class="muted">Payslip</div></div>
+      <div><div class="brand">${orgName}</div><div class="muted">Payslip</div></div>
       <div style="text-align:right"><div style="font-weight:700">${monthLabel(slip.month)}</div><div class="muted">Employee: ${slip.userName}</div></div>
     </div>
     <div class="cols">

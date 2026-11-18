@@ -171,26 +171,26 @@ const ROLES = [
   },
 ];
 
-// ─── Users (Thomas MUST be first — he becomes the bootstrap admin) ──────────
+// ─── Users (First user becomes the bootstrap admin) ───────────────────────────
 
 const ADMIN_USER = {
-  name: 'Thomas Kurickal',
-  email: 'thomas@kurickaldevelopers.com',
+  name: 'Platform Administrator',
+  email: 'admin@taskpilot.app',
   roleId: 'director',
   phone: '',
 };
 
 const OTHER_USERS = [
-  { name: 'Ravi Kumar',    email: 'ravi@kurickaldevelopers.com',   roleId: 'project_manager', phone: '' },
-  { name: 'Arjun Menon',  email: 'arjun@kurickaldevelopers.com',  roleId: 'site_engineer',   phone: '' },
-  { name: 'Priya Nair',   email: 'priya@kurickaldevelopers.com',  roleId: 'site_engineer',   phone: '' },
-  { name: 'Suresh Babu',  email: 'suresh@kurickaldevelopers.com', roleId: 'foreman',         phone: '' },
-  { name: 'Biju Thomas',  email: 'biju@kurickaldevelopers.com',   roleId: 'labour',          phone: '' },
-  { name: 'Meena Pillai', email: 'meena@kurickaldevelopers.com',  roleId: 'admin',           phone: '' },
-  { name: 'Anitha George', email: 'anitha@kurickaldevelopers.com', roleId: 'accounts',        phone: '' },
+  { name: 'Ravi Kumar',    email: 'ravi@taskpilot.app',   roleId: 'project_manager', phone: '' },
+  { name: 'Arjun Menon',  email: 'arjun@taskpilot.app',  roleId: 'site_engineer',   phone: '' },
+  { name: 'Priya Nair',   email: 'priya@taskpilot.app',  roleId: 'site_engineer',   phone: '' },
+  { name: 'Suresh Babu',  email: 'suresh@taskpilot.app', roleId: 'foreman',         phone: '' },
+  { name: 'Biju Thomas',  email: 'biju@taskpilot.app',   roleId: 'labour',          phone: '' },
+  { name: 'Meena Pillai', email: 'meena@taskpilot.app',  roleId: 'admin',           phone: '' },
+  { name: 'Anitha George', email: 'anitha@taskpilot.app', roleId: 'accounts',        phone: '' },
 ];
 
-const DEFAULT_PASSWORD = 'Kurickal@2024';
+const DEFAULT_PASSWORD = 'TaskPilot@2025';
 const API_KEY = (import.meta.env.VITE_FIREBASE_API_KEY as string | undefined) || FIREBASE_DEFAULTS.apiKey;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ const SetupPage: React.FC = () => {
 
     // Build step labels
     const allSteps: StepResult[] = [
-      { label: 'Bootstrap Admin: Thomas Kurickal', status: 'idle' },
+      { label: `Bootstrap Admin: ${ADMIN_USER.name}`, status: 'idle' },
       ...ROLES.map((r) => ({ label: `Role: ${r.name}`, status: 'idle' as StepStatus })),
       ...OTHER_USERS.map((u) => ({ label: `User: ${u.name} (${u.email})`, status: 'idle' as StepStatus })),
     ];
@@ -385,7 +385,7 @@ const SetupPage: React.FC = () => {
             <div>
               <p className="text-sm font-semibold text-amber-800">One-time action</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Default password for all accounts: <span className="font-mono font-bold">Kurickal@2024</span>
+                Default password for all accounts: <span className="font-mono font-bold">{DEFAULT_PASSWORD}</span>
               </p>
             </div>
           </div>

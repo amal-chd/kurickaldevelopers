@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, CheckCircle2, ShieldCheck, Smartphone, IndianRupee, Zap,
-  Star, Check, Building2, MapPin, HardHat, FileText,
-  Clock, ArrowUpRight, ChevronRight, Activity, Users, Boxes, Award
+  ArrowRight, CheckCircle2, ShieldCheck, Smartphone, IndianRupee,
+  Check, MapPin, FileText,
+  Clock, ChevronRight, Activity, HardHat, Boxes, AlertTriangle
 } from 'lucide-react';
 import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
-import { FEATURES, INDUSTRIES, TESTIMONIALS, FAQS } from './content';
+import { FEATURES, INDUSTRIES, FAQS } from './content';
 import { PricingCards } from './PricingPage';
 import { useSeo } from '../../../lib/seo';
 
@@ -26,7 +26,6 @@ export const ProductHomePage: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'command' | 'tasks' | 'dpr' | 'boq'>('command');
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
     <MarketingLayout>
@@ -166,9 +165,9 @@ export const ProductHomePage: React.FC = () => {
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Recent Jobsite Activity Feed</p>
                     <div className="space-y-2.5">
                       {[
-                        { site: 'Kochi Metro Package 3', text: 'Pier cap concrete pour inspection completed and signed off', role: 'Site Engineer Priya', status: 'Approved', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                        { site: 'Cyber Gateway Tower', text: 'Daily Site Diary submitted with 6 photos and 42 manpower logged', role: 'Foreman Suresh', status: 'DPR Logged', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-                        { site: 'Horizon Commercial Park', text: 'Material indent for 300 bags OPC 53 cement submitted for approval', role: 'Project Manager Ravi', status: 'Pending Review', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                        { site: 'Metro Viaduct Package 02', text: 'Pier cap concrete pour inspection completed and signed off', role: 'Site Engineer (Civil)', status: 'Approved', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                        { site: 'Commercial Tower Block A', text: 'Daily Site Diary submitted with 6 photos and 42 manpower logged', role: 'General Foreman', status: 'DPR Logged', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                        { site: 'Residential Enclave Phase 2', text: 'Material indent for 300 bags OPC 53 cement submitted for approval', role: 'Project Manager', status: 'Pending Review', color: 'bg-amber-50 text-amber-700 border-amber-200' },
                       ].map((act, i) => (
                         <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs">
                           <div>
@@ -197,7 +196,7 @@ export const ProductHomePage: React.FC = () => {
                       <span className="text-xs text-slate-500 font-medium">Due Today · 4:00 PM</span>
                     </div>
                     <h3 className="text-lg font-bold text-slate-900">Level 4 Slab Shuttering & Rebar Reinforcement Verification</h3>
-                    <p className="text-xs text-slate-600 mt-1">Cyber Gateway Tower · Tower A, Zone 2 · Assigned to Site Team & QA Inspector</p>
+                    <p className="text-xs text-slate-600 mt-1">Commercial Tower Block A · Tower 1, Zone B · Assigned to Site Team & QA Inspector</p>
 
                     <div className="mt-4 pt-4 border-t border-slate-100 grid sm:grid-cols-3 gap-3">
                       <div className="p-3 rounded-lg bg-emerald-50/60 border border-emerald-100">
@@ -228,7 +227,7 @@ export const ProductHomePage: React.FC = () => {
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                       <div>
                         <h3 className="font-bold text-slate-900">Daily Progress Report (DPR) #142</h3>
-                        <p className="text-xs text-slate-500">Kochi Metro Package 3 · Submitted Today 5:15 PM</p>
+                        <p className="text-xs text-slate-500">Metro Viaduct Package 02 · Submitted Today 5:15 PM</p>
                       </div>
                       <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200">Verified by GPS</span>
                     </div>
@@ -296,25 +295,29 @@ export const ProductHomePage: React.FC = () => {
         </Section>
       </div>
 
-      {/* ─── Social Proof & Numbers Banner ─── */}
+      {/* ─── Platform Architecture & Standards Banner ─── */}
       <div className="bg-slate-900 text-white py-12 border-y border-slate-800">
         <Section>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">250+</p>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">Active Construction Sites</p>
+              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">21</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-semibold">Specialized Modules</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">From GPS attendance to BOQ</p>
             </div>
             <div>
-              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">45,000+</p>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">Verified Tasks Closed</p>
+              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">8 Tiers</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-semibold">Pre-Configured Roles</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Directors down to Site Labour</p>
             </div>
             <div>
-              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">99.4%</p>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">GPS Attendance Accuracy</p>
+              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">100%</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-semibold">Tenant Data Isolation</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Encrypted private workspace</p>
             </div>
             <div>
-              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">70%</p>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">Less Office Paperwork</p>
+              <p className="text-3xl sm:text-4xl font-extrabold text-amber-400">₹0</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-semibold">Per-Seat Penalties</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Predictable flat team tiers</p>
             </div>
           </div>
         </Section>
@@ -328,7 +331,7 @@ export const ProductHomePage: React.FC = () => {
             Engineered specifically for the dust, rain, and realities of construction
           </h2>
           <p className="mt-3 text-slate-600 text-base">
-            Generic project tools fail on jobsites because they are made for laptop desks. Task Pilot is designed for boots on the ground.
+            Generic project management tools fail on jobsites because they are designed for laptop desks. Task Pilot is engineered for boots on the ground.
           </p>
         </div>
 
@@ -424,85 +427,165 @@ export const ProductHomePage: React.FC = () => {
         </Section>
       </div>
 
-      {/* ─── Industries Section ─── */}
+      {/* ─── Operational Problem & Solution Scenarios ─── */}
+      <div className="bg-slate-900 text-white py-20 border-t border-slate-800">
+        <Section>
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-400">Built For Construction Realities</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              Solving the 3 costliest jobsite breakdowns
+            </h2>
+            <p className="mt-3 text-slate-400 text-sm sm:text-base">
+              See how Task Pilot replaces informal guesswork with verified digital operational standards.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-6 flex flex-col justify-between hover:bg-white/[0.07] transition-all">
+              <div>
+                <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <AlertTriangle className="w-4 h-4" /> The WhatsApp Chaos Trap
+                </div>
+                <h3 className="font-bold text-lg text-white mb-2">Unrecorded Changes & Missed Inspections</h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-4">
+                  Pour approvals and drawing revisions get lost in cluttered WhatsApp groups. When rebar spacing is wrong or concrete finishes crack, there is no verifiable paper trail.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-1">The Task Pilot Solution</p>
+                <p className="text-xs text-slate-300">
+                  Enforced 3-step verification gates (In Progress → Under Review → Done). No task closes without engineer digital sign-off and mandatory photo evidence.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-6 flex flex-col justify-between hover:bg-white/[0.07] transition-all">
+              <div>
+                <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <AlertTriangle className="w-4 h-4" /> Ghost Labor & Attendance Fraud
+                </div>
+                <h3 className="font-bold text-lg text-white mb-2">Inflated Muster Rolls & Disputed Overtime</h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-4">
+                  Paper registers and proxy punches result in contractors billing for workers who were never on site, while disputed overtime claims turn into monthly headaches.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-1">The Task Pilot Solution</p>
+                <p className="text-xs text-slate-300">
+                  Point-in-time GPS check-ins validated against the project perimeter radius. Overtime beyond 8 hours is auto-calculated with zero battery drain.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-6 flex flex-col justify-between hover:bg-white/[0.07] transition-all">
+              <div>
+                <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <AlertTriangle className="w-4 h-4" /> Late Budget Variance Discovery
+                </div>
+                <h3 className="font-bold text-lg text-white mb-2">Cost Overruns Discovered Too Late</h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-4">
+                  Site material purchases and labor advances are recorded weeks later on disconnected Excel sheets, obscuring project burn rates until profits evaporate.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/10">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-1">The Task Pilot Solution</p>
+                <p className="text-xs text-slate-300">
+                  Live BOQ Earned Value Management updates Planned Value (PV), Earned Value (EV), and Cost Performance Index (CPI) dynamically as site work progresses.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      {/* ─── Construction Project Lifecycle ─── */}
       <Section className="py-20">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <Eyebrow>Tailored For Your Sector</Eyebrow>
+        <div className="text-center max-w-2xl mx-auto mb-14">
+          <Eyebrow>End-To-End Execution</Eyebrow>
           <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-            Built for everyone in the construction lifecycle
+            How Task Pilot powers your project lifecycle
           </h2>
-          <p className="mt-3 text-slate-600">
-            Whether you manage residential towers, highway packages, or fast-paced luxury fit-outs, Task Pilot adapts to your workflow.
+          <p className="mt-3 text-slate-600 text-sm sm:text-base">
+            From initial BOQ tender import to final client snag clearance, every milestone is structured and verifiable.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {INDUSTRIES.map(({ slug, icon: Icon, name, headline }) => (
-            <Link
-              key={slug}
-              to={`/industries/${slug}`}
-              className="group rounded-2xl border border-slate-200 p-6 hover:border-slate-900 hover:shadow-lg transition-all flex flex-col justify-between bg-white"
-            >
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              step: '01',
+              title: 'Setup & BOQ Import',
+              desc: 'Import your Bill of Quantities from Excel, configure site geofence coordinates, and provision roles for directors, engineers, and subcontractors.',
+              icon: HardHat,
+            },
+            {
+              step: '02',
+              title: 'Daily Site Execution',
+              desc: 'Engineers check in via GPS, log trade headcounts, conduct safety briefings, and submit Daily Progress Reports (DPRs) with timestamped photos.',
+              icon: Activity,
+            },
+            {
+              step: '03',
+              title: 'Cost & Inventory Control',
+              desc: 'Site material indents require approval before purchase. Goods Receipt Notes (GRN) and contractor advances sync directly into project spend.',
+              icon: Boxes,
+            },
+            {
+              step: '04',
+              title: 'Quality & Handover',
+              desc: 'Conduct pre-pour structural checklists and pre-handover snag audits. Rectifications are tracked to resolution with before/after photo proof.',
+              icon: CheckCircle2,
+            },
+          ].map((item) => (
+            <div key={item.step} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
               <div>
-                <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-amber-500/10 text-slate-700 group-hover:text-amber-700 flex items-center justify-center transition-colors">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h3 className="mt-4 font-bold text-slate-900 text-lg">{name}</h3>
-                <p className="text-sm text-slate-600 mt-1 leading-relaxed">{headline}</p>
+                <span className="text-3xl font-extrabold text-amber-500 block mb-2">{item.step}</span>
+                <h3 className="font-bold text-lg text-slate-900 mb-2">{item.title}</h3>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{item.desc}</p>
               </div>
-              <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-700 group-hover:gap-2.5 transition-all">
-                See workflows <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </Link>
+            </div>
           ))}
         </div>
       </Section>
 
-      {/* ─── Customer Testimonials ─── */}
-      {TESTIMONIALS.length > 0 && (
-        <div className="bg-slate-900 text-white py-20">
-          <Section>
-            <div className="text-center max-w-2xl mx-auto mb-14">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-400">Proven Results</p>
-              <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-white">
-                Trusted by builders, contractors, and project directors
-              </h2>
-            </div>
+      {/* ─── Industries Section ─── */}
+      <div className="bg-slate-50 py-20 border-y border-slate-200">
+        <Section>
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <Eyebrow>Tailored For Your Sector</Eyebrow>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+              Built for everyone in the construction lifecycle
+            </h2>
+            <p className="mt-3 text-slate-600">
+              Whether you manage residential towers, highway packages, or fast-paced luxury fit-outs, Task Pilot adapts to your workflow.
+            </p>
+          </div>
 
-            <div className="grid md:grid-cols-3 gap-6">
-              {TESTIMONIALS.map((t) => (
-                <div
-                  key={t.name}
-                  className="rounded-2xl bg-white/5 border border-white/10 p-6 flex flex-col justify-between hover:bg-white/[0.07] transition-all"
-                >
-                  <div>
-                    <div className="flex items-center gap-1 text-amber-400 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    {t.metric && (
-                      <div className="inline-block px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 font-bold text-xs mb-3 border border-amber-500/30">
-                        {t.metric}
-                      </div>
-                    )}
-                    <blockquote className="text-slate-200 text-sm sm:text-base leading-relaxed">
-                      “{t.quote}”
-                    </blockquote>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {INDUSTRIES.map(({ slug, icon: Icon, name, headline }) => (
+              <Link
+                key={slug}
+                to={`/industries/${slug}`}
+                className="group rounded-2xl border border-slate-200 p-6 hover:border-slate-900 hover:shadow-lg transition-all flex flex-col justify-between bg-white"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-amber-500/10 text-slate-700 group-hover:text-amber-700 flex items-center justify-center transition-colors">
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <div className="mt-6 pt-4 border-t border-white/10">
-                    <p className="font-bold text-white text-sm">{t.name}</p>
-                    <p className="text-xs text-slate-400">{t.title} · {t.company}</p>
-                  </div>
+                  <h3 className="mt-4 font-bold text-slate-900 text-lg">{name}</h3>
+                  <p className="text-sm text-slate-600 mt-1 leading-relaxed">{headline}</p>
                 </div>
-              ))}
-            </div>
-          </Section>
-        </div>
-      )}
+                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-700 group-hover:gap-2.5 transition-all">
+                  See workflows <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Section>
+      </div>
 
       {/* ─── Pricing Section Preview ─── */}
-      <div className="bg-slate-50 py-20 border-t border-slate-200">
+      <div className="bg-white py-20">
         <Section>
           <div className="text-center max-w-2xl mx-auto mb-12">
             <Eyebrow>Transparent Pricing</Eyebrow>
@@ -518,7 +601,7 @@ export const ProductHomePage: React.FC = () => {
       </div>
 
       {/* ─── FAQ Section ─── */}
-      <Section className="py-20 max-w-3xl mx-auto">
+      <Section className="py-20 max-w-3xl mx-auto border-t border-slate-100">
         <div className="text-center mb-12">
           <Eyebrow>Got Questions?</Eyebrow>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
@@ -530,59 +613,37 @@ export const ProductHomePage: React.FC = () => {
         </div>
 
         <div className="divide-y divide-slate-200 border-y border-slate-200">
-          {FAQS.slice(0, 6).map((f, i) => (
-            <div key={f.q}>
-              <button
-                className="w-full flex items-center justify-between gap-4 py-4 text-left font-semibold text-slate-900 hover:text-amber-700 transition-colors"
-                aria-expanded={openFaq === i}
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-              >
+          {FAQS.map((f, i) => (
+            <details key={f.q} className="group py-4" open={i === 0}>
+              <summary className="flex items-center justify-between font-semibold text-slate-900 cursor-pointer list-none select-none">
                 <span>{f.q}</span>
-                <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${openFaq === i ? 'rotate-90 text-amber-600' : 'text-slate-400'}`} />
-              </button>
-              {openFaq === i && (
-                <p className="pb-4 text-slate-600 text-sm leading-relaxed pr-6 animate-in fade-in duration-200">
-                  {f.a}
-                </p>
-              )}
-            </div>
+                <span className="ml-4 text-slate-400 group-open:rotate-180 transition-transform">▾</span>
+              </summary>
+              <p className="mt-3 text-slate-600 text-sm leading-relaxed">{f.a}</p>
+            </details>
           ))}
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-sm text-slate-600">
-            Have a custom requirement or enterprise question?{' '}
-            <Link to="/contact-sales" className="font-semibold text-slate-900 underline hover:text-amber-600">
-              Talk to our solutions engineering team
-            </Link>
-          </p>
         </div>
       </Section>
 
-      {/* ─── Final CTA ─── */}
+      {/* ─── Bottom CTA ─── */}
       <Section className="pb-20">
-        <div className="rounded-3xl bg-slate-950 text-white p-10 md:p-14 flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative overflow-hidden shadow-2xl">
-          <div aria-hidden className="absolute -right-20 -bottom-20 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-          <div className="relative z-10 max-w-xl">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Get your sites organized this week
-            </h2>
-            <p className="mt-3 text-slate-300 text-base leading-relaxed">
-              Start your free 14-day trial now. Create your private company workspace, invite your site engineers, and see the difference on site within hours.
-            </p>
+        <div className="rounded-3xl bg-slate-900 text-white p-10 md:p-14 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Ready to bring order to your jobsites?</h2>
+            <p className="mt-2 text-slate-300 text-sm">Start your 14-day free trial now. Full features, no credit card required.</p>
           </div>
-          <div className="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Link
               to="/register"
-              className="h-13 px-8 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-base hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20"
+              className="h-12 px-6 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 shrink-0"
             >
               Start free trial <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               to="/contact-sales"
-              className="h-13 px-6 inline-flex items-center justify-center rounded-xl border border-white/20 text-white font-semibold text-base hover:bg-white/10 transition-all"
+              className="h-12 px-6 inline-flex items-center justify-center rounded-xl border border-white/20 text-white font-semibold hover:bg-white/10 shrink-0"
             >
-              Book a demo
+              Book a live demo
             </Link>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Shield, Lock, MapPin, Eye, FileText, CheckCircle2, Mail, Building2 } from 'lucide-react';
-import { MarketingLayout, Section, Eyebrow } from '../saas/marketing/MarketingLayout';
+import { Shield, Lock } from 'lucide-react';
+import { MarketingLayout, Section } from '../saas/marketing/MarketingLayout';
 import { useSeo } from '../../lib/seo';
 
 export default function PrivacyPolicyPage() {

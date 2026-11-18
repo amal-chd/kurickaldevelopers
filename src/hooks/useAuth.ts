@@ -163,6 +163,12 @@ const DEFAULT_ROLES = [
 
 // Role assigned by email when no admin has manually set a role yet
 const EMAIL_ROLE_MAP: Record<string, string> = {
+  'director@taskpilot.app': 'director',
+  'admin@taskpilot.app':    'admin',
+  'pm@taskpilot.app':       'project_manager',
+  'engineer@taskpilot.app': 'site_engineer',
+  'foreman@taskpilot.app':  'foreman',
+  'accounts@taskpilot.app': 'accounts',
   'thomas@kurickaldevelopers.com': 'director',
   'meena@kurickaldevelopers.com':  'admin',
   'ravi@kurickaldevelopers.com':   'project_manager',

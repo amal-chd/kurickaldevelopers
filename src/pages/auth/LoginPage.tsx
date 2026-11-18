@@ -191,7 +191,7 @@ const LoginPage: React.FC = () => {
           </div>
 
           <p className="text-center text-slate-400 text-xs mt-6">
-            © {new Date().getFullYear()} Kurickal Developers LLP · All rights reserved
+            © {new Date().getFullYear()} Task Pilot. All rights reserved
           </p>
         </div>
       </div>

@@ -1,7 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { FileCheck, Shield, HelpCircle, Scale, Building2, Mail } from 'lucide-react';
-import { MarketingLayout, Section, Eyebrow } from '../saas/marketing/MarketingLayout';
+import { Scale } from 'lucide-react';
+import { MarketingLayout, Section } from '../saas/marketing/MarketingLayout';
 import { useSeo } from '../../lib/seo';
 
 export default function TermsOfUsePage() {

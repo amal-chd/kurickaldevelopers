@@ -735,7 +735,7 @@ const AttendanceDashboardPage: React.FC = () => {
         XLSX.utils.book_append_sheet(wb, flaggedSheet, 'Flagged Incidents');
       }
 
-      XLSX.writeFile(wb, `kurickal-attendance-${exportStart}_to_${exportEnd}.xlsx`);
+      XLSX.writeFile(wb, `taskpilot-attendance-${exportStart}_to_${exportEnd}.xlsx`);
       toast.success(`Exported ${totalRecordsFetched} logs for ${exportStart} → ${exportEnd}.`);
     } catch (err: any) {
       console.error(err);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Minus, ChevronDown } from 'lucide-react';
+import { Check, Minus, ChevronDown, ShieldCheck, Database, Headphones, ArrowRight, FileCheck } from 'lucide-react';
 import { MarketingLayout, Section, Eyebrow } from './MarketingLayout';
 import { COMPARISON, FAQS, PRICING_NOTE } from './content';
 import { saasApi } from '../../../lib/saasApi';
@@ -82,7 +82,7 @@ export function usePlans() {
     setError(null);
     saasApi<{ plans: Plan[] }>('public_plans', {}, { public: true })
       .then((r) => { plansCache = r.plans; setPlans(r.plans); })
-      .catch((e) => {
+      .catch(() => {
         // Fall back gracefully to DEFAULT_PLANS so pricing page never breaks
         setPlans(DEFAULT_PLANS);
       });
@@ -118,7 +118,7 @@ export const PricingCards: React.FC<{ onSelect?: (plan: Plan, cycle: 'monthly' |
           {(['monthly', 'yearly'] as const).map((c) => (
             <button key={c} role="radio" aria-checked={cycle === c} onClick={() => setCycle(c)}
               className={`px-4 h-9 rounded-lg text-sm font-semibold transition ${cycle === c ? 'bg-white shadow text-slate-900' : 'text-slate-600'}`}>
-              {c === 'monthly' ? 'Monthly' : 'Yearly'} {c === 'yearly' && <span className="ml-1 text-emerald-600">2 months free</span>}
+              {c === 'monthly' ? 'Monthly' : 'Yearly'} {c === 'yearly' && <span className="ml-1 text-emerald-600 font-bold">2 months free</span>}
             </button>
           ))}
         </div>
@@ -149,7 +149,7 @@ export const PricingCards: React.FC<{ onSelect?: (plan: Plan, cycle: 'monthly' |
                 <li className="flex gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{limitLabel(p.max_projects, 'projects')}</li>
                 <li className="flex gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{storageLabel(p.max_storage_mb)}</li>
                 {prev && !p.is_custom_pricing && <li className="pt-1 text-xs font-semibold text-slate-500">Everything in {prev.name}, plus:</li>}
-                {(p.is_custom_pricing ? ['Dedicated onboarding & data migration', 'SLA & priority support', 'SSO and API access'] : inherited.map(featureLabel)).map((f) => (
+                {(p.is_custom_pricing ? ['Dedicated onboarding & data migration', 'SLA & priority support', 'Custom ERP & API integration'] : inherited.map(featureLabel)).map((f) => (
                   <li key={f} className="flex gap-2"><Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />{f}</li>
                 ))}
               </ul>
@@ -187,7 +187,7 @@ export const Faq: React.FC = () => {
     <div className="divide-y divide-slate-200 border-y border-slate-200">
       {FAQS.map((f, i) => (
         <div key={f.q}>
-          <button className="w-full flex items-center justify-between gap-4 py-4 text-left font-semibold" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
+          <button className="w-full flex items-center justify-between gap-4 py-4 text-left font-semibold text-slate-900" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
             {f.q}<ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open === i ? 'rotate-180' : ''}`} />
           </button>
           {open === i && <p className="pb-4 text-slate-600 text-sm leading-relaxed">{f.a}</p>}
@@ -197,52 +197,183 @@ export const Faq: React.FC = () => {
   );
 };
 
-const PricingPage: React.FC = () => {
-  useSeo({ title: 'Pricing', description: 'Flat team pricing in INR — not per seat. Starter, Professional, Business and Enterprise plans with a 14-day free trial, no card required.', path: '/pricing' });
-  return (
-  <MarketingLayout>
-    <Section className="pt-16 pb-10 text-center">
-      <Eyebrow>Pricing</Eyebrow>
-      <h1 className="mt-3 text-4xl font-extrabold tracking-tight">Plans for every size of team</h1>
-      <p className="mt-3 text-slate-600 max-w-xl mx-auto">Flat team pricing — not per seat. Every plan starts with a free trial, no card required.</p>
-    </Section>
-    <Section className="pb-20"><PricingCards /></Section>
+const MODULE_MATRIX = [
+  { name: 'Tasks, Subtasks & Sign-offs', starter: true, pro: true, biz: true, ent: true },
+  { name: 'GPS Geofenced Attendance', starter: true, pro: true, biz: true, ent: true },
+  { name: 'Daily Progress Reports (DPR)', starter: true, pro: true, biz: true, ent: true },
+  { name: 'Cloud Document & Drawing Storage', starter: true, pro: true, biz: true, ent: true },
+  { name: 'Site Channels & Team Chat', starter: true, pro: true, biz: true, ent: true },
+  { name: 'Mobile Apps (Android, iOS, PWA)', starter: true, pro: true, biz: true, ent: true },
+  { name: 'Smart Push Notifications', starter: true, pro: true, biz: true, ent: true },
+  { name: 'BOQ & Earned Value (PV, EV, CPI)', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Materials Inventory & Indents', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Labour Muster & Overtime Calculation', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Inspections & Punch Lists', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Interactive Gantt Timeline', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Site Expenses & Petty Cash Claims', starter: false, pro: true, biz: true, ent: true },
+  { name: 'Heavy Machinery & Equipment Register', starter: false, pro: false, biz: true, ent: true },
+  { name: 'Staff Leave Management', starter: false, pro: false, biz: true, ent: true },
+  { name: 'Monthly Salary Slips & Payroll', starter: false, pro: false, biz: true, ent: true },
+  { name: 'Executive Reports & Excel Exports', starter: false, pro: false, biz: true, ent: true },
+  { name: 'Performance & OPI Scoring', starter: false, pro: false, biz: true, ent: true },
+  { name: '8-Tier Role Permissions', starter: false, pro: false, biz: true, ent: true },
+  { name: 'Custom ERP & API Integrations', starter: false, pro: false, biz: false, ent: true },
+  { name: 'Dedicated Account Manager & SLA', starter: false, pro: false, biz: false, ent: true },
+];
 
-    <div className="bg-slate-50 py-20">
-      <Section>
-        <h2 className="text-2xl font-bold tracking-tight text-center">How Task Pilot compares</h2>
-        <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600">
-                <th scope="col" className="text-left font-semibold p-4">Capability</th>
-                <th scope="col" className="p-4 font-bold text-slate-900">Task Pilot</th>
-                <th scope="col" className="p-4 font-semibold">Global enterprise suites</th>
-                <th scope="col" className="p-4 font-semibold">Generic task apps</th>
-                <th scope="col" className="p-4 font-semibold">WhatsApp + Excel</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARISON.map((r) => (
-                <tr key={r.row} className="border-t border-slate-100">
-                  <th scope="row" className="text-left font-medium p-4">{r.row}</th>
-                  <td className="p-4 text-center bg-amber-50/40"><Cell v={r.tp} /></td>
-                  <td className="p-4 text-center"><Cell v={r.global} /></td>
-                  <td className="p-4 text-center"><Cell v={r.generic} /></td>
-                  <td className="p-4 text-center"><Cell v={r.manual} /></td>
+const PricingPage: React.FC = () => {
+  useSeo({
+    title: 'Pricing — Simple Flat Rates for Construction Teams',
+    description: 'Flat team pricing in INR with GST input tax invoices — not per seat. Starter, Professional, Business and Enterprise plans with a 14-day free trial, no credit card required.',
+    path: '/pricing',
+  });
+
+  return (
+    <MarketingLayout>
+      <Section className="pt-16 pb-10 text-center">
+        <Eyebrow>Transparent Pricing</Eyebrow>
+        <h1 className="mt-3 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
+          Predictable flat team rates — not per seat
+        </h1>
+        <p className="mt-3 text-slate-600 max-w-xl mx-auto text-base">
+          Never hesitate to add another site engineer or supervisor. Every plan starts with a full 14-day free trial, no card required.
+        </p>
+      </Section>
+
+      <Section className="pb-20">
+        <PricingCards />
+      </Section>
+
+      {/* ─── Detailed Module Matrix by Plan ─── */}
+      <div className="bg-slate-50 py-20 border-t border-slate-200">
+        <Section>
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <Eyebrow>Plan Breakdown</Eyebrow>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-2">
+              Compare features across tiers
+            </h2>
+            <p className="text-slate-600 text-sm mt-1">
+              Select the right tier based on your active sites, crew size, and required commercial controls.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[700px] text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">
+                  <th scope="col" className="text-left font-bold p-4">Operational Module</th>
+                  <th scope="col" className="p-4 font-bold text-center">Starter</th>
+                  <th scope="col" className="p-4 font-bold text-center bg-amber-500/10 text-amber-900">Professional</th>
+                  <th scope="col" className="p-4 font-bold text-center">Business</th>
+                  <th scope="col" className="p-4 font-bold text-center">Enterprise</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="bg-slate-50/50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  <td className="p-3 pl-4">Included Scope</td>
+                  <td className="p-3 text-center">10 users · 3 sites</td>
+                  <td className="p-3 text-center bg-amber-500/5 font-bold text-slate-800">30 users · 10 sites</td>
+                  <td className="p-3 text-center">100 users · 30 sites</td>
+                  <td className="p-3 text-center">Custom · Unlimited</td>
+                </tr>
+                {MODULE_MATRIX.map((m) => (
+                  <tr key={m.name} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 pl-4 font-medium text-slate-900">{m.name}</td>
+                    <td className="p-3.5 text-center"><Cell v={m.starter} /></td>
+                    <td className="p-3.5 text-center bg-amber-500/5"><Cell v={m.pro} /></td>
+                    <td className="p-3.5 text-center"><Cell v={m.biz} /></td>
+                    <td className="p-3.5 text-center"><Cell v={m.ent} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </div>
+
+      {/* ─── Concierge Onboarding & GST Guarantees ─── */}
+      <Section className="py-20">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-800 flex items-center justify-center mb-4">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-base text-slate-900">GST Input Tax Ready</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                All prices include 18% GST. Automated tax invoices are generated upon payment with your firm's GSTIN and SAC code 997331 for full input tax credit claim.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center mb-4">
+                <Headphones className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-base text-slate-900">Complimentary Data Onboarding</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                On Business and Enterprise tiers, our engineering team helps import your ongoing projects, Excel BOQs, open task lists, and user directory in under 48 hours.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-800 flex items-center justify-center mb-4">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-base text-slate-900">Cancel or Change Anytime</h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                No long-term contracts. Upgrades apply immediately; if cancelled, your workspace stays active until the end of your billing cycle with full read-only export access.
+              </p>
+            </div>
+          </div>
         </div>
       </Section>
-    </div>
 
-    <Section className="py-20 max-w-3xl">
-      <h2 className="text-2xl font-bold tracking-tight mb-6">Frequently asked questions</h2>
-      <Faq />
-    </Section>
-  </MarketingLayout>
+      {/* ─── Comparison Table ─── */}
+      <div className="bg-slate-50 py-20 border-t border-slate-200">
+        <Section>
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <Eyebrow>Market Comparison</Eyebrow>
+            <h2 className="text-2xl font-bold tracking-tight text-center text-slate-900 mt-2">
+              How Task Pilot compares to alternatives
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                  <th scope="col" className="text-left font-semibold p-4">Capability</th>
+                  <th scope="col" className="p-4 font-bold text-slate-900 text-center bg-amber-500/10">Task Pilot</th>
+                  <th scope="col" className="p-4 font-semibold text-center">Global enterprise suites</th>
+                  <th scope="col" className="p-4 font-semibold text-center">Generic task apps</th>
+                  <th scope="col" className="p-4 font-semibold text-center">WhatsApp + Excel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON.map((r) => (
+                  <tr key={r.row} className="border-t border-slate-100 hover:bg-slate-50/50">
+                    <th scope="row" className="text-left font-medium p-4 text-slate-800">{r.row}</th>
+                    <td className="p-4 text-center bg-amber-500/5 font-semibold text-slate-900"><Cell v={r.tp} /></td>
+                    <td className="p-4 text-center"><Cell v={r.global} /></td>
+                    <td className="p-4 text-center"><Cell v={r.generic} /></td>
+                    <td className="p-4 text-center"><Cell v={r.manual} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      </div>
+
+      <Section className="py-20 max-w-3xl">
+        <h2 className="text-2xl font-bold tracking-tight mb-6 text-slate-900">Frequently Asked Questions</h2>
+        <Faq />
+      </Section>
+    </MarketingLayout>
   );
 };
 

@@ -84,7 +84,7 @@ const RegisterPage: React.FC<{ onboardingOnly?: boolean }> = ({ onboardingOnly }
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="h-16 px-4 sm:px-6 flex items-center justify-between max-w-6xl w-full mx-auto">
-        <Link to="/pricing" className="flex items-center gap-2 font-bold"><img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />Task Pilot</Link>
+        <Link to="/" className="flex items-center gap-2 font-bold"><img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />Task Pilot</Link>
         {!firebaseUser && <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900">Sign in</Link>}
       </header>
       <main className="flex-1 flex items-start justify-center px-4 pb-16 pt-6">

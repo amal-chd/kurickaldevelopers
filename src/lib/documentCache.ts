@@ -7,8 +7,8 @@ export interface RecentDoc {
   viewedAt: number;
 }
 
-const CACHE_NAME = 'kurickal-doc-viewer-v1';
-const RECENT_DOCS_KEY = 'kurickal_recent_docs';
+const CACHE_NAME = 'taskpilot-doc-viewer-v1';
+const RECENT_DOCS_KEY = 'taskpilot_recent_docs';
 const MAX_RECENT_DOCS = 10;
 
 /**
