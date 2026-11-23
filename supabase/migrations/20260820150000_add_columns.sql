@@ -1,0 +1,4 @@
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS manager_note TEXT;
+ALTER TABLE salary_slips ADD COLUMN IF NOT EXISTS org_id TEXT;
