@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { db } from '../../firebase/config';
 import {
   Shield, Clock, MapPin, CheckCircle,
   XCircle, AlertTriangle, ChevronLeft, ChevronRight, X, FileSpreadsheet, Edit2

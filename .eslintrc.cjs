@@ -8,7 +8,7 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
   plugins: ['react-hooks', 'react-refresh', 'unused-imports'],
-  ignorePatterns: ['dist', 'node_modules', 'api', '.eslintrc.cjs', 'vite.config.ts', 'tailwind.config.js', 'postcss.config.js'],
+  ignorePatterns: ['dist', 'node_modules', 'api', 'supabase', 'scripts', '.eslintrc.cjs', 'vite.config.ts', 'tailwind.config.js', 'postcss.config.js'],
   rules: {
     // Real-bug rules
     'react-hooks/rules-of-hooks': 'error',

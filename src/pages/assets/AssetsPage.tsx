@@ -7,8 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import {
-  getAssets, subscribeAssets, createAsset, updateAsset, bookValue,
+import { subscribeAssets, createAsset, updateAsset, bookValue,
 } from '../../lib/db/assets';
 import { Asset } from '../../types';
 

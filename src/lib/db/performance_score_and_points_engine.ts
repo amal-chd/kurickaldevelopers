@@ -1,15 +1,10 @@
-import { Timestamp } from 'firebase/firestore';
 import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
-import {
-  AppUser, Role, Project, Task, Subtask, TaskComment, Document as TDocument,
-  Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
-  OrgSettings, AppNotification, ContactInquiry, TaskAssignmentConfig,
+import { Role, Task,
+  Attendance,
   PerformanceScore, PerformanceReview, PerformanceConfig,
-  LeaveRequest, SalarySlip, Expense,
 } from '../../types';
 import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from '../performanceEngine';
-import { notifyPush } from '../push';
 import { createNotification } from './notifications';
 import { getUser, getAllUsers } from './users';
 

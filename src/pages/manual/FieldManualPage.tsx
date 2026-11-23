@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  BookOpen, Search, CheckSquare, Clock, MessageSquare, FileText,
+import { Search, CheckSquare, Clock, MessageSquare, FileText,
   Package, Award, Wallet, Bell, Shield, HelpCircle, ChevronDown,
   ChevronRight, ArrowLeft, ExternalLink, Check, Copy, HardHat,
-  Smartphone, Monitor, Sparkles, AlertTriangle, Info, CheckCircle2,
-  Calendar, Layers, MapPin, Users, Flame, ChevronUp
+  Smartphone, Monitor, AlertTriangle, Info, ChevronUp
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
