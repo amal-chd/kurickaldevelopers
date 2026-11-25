@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../../firebase/config';
 import {
-  Mail, Lock, Eye, EyeOff, CheckCircle2, LogOut,
+  Mail, Lock, Eye, EyeOff,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import Spinner from '../../components/ui/Spinner';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
-import { logout } from '../../hooks/useAuth';
 
 // ─── Left panel stats ─────────────────────────────────────────────────────────
 
@@ -27,12 +25,17 @@ const STATS = [
 // ─── Main — sign-in only (mirrors the mobile app: no sign-up, no onboarding) ──
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail]             = useState('');
-  const [password, setPassword]       = useState('');
-  const [showPass, setShowPass]       = useState(false);
-  const [loading, setLoading]         = useState(false);
-  const [signingOut, setSigningOut]   = useState(false);
-  const { firebaseUser, appUser, initialized } = useAuthStore();
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const navigate                = useNavigate();
+  const { firebaseUser }        = useAuthStore();
+
+  // Already logged in → straight to dashboard
+  useEffect(() => {
+    if (firebaseUser) navigate('/app/dashboard');
+  }, [firebaseUser, navigate]);
 
   // ── Error helper ────────────────────────────────────────────────────────────
   const toastAuthError = (code: string) => {
@@ -59,23 +62,11 @@ const LoginPage: React.FC = () => {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       toast.success('Signed in!');
+      navigate('/app/dashboard');
     } catch (err: unknown) {
       toastAuthError((err as { code?: string }).code ?? '');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // ── Sign Out ────────────────────────────────────────────────────────────────
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    try {
-      await logout();
-      toast.success('Signed out');
-    } catch {
-      toast.error('Could not sign out. Please try again.');
-    } finally {
-      setSigningOut(false);
     }
   };
 
@@ -146,94 +137,61 @@ const LoginPage: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8">
-            {!initialized ? (
-              <div className="py-12 flex flex-col items-center justify-center gap-3">
-                <Spinner size="md" />
-                <p className="text-sm text-slate-500">Checking session…</p>
-              </div>
-            ) : firebaseUser ? (
-              <div className="text-center space-y-5 py-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">You&apos;re signed in</h2>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Signed in as{' '}
-                    <span className="font-medium text-slate-700">
-                      {appUser?.name ? `${appUser.name} (${firebaseUser.email})` : firebaseUser.email}
-                    </span>
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                  loading={signingOut}
-                  leftIcon={<LogOut className="w-4 h-4" />}
-                  onClick={handleSignOut}
-                >
-                  Sign Out
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* Heading */}
-                <div className="mb-7">
-                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
-                  <p className="text-sm text-slate-500 mt-1">Welcome back. Enter your credentials to continue.</p>
-                </div>
 
-                {/* Sign In form */}
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <Input
-                    label="Email address"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                    leftIcon={<Mail className="w-4 h-4" />}
-                  />
-                  <div>
-                    <Input
-                      label="Password"
-                      type={showPass ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoComplete="current-password"
-                      leftIcon={<Lock className="w-4 h-4" />}
-                      rightIcon={
-                        <button
-                          type="button"
-                          onClick={() => setShowPass((p) => !p)}
-                          className="text-slate-400 hover:text-slate-600 transition-colors"
-                          tabIndex={-1}
-                        >
-                          {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      }
-                    />
-                    <div className="flex justify-end mt-1.5">
-                      <button
-                        type="button"
-                        onClick={handleForgot}
-                        className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" loading={loading} size="lg">
-                    Sign In
-                  </Button>
-                </form>
-              </>
-            )}
+            {/* Heading */}
+            <div className="mb-7">
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+              <p className="text-sm text-slate-500 mt-1">Welcome back. Enter your credentials to continue.</p>
+            </div>
+
+            {/* Sign In form */}
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                leftIcon={<Mail className="w-4 h-4" />}
+              />
+              <div>
+                <Input
+                  label="Password"
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPass((p) => !p)}
+                      className="text-slate-400 hover:text-slate-600 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                />
+                <div className="flex justify-end mt-1.5">
+                  <button
+                    type="button"
+                    onClick={handleForgot}
+                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" className="w-full" loading={loading} size="lg">
+                Sign In
+              </Button>
+            </form>
+
           </div>
 
           <div className="mt-6 text-center space-y-2">
