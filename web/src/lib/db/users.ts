@@ -3,35 +3,17 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
   onSnapshot,
-  Timestamp,
   serverTimestamp,
-  writeBatch,
-  increment,
-  arrayUnion,
-  arrayRemove,
-  QueryConstraint,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../firebase/config';
+import { db } from '../../firebase/config';
 import { useAuthStore } from '../../store/authStore';
 import {
-  AppUser, Role, Project, Task, Subtask, TaskComment, Document as TDocument,
-  Attendance, ChatChannel, ChatMessage, SiteDiaryEntry,
-  OrgSettings, AppNotification, ContactInquiry, TaskAssignmentConfig,
-  PerformanceScore, PerformanceReview, PerformanceConfig,
-  LeaveRequest, SalarySlip, Expense,
+  AppUser,
 } from '../../types';
-import { calculatePerformanceScore, DEFAULT_PERFORMANCE_CONFIG } from '../performanceEngine';
-import { notifyPush } from '../push';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
 export const logPermissionError = (actionName: string, error: any, context?: any) => {

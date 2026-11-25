@@ -1,4 +1,3 @@
-import { supabase } from '../supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 
 // Helper to log detailed, production-grade diagnostic information for permission/authorization errors
